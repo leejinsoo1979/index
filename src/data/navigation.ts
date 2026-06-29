@@ -1,12 +1,13 @@
 export interface NavLink {
   label: string;
+  englishLabel?: string;
   to: string;
 }
 
 export const primaryNav: NavLink[] = [
-  { label: "케이스 라이브러리", to: "/cases" },
-  { label: "세미나", to: "/seminars" },
-  { label: "마이페이지", to: "/mypage" },
+  { label: "케이스 라이브러리", englishLabel: "Case Library", to: "/cases" },
+  { label: "세미나", englishLabel: "Seminars", to: "/seminars" },
+  { label: "마이페이지", englishLabel: "My Page", to: "/mypage" },
 ];
 
 export interface FooterColumn {

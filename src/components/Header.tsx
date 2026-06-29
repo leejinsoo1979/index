@@ -20,7 +20,12 @@ export default function Header() {
                 "site-header__link" + (isActive ? " is-active" : "")
               }
             >
-              {item.label}
+              <span className="site-header__label site-header__label--en">
+                {item.englishLabel ?? item.label}
+              </span>
+              <span className="site-header__label site-header__label--ko">
+                {item.label}
+              </span>
             </NavLink>
           ))}
         </nav>
