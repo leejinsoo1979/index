@@ -1,0 +1,143 @@
+.cases {
+  background: #fff;
+}
+
+.cases__inner {
+  max-width: var(--max-content);
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Hero */
+.cases__hero {
+  padding: 130px 0 60px;
+}
+
+.cases__title {
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.cases__lead {
+  margin-top: 22px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* Section headings */
+.cases__heading {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--ink);
+}
+
+.cases__sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Popular */
+.cases__popular {
+  padding-top: 40px;
+}
+
+.cases__popular .section-tabs {
+  margin-top: 22px;
+}
+
+.cases__grid {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* card media height is fixed in CaseCard.css (208px) — no override needed */
+
+.cases__more {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.cases__more-btn {
+  padding: 11px 34px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 9999px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.cases__more-btn:hover {
+  border-color: #c4c9d4;
+  color: var(--ink);
+}
+
+/* List section */
+.cases__list-section {
+  padding-top: 64px;
+  padding-bottom: 80px;
+}
+
+.cases__list-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.cases__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+}
+
+.cases__sort svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cases__list {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.cases__pagination {
+  margin-top: 40px;
+}
+
+@media (max-width: 960px) {
+  .cases__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .cases__hero {
+    padding: 96px 0 48px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cases__inner {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .cases__title {
+    font-size: 30px;
+  }
+  .cases__grid {
+    grid-template-columns: 1fr;
+  }
+}

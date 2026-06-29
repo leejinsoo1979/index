@@ -1,0 +1,120 @@
+.seminars {
+  background: #fff;
+}
+
+.seminars__inner {
+  max-width: var(--max-content);
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Hero */
+.seminars__hero {
+  padding: 130px 0 56px;
+}
+
+.seminars__title {
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.seminars__lead {
+  margin-top: 22px;
+  max-width: 700px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.seminars__inner .section-tabs {
+  margin-bottom: 32px;
+}
+
+/* Featured + grid */
+.seminars__feature {
+  margin-bottom: 28px;
+}
+
+.seminars__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+/* card media height is fixed in SeminarCard.css (180px) — no override needed */
+
+/* Past seminars */
+.seminars__past {
+  padding-top: 64px;
+  padding-bottom: 80px;
+}
+
+.seminars__heading {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--ink);
+}
+
+.seminars__past-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.seminars__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+}
+
+.seminars__sort svg {
+  width: 15px;
+  height: 15px;
+}
+
+.seminars__list {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.seminars__pagination {
+  margin-top: 40px;
+}
+
+@media (max-width: 1180px) {
+  .seminars__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .seminars__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .seminars__hero {
+    padding: 96px 0 48px;
+  }
+}
+
+@media (max-width: 600px) {
+  .seminars__inner {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .seminars__title {
+    font-size: 30px;
+  }
+  .seminars__grid {
+    grid-template-columns: 1fr;
+  }
+}

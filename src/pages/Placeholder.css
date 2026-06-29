@@ -1,0 +1,33 @@
+.placeholder {
+  min-height: calc(100vh - var(--header-h));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 24px;
+  background: linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+}
+
+.placeholder__title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  color: var(--ink);
+}
+
+.placeholder__text {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.placeholder__home {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.placeholder__home:hover {
+  text-decoration: underline;
+}
