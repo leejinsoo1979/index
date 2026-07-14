@@ -25,7 +25,7 @@ const memberTypes: {
   },
   {
     value: "association",
-    title: "협회등록회원",
+    title: "사업자회원",
     description: "협회 등록 업체·전문가 — 사업자 정보 등록 후 전체 서비스 이용",
   },
 ];
