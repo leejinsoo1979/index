@@ -319,7 +319,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
   padding-top: 2px;
-  margin-left: -2px;
+  margin-left: -1px;
 }
 
 .schedule-card {
@@ -329,7 +329,7 @@
   aspect-ratio: 1 / 1;
   margin-top: -2px;
   padding: 35px 36px;
-  border-left: 2px solid #000;
+  border-left: 1px solid #000;
   background: #fff;
 }
 
