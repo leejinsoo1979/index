@@ -12,11 +12,16 @@ import {
   GalleryContainer,
   GalleryFadeOverlay,
 } from "@/components/blocks/animated-gallery";
+import { hiddenPostIds } from "@/lib/adminStore";
 import "./Cases.css";
 
-// 16 tiles for the bottom gallery — cycle through the case data (12 items)
+// 관리자에서 비노출 처리한 사례는 목록에서 제외 (게시판 관리와 연동)
+const hidden = hiddenPostIds();
+const visibleCases = cases.filter((item) => !hidden.has(item.id));
+
+// 16 tiles for the bottom gallery — cycle through the case data
 const moreItems = Array.from({ length: 16 }, (_, i) => ({
-  ...cases[i % cases.length],
+  ...visibleCases[i % Math.max(1, visibleCases.length)],
   key: `more-${i}`,
 }));
 const MORE_COL_1 = moreItems.filter((_, i) => i % 3 === 0);
@@ -46,11 +51,9 @@ export default function Cases() {
           <ContainerAnimated>
             <p className="cases__lead">
               CASE LIBRARY는 실내건축 현장에서 축적된 다양한 사례와 프로젝트
-              경험을 체계적으로 기록하고
-              <br />
+              경험을 체계적으로 기록하고 <br />
               공유하는 지식 아카이브입니다. 원인 분석부터 해결 과정, 재발 방지
-              방안까지 실제 사례를 기반으로
-              <br />
+              방안까지 실제 사례를 기반으로 <br />
               정리하여 실무에 필요한 인사이트와 전문적인 기준을 제공합니다.
             </p>
           </ContainerAnimated>
@@ -79,7 +82,7 @@ export default function Cases() {
           showClass="block"
           hideClass="hidden"
         >
-          {cases.map((item) => (
+          {visibleCases.map((item) => (
             <FlipRevealItem flipKey={item.group} key={item.id}>
               <CaseCard item={item} />
             </FlipRevealItem>

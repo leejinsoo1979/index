@@ -121,10 +121,6 @@
   pointer-events: none;
 }
 
-:root[data-app-theme="light"] .home__composer::before {
-  opacity: 0.55;
-}
-
 /* Gemini-style single-row pill composer */
 .home__ask {
   position: relative;
@@ -444,16 +440,27 @@
     right: auto;
     left: 50%;
     top: auto;
-    bottom: 92px;
+    bottom: 84px;
     flex-direction: row;
     max-width: 92vw;
     overflow-x: auto;
+    padding: 4px 0;
     border-left: 0;
     transform: translateX(-50%);
+    scrollbar-width: none;
+  }
+
+  .home__mode-rail::-webkit-scrollbar {
+    display: none;
   }
 
   .home__mode-rail .home__mode {
+    flex: none;
     padding: 9px 12px;
+  }
+
+  .home__mode-rail .home__mode:hover {
+    transform: none;
   }
 
   .home__mode-rail .home__mode.is-active::before {
@@ -463,6 +470,12 @@
     left: 12px;
     width: auto;
     height: 2px;
+  }
+
+  /* the rail already shows the active mode — the caption is redundant
+     and collides with it on short viewports */
+  .home__mode-caption {
+    display: none;
   }
 }
 
@@ -501,6 +514,21 @@
 }
 
 /* Full conversation workspace */
+.app:has(.home--chat) {
+  --home-chat-sidebar-width: 272px;
+}
+
+.app:has(.home--chat) .site-header__home-logo {
+  left: calc(var(--home-chat-sidebar-width) / 2);
+  transform: translateX(-50%);
+  transition: opacity .18s ease;
+}
+
+.app:has(.home-chat--collapsed) .site-header__home-logo {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .home--chat {
   min-height: 680px;
   color: #f4f5f7;
@@ -519,7 +547,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: var(--home-chat-sidebar-width) minmax(0, 1fr);
   background: #0a0a0a;
   color: #ececec;
 }
@@ -1191,16 +1219,36 @@
     min-height: 560px;
   }
 
+  .app:has(.home--chat) .site-header__home-logo {
+    left: 20px;
+    transform: none;
+  }
+
   .home__hero {
-    transform: translateY(-28px);
+    transform: translateY(-52px);
   }
 
   .home__composer {
-    top: calc(50% + 76px);
+    top: calc(50% + 58px);
+  }
+
+  .home__composer-tagline {
+    margin-bottom: 12px;
+    font-size: 16px;
+  }
+
+  .home__ask {
+    height: 68px;
+    padding: 0 12px 0 10px;
+    border-radius: 18px;
+  }
+
+  .home__ask input {
+    font-size: 14px;
   }
 
   .home__controls {
-    bottom: 22px;
+    bottom: 20px;
     gap: 12px;
   }
 
@@ -1265,232 +1313,9 @@
   }
 }
 
-/* ---------------------------------------------------------------- */
-/* Light theme (html[data-app-theme="light"], toggled in the header) */
-/* ---------------------------------------------------------------- */
-
-/* Landing composer pill */
-:root[data-app-theme="light"] .home__ask {
-  border-color: rgba(0, 0, 0, .08);
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .28);
-}
-
-:root[data-app-theme="light"] .home__ask input {
-  color: #141414;
-}
-
-:root[data-app-theme="light"] .home__ask input::placeholder {
-  color: rgba(0, 0, 0, .42);
-}
-
-:root[data-app-theme="light"] .home__ask-tool {
-  color: rgba(0, 0, 0, .6);
-}
-
-:root[data-app-theme="light"] .home__ask-tool:hover:not(:disabled) {
-  background: rgba(0, 0, 0, .07);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home__ask-model {
-  color: rgba(0, 0, 0, .55);
-}
-
-:root[data-app-theme="light"] .home__ask-send {
-  background: #141414;
-  color: #fff;
-}
-
-/* Chat workspace */
-:root[data-app-theme="light"] .home--chat {
-  background: #f7f7f8;
-  color: #1a1a1a;
-}
-
-:root[data-app-theme="light"] .home-chat {
-  background: #f7f7f8;
-  color: #1a1a1a;
-}
-
-:root[data-app-theme="light"] .home-chat__sidebar {
-  border-right-color: rgba(0, 0, 0, .08);
-  background: #efeff1;
-}
-
-:root[data-app-theme="light"] .home-chat__new,
-:root[data-app-theme="light"] .home-chat__memory-button {
-  color: #1a1a1a;
-}
-
-:root[data-app-theme="light"] .home-chat__new:hover,
-:root[data-app-theme="light"] .home-chat__memory-button:hover {
-  background: rgba(0, 0, 0, .06);
-}
-
-:root[data-app-theme="light"] .home-chat__history > p {
-  color: rgba(0, 0, 0, .4);
-}
-
-:root[data-app-theme="light"] .home-chat__thread-item > button:first-child {
-  color: rgba(0, 0, 0, .65);
-}
-
-:root[data-app-theme="light"] .home-chat__thread-item:hover > button:first-child,
-:root[data-app-theme="light"] .home-chat__thread-item.is-active > button:first-child {
-  background: rgba(0, 0, 0, .08);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home-chat__thread-delete {
-  color: rgba(0, 0, 0, .5);
-}
-
-:root[data-app-theme="light"] .home-chat__thread-delete:hover {
-  background: rgba(0, 0, 0, .12);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home-chat__main {
-  background: #f7f7f8;
-}
-
-:root[data-app-theme="light"] .home-chat__topbar button {
-  color: rgba(0, 0, 0, .6);
-}
-
-:root[data-app-theme="light"] .home-chat__topbar button:hover {
-  background: rgba(0, 0, 0, .07);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home-chat__bubble {
-  background: #e6e6e9;
-  color: #141414;
-}
-
-:root[data-app-theme="light"] .home-chat__msg--assistant p {
-  color: #232323;
-}
-
-:root[data-app-theme="light"] .home-chat__msg-actions button {
-  color: rgba(0, 0, 0, .48);
-}
-
-:root[data-app-theme="light"] .home-chat__msg-actions button:hover {
-  background: rgba(0, 0, 0, .08);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home-chat__msg-actions span {
-  color: rgba(0, 0, 0, .4);
-}
-
-:root[data-app-theme="light"] .home-chat__composer-box {
-  border-color: rgba(0, 0, 0, .14);
-  background: #ffffff;
-}
-
-:root[data-app-theme="light"] .home-chat__composer-box:focus-within {
-  border-color: rgba(0, 0, 0, .3);
-}
-
-:root[data-app-theme="light"] .home-chat__composer-box textarea {
-  color: #141414;
-}
-
-:root[data-app-theme="light"] .home-chat__composer-box textarea::placeholder {
-  color: rgba(0, 0, 0, .38);
-}
-
-:root[data-app-theme="light"] .home-chat__tool {
-  background: rgba(0, 0, 0, .06);
-  color: #444;
-}
-
-:root[data-app-theme="light"] .home-chat__tool:hover:not(:disabled) {
-  background: rgba(0, 0, 0, .12);
-  color: #111;
-}
-
-:root[data-app-theme="light"] .home-chat__model {
-  color: rgba(0, 0, 0, .6);
-}
-
-:root[data-app-theme="light"] .home-chat__send {
-  background: #141414;
-  color: #fff;
-}
-
-:root[data-app-theme="light"] .home-chat__send:disabled {
-  background: rgba(0, 0, 0, .12);
-  color: rgba(0, 0, 0, .4);
-}
-
-:root[data-app-theme="light"] .home-chat__disclaimer {
-  color: rgba(0, 0, 0, .38);
-}
-
-:root[data-app-theme="light"] .home-chat__empty > span {
-  border-color: rgba(0, 0, 0, .12);
-  background: rgba(0, 0, 0, .05);
-}
-
-:root[data-app-theme="light"] .home-chat__empty > span svg {
-  stroke: #333;
-}
-
-:root[data-app-theme="light"] .home-chat__empty h1 {
-  color: #141414;
-}
-
-:root[data-app-theme="light"] .home-chat__empty p {
-  color: rgba(0, 0, 0, .45);
-}
-
-:root[data-app-theme="light"] .home-chat__typing i {
-  background: rgba(0, 0, 0, .45);
-}
-
-:root[data-app-theme="light"] .home-chat__memory-panel {
-  border-color: rgba(0, 0, 0, .1);
-  background: #ffffff;
-  color: #1a1a1a;
-}
-
-:root[data-app-theme="light"] .home-chat__memory-status {
-  color: rgba(0, 0, 0, .5);
-}
-
-:root[data-app-theme="light"] .home-chat__memory-list {
-  color: #232323;
-}
-
-/* Site header over the light chat workspace (it is white-on-dark by default) */
-:root[data-app-theme="light"] .app:has(.home--chat) .site-header--home a,
-:root[data-app-theme="light"] .app:has(.home--chat) .site-header--home button,
-:root[data-app-theme="light"] .app:has(.home--chat) .site-header--home .site-header__link {
-  color: #1a1a1a;
-}
-
-:root[data-app-theme="light"] .home__ask-menu {
-  border-color: rgba(0, 0, 0, .1);
-  background: rgba(255, 255, 255, .98);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .22);
-}
-
-:root[data-app-theme="light"] .home__ask-menu button {
-  color: #141414;
-}
-
-:root[data-app-theme="light"] .home__ask-menu button:hover {
-  background: rgba(0, 0, 0, .06);
-}
-
-:root[data-app-theme="light"] .home__ask-menu-label small {
-  color: rgba(0, 0, 0, .5);
-}
-
-:root[data-app-theme="light"] .home__ask-menu-check {
-  color: #4f6bf6;
+/* very narrow phones: give the input room by hiding the model selector */
+@media (max-width: 480px) {
+  .home__ask-model-wrap {
+    display: none;
+  }
 }

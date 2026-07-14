@@ -182,3 +182,36 @@
     right: 20px;
   }
 }
+
+/* Phones: logo + auth on the first row, nav pill on its own row below */
+@media (max-width: 640px) {
+  .site-header {
+    padding: 14px 16px;
+  }
+
+  .site-header__home-logo {
+    top: 12px;
+    font-size: 22px;
+  }
+
+  .site-header__auth {
+    top: 18px;
+    right: 16px;
+    font-size: 12px;
+  }
+
+  .site-header__nav {
+    margin-top: 38px;
+    gap: 6px;
+  }
+
+  .site-header--home .site-header__nav {
+    padding: 9px 14px;
+  }
+
+  .site-header__link {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
