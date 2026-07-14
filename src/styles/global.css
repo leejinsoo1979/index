@@ -1,3 +1,4 @@
+@layer site-reset, reset, astryx-base, astryx-theme;
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
 @import "@astryxdesign/theme-neutral/theme.css";
@@ -44,10 +45,13 @@
   --font-logo: "Chillax", var(--font);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* site-reset layer keeps this below Astryx component styles in the cascade */
+@layer site-reset {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html,

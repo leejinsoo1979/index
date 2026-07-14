@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChatDictationButton, useChatDictation } from "@astryxdesign/core/Chat";
+import {
+  ChatComposer,
+  ChatComposerInput,
+  ChatDictationButton,
+  useChatDictation,
+  type ChatComposerInputHandle,
+} from "@astryxdesign/core/Chat";
 import { Theme } from "@astryxdesign/core/theme";
 import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import {
@@ -20,7 +26,12 @@ export default function Home() {
   const [shape, setShape] = useState<AiShape>("circle");
   const modeAudioRef = useRef<HTMLAudioElement>(null);
   const shapeAudioRef = useRef<HTMLAudioElement>(null);
-  const dictation = useChatDictation();
+  const [message, setMessage] = useState("");
+  const composerInputRef = useRef<ChatComposerInputHandle | null>(null);
+  const dictation = useChatDictation({
+    inputRef: composerInputRef,
+    hasSounds: true,
+  });
 
   useEffect(() => {
     if (modeAudioRef.current) modeAudioRef.current.volume = 0.45;
@@ -64,9 +75,21 @@ export default function Home() {
         </h1>
       </div>
 
-      <div className="home__dictation">
+      <div className="home__composer">
         <Theme theme={neutralTheme} mode="dark">
-          <ChatDictationButton dictation={dictation} />
+          <ChatComposer
+            onSubmit={() => setMessage("")}
+            placeholder="Type a message..."
+            input={
+              <ChatComposerInput
+                handleRef={composerInputRef}
+                value={message}
+                onChange={setMessage}
+                placeholder="Type a message..."
+              />
+            }
+            sendActions={<ChatDictationButton dictation={dictation} />}
+          />
         </Theme>
       </div>
 

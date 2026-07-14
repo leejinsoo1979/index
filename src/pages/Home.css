@@ -60,18 +60,19 @@
   }
 }
 
-.home__dictation {
+.home__composer {
   position: absolute;
   left: 50%;
   top: calc(50% + 68px);
   z-index: 3;
   transform: translateX(-50%);
+  width: min(520px, 86vw);
 }
 
 .home__start {
   position: absolute;
   left: 50%;
-  top: calc(50% + 118px);
+  top: calc(50% + 196px);
   z-index: 3;
   transform: translateX(-50%);
   display: inline-flex;
