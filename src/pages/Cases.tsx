@@ -40,15 +40,19 @@ export default function Cases() {
           </ContainerAnimated>
           <ContainerAnimated>
             <h1 className="cases__title">
-              현장 하자 사례를 <span className="cases__title-accent">검색</span>하고
+              현장 하자 사례를 <span className="cases__title-accent">검색</span>하고 분석하세요
             </h1>
           </ContainerAnimated>
           <ContainerAnimated>
-            <h1 className="cases__title">분석하세요</h1>
-          </ContainerAnimated>
-          <ContainerAnimated>
             <p className="cases__lead">
-              INDEX 실제 현장 사례를 수집·분석하여 원인과 해결방법을 정리합니다.
+              CASE LIBRARY는 실내건축 현장에서 축적된 다양한 사례와 프로젝트
+              경험을 체계적으로 기록하고
+              <br />
+              공유하는 지식 아카이브입니다.
+              <br />
+              원인 분석부터 해결 과정, 재발 방지 방안까지 실제 사례를 기반으로
+              <br />
+              정리하여 실무에 필요한 인사이트와 전문적인 기준을 제공합니다.
             </p>
           </ContainerAnimated>
         </ContainerStagger>
