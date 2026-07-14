@@ -192,7 +192,7 @@ function MemoryIcon() {
 export default function Home() {
   const { user } = useAuth();
   const [mode, setMode] = useState<AiMode>("analyze");
-  const [shape, setShape] = useState<AiShape>("circle");
+  const [shape, setShape] = useState<AiShape>("clean");
   const modeAudioRef = useRef<HTMLAudioElement>(null);
   const shapeAudioRef = useRef<HTMLAudioElement>(null);
   const [message, setMessage] = useState("");

@@ -277,7 +277,7 @@ export const aiModes: AiMode[] = [
   "transfer",
 ];
 
-export const aiShapes: AiShape[] = ["circle", "triangle", "square", "diamond", "clean"];
+export const aiShapes: AiShape[] = ["clean", "circle", "triangle", "square", "diamond"];
 
 export const aiShapeGlyph: Record<AiShape, string> = {
   circle: "○",
