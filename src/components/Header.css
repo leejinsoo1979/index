@@ -100,6 +100,17 @@
   gap: 56px;
 }
 
+/* Landing: opaque dark pill behind the centered nav */
+.site-header--home .site-header__nav {
+  padding: 12px 34px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9999px;
+  background: rgba(18, 20, 26, 0.92);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
 /* ── Links: EN label swaps to KO on hover (both variants) ── */
 .site-header__link {
   position: relative;
