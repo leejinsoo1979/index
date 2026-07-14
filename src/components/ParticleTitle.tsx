@@ -49,8 +49,8 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      /* mirrors .home__logo-title: min(195px, 32.2vw), Chillax 600 */
-      const fontSize = Math.min(195, width * 0.322);
+      /* wordmark width ≈ font-size × 2.67 — match the composer, min(640px, 86vw) */
+      const fontSize = Math.min(240, width * 0.322);
       ctx.font = `600 ${fontSize}px Chillax, Arial, sans-serif`;
       ctx.fillText(textRef.current, width / 2, height / 2);
       textImageData = ctx.getImageData(0, 0, width, height);
@@ -151,7 +151,7 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
         const dy = pointer.y - particle.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        particle.phase += 0.1;
+        particle.phase += 0.03;
         const intro = Math.min(1, Math.max(0, (elapsed - particle.delay) / 980));
         const easedIntro = 1 - Math.pow(1 - intro, 3);
         const driftX = complete
@@ -183,7 +183,7 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
           const settleSpeed = complete ? 0.18 : 0.055 + easedIntro * 0.13;
           particle.x += (targetX - particle.x) * settleSpeed;
           particle.y += (targetY - particle.y) * settleSpeed;
-          const sparkle = 0.84 + Math.sin(now * 0.0022 + particle.phase) * 0.16;
+          const sparkle = 0.84 + Math.sin(now * 0.0011 + particle.phase) * 0.16;
           ctx.fillStyle =
             particle.hue > 0.96
               ? `rgba(125, 211, 252, ${0.72 + sparkle * 0.22})`
@@ -191,7 +191,7 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
         }
 
         const flickerSize =
-          particle.size * (0.82 + Math.sin(now * 0.003 + particle.phase) * 0.16);
+          particle.size * (0.82 + Math.sin(now * 0.0014 + particle.phase) * 0.16);
         ctx.fillRect(particle.x, particle.y, flickerSize, flickerSize);
       }
 
