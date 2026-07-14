@@ -1,0 +1,330 @@
+.seminar-detail {
+  min-height: 100vh;
+  padding: 28px 0 120px;
+  background: #fff;
+  color: #000;
+  /* Astryx theme resolves light-dark() tokens per OS scheme; this page is always light. */
+  color-scheme: light;
+}
+
+.seminar-detail h1,
+.seminar-detail p {
+  color: inherit;
+}
+
+.seminar-detail__shell {
+  width: 100%;
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+
+/* Breadcrumb (left) + tool icons (right) */
+.seminar-detail__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 36px;
+}
+
+.seminar-detail__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.seminar-detail__breadcrumb a {
+  color: #000;
+}
+
+.seminar-detail__breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.seminar-detail__breadcrumb span {
+  color: #777;
+}
+
+.seminar-detail__breadcrumb strong {
+  overflow: hidden;
+  color: #000;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seminar-detail__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 22px;
+}
+
+.seminar-detail__actions button,
+.seminar-detail__actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #000;
+  cursor: pointer;
+}
+
+.seminar-detail__actions svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.seminar-detail__actions button:hover,
+.seminar-detail__actions a:hover {
+  color: #555;
+}
+
+/* Two-column layout */
+.seminar-detail__layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 500px) minmax(0, 1fr);
+  gap: 88px;
+  align-items: start;
+}
+
+.seminar-detail__poster {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+}
+
+.seminar-detail__poster img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  /* Keep the whole poster (image + link) inside the viewport so it stays
+     pinned while the right column scrolls. */
+  max-height: calc(100vh - 240px);
+  object-fit: cover;
+}
+
+.seminar-detail__homepage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 58px;
+  background: #f4f4f4;
+  color: #000;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.seminar-detail__homepage:hover {
+  background: #ececec;
+}
+
+/* Right column */
+.seminar-detail__eyebrow {
+  margin: 6px 0 14px;
+  color: #333;
+  font-size: 15px;
+}
+
+.seminar-detail__title {
+  margin: 0 0 26px;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+}
+
+.seminar-detail__date {
+  margin: 0 0 64px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.seminar-detail__label {
+  display: block;
+  margin-bottom: 18px;
+  color: #888;
+  font-size: 14px;
+}
+
+/* Info blocks with top rules, like the reference */
+.seminar-detail__info {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 40px;
+  margin-bottom: 72px;
+}
+
+.seminar-detail__info-block {
+  padding-top: 22px;
+  border-top: 2px solid #000;
+}
+
+.seminar-detail__info-row {
+  display: flex;
+  gap: 56px;
+  font-size: 18px;
+}
+
+.seminar-detail__info-row strong {
+  font-weight: 600;
+}
+
+.seminar-detail__sub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 20px;
+  color: #000;
+  font-size: 14px;
+}
+
+/* Program / host sections */
+.seminar-detail__section {
+  margin-bottom: 34px;
+}
+
+.seminar-detail__section .seminar-detail__label {
+  margin-bottom: 10px;
+}
+
+.seminar-detail__section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seminar-detail__section li,
+.seminar-detail__section p {
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* Bottom buttons */
+.seminar-detail__footer {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 90px;
+}
+
+.seminar-detail__list-button,
+.seminar-detail__apply-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  height: 56px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.seminar-detail__list-button {
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+}
+
+.seminar-detail__list-button:hover {
+  background: #f5f5f5;
+}
+
+.seminar-detail__apply-button {
+  border: 1px solid #000;
+  background: #000;
+  color: #fff;
+}
+
+.seminar-detail__apply-button:hover {
+  background: #222;
+}
+
+@media (max-width: 1024px) {
+  .seminar-detail__shell {
+    padding: 0 32px;
+  }
+
+  .seminar-detail__layout {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .seminar-detail__poster {
+    position: static;
+    max-width: 480px;
+  }
+
+  .seminar-detail__title {
+    font-size: 34px;
+  }
+
+  .seminar-detail__date {
+    margin-bottom: 44px;
+  }
+
+  .seminar-detail__info {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    margin-bottom: 48px;
+  }
+}
+
+@media (max-width: 747px) {
+  .seminar-detail {
+    padding: 20px 0 90px;
+  }
+
+  .seminar-detail__shell {
+    padding: 0 24px;
+  }
+
+  .seminar-detail__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .seminar-detail__breadcrumb {
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .seminar-detail__title {
+    font-size: 28px;
+  }
+
+  .seminar-detail__info-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .seminar-detail__footer {
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 60px;
+  }
+}
+
+@media print {
+  .seminar-detail__actions,
+  .seminar-detail__footer {
+    display: none;
+  }
+}

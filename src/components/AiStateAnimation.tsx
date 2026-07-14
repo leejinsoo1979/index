@@ -8,7 +8,7 @@ export type AiMode =
   | "deep"
   | "transfer";
 
-export type AiShape = "circle" | "triangle" | "square" | "diamond";
+export type AiShape = "circle" | "triangle" | "square" | "diamond" | "clean";
 
 interface Dot {
   x: number;
@@ -26,9 +26,9 @@ interface AiStateAnimationProps {
   shape: AiShape;
 }
 
-const modeColor: Record<AiMode, [number, number, number]> = {
+export const modeColor: Record<AiMode, [number, number, number]> = {
   analyze: [96, 165, 250],
-  think: [45, 212, 191],
+  think: [56, 189, 248],
   connect: [74, 222, 128],
   intense: [251, 146, 60],
   deep: [168, 85, 247],
@@ -53,7 +53,7 @@ function drawShape(
     ctx.closePath();
   } else if (shape === "square") {
     ctx.rect(x - size, y - size, size * 2, size * 2);
-  } else {
+  } else if (shape === "diamond") {
     ctx.moveTo(x, y - size);
     ctx.lineTo(x + size, y);
     ctx.lineTo(x, y + size);
@@ -117,7 +117,10 @@ export function AiStateAnimation({ mode, shape }: AiStateAnimationProps) {
 
     function drawBackground(color: [number, number, number], now: number) {
       const [r, g, b] = color;
-      ctx2.fillStyle = "#02040a";
+      // Translucent tint instead of an opaque fill so the CSS space-background
+      // image on .home shows through beneath the particles.
+      ctx2.clearRect(0, 0, width, height);
+      ctx2.fillStyle = "rgba(2, 4, 10, 0.45)";
       ctx2.fillRect(0, 0, width, height);
 
       const glow = ctx2.createRadialGradient(
@@ -153,15 +156,15 @@ export function AiStateAnimation({ mode, shape }: AiStateAnimationProps) {
       const elapsed = (now - startedAt) / 1000;
 
       if (mode === "analyze") {
+        const wave = (elapsed * 230) % (maxDist + 180);
+        return Math.max(0, 1 - Math.abs(dist - wave) / 58) * Math.max(0.15, 1 - dist / maxDist);
+      }
+
+      if (mode === "think") {
         const scan = (elapsed * 260) % (width + 220) - 110;
         const band = Math.max(0, 1 - Math.abs(dot.x - scan) / 80);
         const grid = Math.max(0, 1 - dist / (maxDist * 0.9));
         return band * 0.95 + grid * 0.16;
-      }
-
-      if (mode === "think") {
-        const wave = (elapsed * 230) % (maxDist + 180);
-        return Math.max(0, 1 - Math.abs(dist - wave) / 58) * Math.max(0.15, 1 - dist / maxDist);
       }
 
       if (mode === "connect") {
@@ -205,26 +208,28 @@ export function AiStateAnimation({ mode, shape }: AiStateAnimationProps) {
       const color = modeColor[mode];
       drawBackground(color, now);
 
-      for (const dot of dots) {
-        const intensity = Math.min(1, intensityForMode(dot, now));
-        const twinkle = 0.18 + (Math.sin(now * dot.speed + dot.phase) + 1) * 0.18;
-        const alpha = Math.min(1, 0.04 + twinkle + intensity * 0.82);
-        const size = dot.size * (0.6 + intensity * 1.9);
+      if (shape !== "clean") {
+        for (const dot of dots) {
+          const intensity = Math.min(1, intensityForMode(dot, now));
+          const twinkle = 0.18 + (Math.sin(now * dot.speed + dot.phase) + 1) * 0.18;
+          const alpha = Math.min(1, 0.04 + twinkle + intensity * 0.82);
+          const size = dot.size * (0.6 + intensity * 1.9);
 
-        ctx2.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        drawShape(ctx2, dot.x, dot.y, size, shape);
-      }
+          ctx2.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+          drawShape(ctx2, dot.x, dot.y, size, shape);
+        }
 
-      if (mode === "analyze" || mode === "connect") {
-        const [r, g, b] = color;
-        ctx2.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.24)`;
-        ctx2.lineWidth = 1;
-        const step = mode === "analyze" ? 112 : 86;
-        for (let y = step; y < height; y += step) {
-          ctx2.beginPath();
-          ctx2.moveTo(0, y);
-          ctx2.lineTo(width, y);
-          ctx2.stroke();
+        if (mode === "think" || mode === "connect") {
+          const [r, g, b] = color;
+          ctx2.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.24)`;
+          ctx2.lineWidth = 1;
+          const step = mode === "think" ? 112 : 86;
+          for (let y = step; y < height; y += step) {
+            ctx2.beginPath();
+            ctx2.moveTo(0, y);
+            ctx2.lineTo(width, y);
+            ctx2.stroke();
+          }
         }
       }
 
@@ -272,13 +277,14 @@ export const aiModes: AiMode[] = [
   "transfer",
 ];
 
-export const aiShapes: AiShape[] = ["circle", "triangle", "square", "diamond"];
+export const aiShapes: AiShape[] = ["circle", "triangle", "square", "diamond", "clean"];
 
 export const aiShapeGlyph: Record<AiShape, string> = {
-  circle: "●",
+  circle: "○",
   triangle: "▲",
   square: "■",
   diamond: "◆",
+  clean: "●",
 };
 
 export { modeLabel };

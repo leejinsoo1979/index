@@ -1,47 +1,24 @@
 import { Link } from "react-router-dom";
 import type { CaseItem } from "../data/cases";
-import { ChevronRightIcon, BookmarkIcon } from "./icons";
+import { ArrowRightIcon, ChevronRightIcon, BookmarkIcon } from "./icons";
 import "./CaseCard.css";
-
-/** Three small overlapping author avatars (decorative). */
-function Avatars() {
-  const colors = ["#cbd5f5", "#bfd3c1", "#e3c9b8"];
-  return (
-    <div className="case-card__avatars" aria-hidden="true">
-      {colors.map((c, i) => (
-        <span key={i} style={{ background: c }} />
-      ))}
-    </div>
-  );
-}
 
 export function CaseCard({ item }: { item: CaseItem }) {
   return (
     <article className="case-card">
-      <Link
-        to={`/cases/${item.id}`}
-        className="case-card__media"
-        aria-label={item.title}
-      >
-        <img src={item.image} alt="" loading="lazy" />
-        {item.isNew && <span className="case-card__new">NEW</span>}
+      <Link to={`/cases/${item.id}`} className="case-card__link">
+        <img className="case-card__bg" src={item.image} alt="" loading="lazy" />
+        <span className="case-card__badge">
+          {item.isNew && <i aria-hidden="true">✦</i>}
+          {item.category}
+        </span>
+        <div className="case-card__overlay">
+          <h3 className="case-card__title">{item.title}</h3>
+          <span className="case-card__arrow" aria-hidden="true">
+            <ArrowRightIcon />
+          </span>
+        </div>
       </Link>
-      <div className="case-card__body">
-        <div className="case-card__meta">
-          <span className="case-card__cat">{item.category}</span>
-          <time className="case-card__date">{item.date}</time>
-        </div>
-        <h3 className="case-card__title">
-          <Link to={`/cases/${item.id}`}>{item.title}</Link>
-        </h3>
-        <p className="case-card__excerpt">{item.excerpt}</p>
-        <div className="case-card__foot">
-          <Avatars />
-          <Link to={`/cases/${item.id}`} className="case-card__more">
-            자세히 보기 <ChevronRightIcon />
-          </Link>
-        </div>
-      </div>
     </article>
   );
 }

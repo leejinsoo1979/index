@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   AiStateAnimation,
   AnimatedModeText,
   aiModes,
   aiShapeGlyph,
   aiShapes,
+  modeColor,
   modeLabel,
   type AiMode,
   type AiShape,
 } from "../components/AiStateAnimation";
+import ParticleTitle from "../components/ParticleTitle";
 import { useAuth } from "../auth/AuthContext";
 import "./Home.css";
 
@@ -546,8 +548,13 @@ export default function Home() {
     </form>
   );
 
+  const [glowR, glowG, glowB] = modeColor[mode];
+
   return (
-    <section className={`home${chatOpen ? " home--chat" : ""}`}>
+    <section
+      className={`home${chatOpen ? " home--chat" : ""}`}
+      style={{ "--mode-glow": `${glowR}, ${glowG}, ${glowB}` } as CSSProperties}
+    >
       <audio ref={modeAudioRef} src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/animation-menu-SBSEhsCLzhfXdw8sBI16r613N8tkGr.mp3" preload="auto" />
       <audio ref={shapeAudioRef} src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/select-forms-Y6f2sUOHatrkKO1eoSZpRtMTCUUzTD.mp3" preload="auto" />
 
@@ -555,24 +562,26 @@ export default function Home() {
         <>
           <AiStateAnimation mode={mode} shape={shape} />
           <div className="home__hero">
-            <h1 className="home__mode-title"><AnimatedModeText text={modeLabel(mode)} /></h1>
+            <ParticleTitle text="index" className="home__logo-canvas" />
           </div>
 
-          <div className="home__composer">
-            {composer}
-            <div className="home__mode-tabs" role="tablist" aria-label="Animation mode">
-              {aiModes.map((item) => (
-                <button key={item} type="button" className={`home__mode${mode === item ? " is-active" : ""}`} onClick={() => handleModeChange(item)} aria-pressed={mode === item}>
-                  {modeLabel(item)}
-                </button>
-              ))}
-            </div>
+          <div className="home__composer">{composer}</div>
+
+          <div className="home__mode-rail" role="tablist" aria-label="Animation mode">
+            {aiModes.map((item) => (
+              <button key={item} type="button" className={`home__mode${mode === item ? " is-active" : ""}`} onClick={() => handleModeChange(item)} aria-pressed={mode === item}>
+                {modeLabel(item)}
+              </button>
+            ))}
           </div>
 
           <div className="home__controls" aria-label="AI animation controls">
+            <p className="home__mode-caption" aria-live="polite">
+              <AnimatedModeText text={modeLabel(mode)} />
+            </p>
             <div className="home__shape-tabs" role="tablist" aria-label="Particle shape">
               {aiShapes.map((item) => (
-                <button key={item} type="button" className={`home__control${shape === item ? " is-active" : ""}`} onClick={() => handleShapeChange(item)} aria-pressed={shape === item}>
+                <button key={item} type="button" className={`home__control${shape === item ? " is-active" : ""}`} onClick={() => handleShapeChange(item)} aria-pressed={shape === item} aria-label={item === "clean" ? "픽셀 효과 없음" : `${item} 픽셀`} title={item === "clean" ? "픽셀 효과 없음" : undefined}>
                   {aiShapeGlyph[item]}
                 </button>
               ))}

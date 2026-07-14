@@ -4,7 +4,7 @@
   height: 100dvh;
   min-height: 620px;
   overflow: hidden;
-  background: #02040a;
+  background: #02040a url("/space-background.png") center / cover no-repeat;
 }
 
 .home::after {
@@ -35,16 +35,36 @@
   pointer-events: none;
 }
 
-.home__mode-title {
-  font-size: clamp(54px, 8vw, 124px);
-  font-weight: 800;
+.home__logo-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.home__logo-title {
+  font-family: var(--font-logo);
+  /* rendered wordmark width ≈ font-size × 2.67 — keep it equal to the
+     composer width, min(520px, 86vw) */
+  font-size: min(195px, 32.2vw);
+  font-weight: 600;
   line-height: 1;
   color: #fff;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
   text-align: center;
   text-shadow:
     0 0 36px rgba(255, 255, 255, 0.18),
     0 20px 80px rgba(0, 0, 0, 0.56);
+}
+
+/* Small animated mode word above the shape switcher */
+.home__mode-caption {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
 }
 
 .ai-state__text span {
@@ -64,7 +84,7 @@
 .home__composer {
   position: absolute;
   left: 50%;
-  top: calc(50% + 62px);
+  top: calc(50% + 132px);
   z-index: 10;
   transform: translateX(-50%);
   width: min(520px, 86vw);
@@ -104,13 +124,35 @@
   gap: 8px;
   height: 62px;
   padding: 0 12px 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(var(--mode-glow, 111, 141, 255), 0.8);
+  transition: border-color 0.4s ease;
   border-radius: 9999px;
   background: rgba(28, 30, 36, 0.88);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   overflow: visible;
+  animation: askNeonPulse 2s ease-in-out infinite;
+}
+
+/* Neon border pulse — glow breathes between dim and bright,
+   tinted by the active mode via --mode-glow (r, g, b) */
+@keyframes askNeonPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px 0 rgba(var(--mode-glow, 111, 141, 255), 0.85),
+      0 0 26px 2px rgba(var(--mode-glow, 111, 141, 255), 0.4),
+      inset 0 0 10px -2px rgba(var(--mode-glow, 111, 141, 255), 0.7),
+      0 18px 60px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 26px 2px rgba(var(--mode-glow, 111, 141, 255), 1),
+      0 0 60px 6px rgba(var(--mode-glow, 111, 141, 255), 0.55),
+      inset 0 0 18px -2px rgba(var(--mode-glow, 111, 141, 255), 0.9),
+      0 18px 60px rgba(0, 0, 0, 0.45);
+  }
 }
 
 .home__ask input {
@@ -335,12 +377,83 @@
 }
 
 /* Mode tabs sit right under the landing composer */
-.home__composer .home__mode-tabs {
+/* Vertical mode rail pinned to the right edge */
+/* Docs-style vertical mode nav: left rule + text items */
+.home__mode-rail {
+  position: absolute;
+  left: 44px;
+  top: 50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 0;
+  transform: translateY(-50%);
+  border-left: 2px solid rgba(255, 255, 255, 0.16);
+}
+
+.home__mode-rail .home__mode {
   position: relative;
-  z-index: 1;
-  width: fit-content;
-  max-width: 100%;
-  margin: 16px auto 0;
+  height: auto;
+  padding: 9px 10px 9px 24px;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transform-origin: left center;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.home__mode-rail .home__mode:hover {
+  background: transparent;
+  color: #fff;
+  transform: scale(1.16);
+}
+
+.home__mode-rail .home__mode.is-active {
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+.home__mode-rail .home__mode.is-active::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: -2px;
+  width: 2px;
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .home__mode-rail {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: 92px;
+    flex-direction: row;
+    max-width: 92vw;
+    overflow-x: auto;
+    border-left: 0;
+    transform: translateX(-50%);
+  }
+
+  .home__mode-rail .home__mode {
+    padding: 9px 12px;
+  }
+
+  .home__mode-rail .home__mode.is-active::before {
+    top: auto;
+    right: 12px;
+    bottom: 2px;
+    left: 12px;
+    width: auto;
+    height: 2px;
+  }
 }
 
 .home__control,
@@ -1066,10 +1179,6 @@
 @media (max-width: 760px) {
   .home {
     min-height: 560px;
-  }
-
-  .home__mode-title {
-    font-size: clamp(42px, 14vw, 70px);
   }
 
   .home__hero {

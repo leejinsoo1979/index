@@ -25,12 +25,23 @@
   color: var(--accent);
 }
 
+/* Washed-light overlay for the tilted gallery — anchored inside the sticky
+   viewport so it always covers the tiles (screen blend is invisible over
+   white, so it must overlap the images to show). */
 .cases__hero-glow {
   position: absolute;
+  bottom: 0;
+  left: 50%;
   z-index: 10;
-  width: 100%;
-  height: 70vh;
-  background: linear-gradient(to right, #8d99b8, #6b4fd8, #3556e8);
+  width: min(1400px, 100%);
+  height: 62%;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    to right,
+    rgba(141, 153, 184, 0.55),
+    rgba(107, 79, 216, 0.55),
+    rgba(53, 86, 232, 0.55)
+  );
   filter: blur(84px);
   mix-blend-mode: screen;
   pointer-events: none;
@@ -45,6 +56,9 @@
 .cases__more-scroll {
   position: relative;
   height: 220vh;
+  /* pull the tilted gallery up toward the section heading —
+     keep ≥40px clear of the subtitle at every scroll position */
+  margin-top: -200px;
 }
 
 .cases__gallery-tile {
@@ -154,15 +168,15 @@
 
 /* Section headings */
 .cases__heading {
-  font-size: 20px;
+  font-size: 36px;
   font-weight: 700;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
 .cases__sub {
-  margin-top: 6px;
-  font-size: 13px;
+  margin-top: 10px;
+  font-size: 15px;
   color: var(--ink-soft);
 }
 
@@ -232,8 +246,9 @@
 
 .cases__list-head {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .cases__sort {

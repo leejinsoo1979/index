@@ -5,14 +5,15 @@ import Home from "./pages/Home";
 import Cases from "./pages/Cases";
 import CaseDetail from "./pages/CaseDetail";
 import Seminars from "./pages/Seminars";
-import SeminarApply from "./pages/SeminarApply";
+import SeminarDetail from "./pages/SeminarDetail";
 import MyPage from "./pages/MyPage";
 import Signup from "./pages/Signup";
+import Team from "./pages/Team";
 import Placeholder from "./pages/Placeholder";
 import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
 
 // Routes that have a real page implementation (skip them in the placeholder map).
-const implemented = new Set(["/", "/cases", "/seminars", "/mypage", "/signup"]);
+const implemented = new Set(["/", "/cases", "/seminars", "/mypage", "/signup", "/about/organization"]);
 
 // Build a label lookup for every remaining routed path.
 const routeLabels = new Map<string, string>();
@@ -38,9 +39,10 @@ export default function App() {
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
         <Route path="/seminars" element={<Seminars />} />
-        <Route path="/seminars/:id/apply" element={<SeminarApply />} />
+        <Route path="/seminars/:id" element={<SeminarDetail />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/about/organization" element={<Team />} />
         {[...routeLabels]
           .filter(([path]) => !implemented.has(path))
           .map(([path, label]) => (

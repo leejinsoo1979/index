@@ -10,17 +10,18 @@ import {
   ContainerSticky,
   GalleryCol,
   GalleryContainer,
+  GalleryFadeOverlay,
 } from "@/components/blocks/animated-gallery";
 import "./Cases.css";
 
-const galleryImages = cases.map((item) => item.image);
-const GALLERY_COL_1 = galleryImages.filter((_, i) => i % 3 === 0).slice(0, 4);
-const GALLERY_COL_2 = galleryImages.filter((_, i) => i % 3 === 1).slice(0, 4);
-const GALLERY_COL_3 = galleryImages.filter((_, i) => i % 3 === 2).slice(0, 4);
-
-const MORE_COL_1 = cases.filter((_, i) => i % 3 === 0).slice(0, 4);
-const MORE_COL_2 = cases.filter((_, i) => i % 3 === 1).slice(0, 4);
-const MORE_COL_3 = cases.filter((_, i) => i % 3 === 2).slice(0, 4);
+// 16 tiles for the bottom gallery — cycle through the case data (12 items)
+const moreItems = Array.from({ length: 16 }, (_, i) => ({
+  ...cases[i % cases.length],
+  key: `more-${i}`,
+}));
+const MORE_COL_1 = moreItems.filter((_, i) => i % 3 === 0);
+const MORE_COL_2 = moreItems.filter((_, i) => i % 3 === 1);
+const MORE_COL_3 = moreItems.filter((_, i) => i % 3 === 2);
 
 export default function Cases() {
   const [filter, setFilter] = useState<CaseFilter>("전체");
@@ -52,29 +53,6 @@ export default function Cases() {
           </ContainerAnimated>
         </ContainerStagger>
 
-        <div className="cases__hero-glow" aria-hidden="true" />
-
-        <ContainerScroll className="cases__scroll">
-          <ContainerSticky className="cases__sticky">
-            <GalleryContainer>
-              <GalleryCol yRange={["-10%", "2%"]} className="-mt-2">
-                {GALLERY_COL_1.map((imageUrl, index) => (
-                  <img key={index} className="cases__gallery-img" src={imageUrl} alt="" />
-                ))}
-              </GalleryCol>
-              <GalleryCol className="mt-[-32%]" yRange={["15%", "5%"]}>
-                {GALLERY_COL_2.map((imageUrl, index) => (
-                  <img key={index} className="cases__gallery-img" src={imageUrl} alt="" />
-                ))}
-              </GalleryCol>
-              <GalleryCol yRange={["-10%", "2%"]} className="-mt-2">
-                {GALLERY_COL_3.map((imageUrl, index) => (
-                  <img key={index} className="cases__gallery-img" src={imageUrl} alt="" />
-                ))}
-              </GalleryCol>
-            </GalleryContainer>
-          </ContainerSticky>
-        </ContainerScroll>
       </section>
 
       <section className="cases__inner cases__popular">
@@ -124,32 +102,37 @@ export default function Cases() {
 
         <ContainerScroll className="cases__more-scroll">
           <ContainerSticky className="cases__sticky">
-            <GalleryContainer>
-              <GalleryCol yRange={["-10%", "2%"]} className="-mt-2">
+            <GalleryContainer className="mx-auto w-[min(1200px,calc(100%-64px))]">
+              <GalleryCol yRange={["0px", "-640px"]} className="-mt-2">
                 {MORE_COL_1.map((item) => (
-                  <Link key={item.id} to={`/cases/${item.id}`} className="cases__gallery-tile">
+                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
                     <img className="cases__gallery-img" src={item.image} alt="" />
                     <span>{item.title}</span>
                   </Link>
                 ))}
               </GalleryCol>
-              <GalleryCol className="mt-[-32%]" yRange={["15%", "5%"]}>
+              {/* Tilted: staggered up by the margin; flattened: yRange end value
+                  cancels the margin so the top row isn't clipped. */}
+              <GalleryCol className="mt-[-32%]" yRange={["215px", "-320px"]}>
                 {MORE_COL_2.map((item) => (
-                  <Link key={item.id} to={`/cases/${item.id}`} className="cases__gallery-tile">
+                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
                     <img className="cases__gallery-img" src={item.image} alt="" />
                     <span>{item.title}</span>
                   </Link>
                 ))}
               </GalleryCol>
-              <GalleryCol yRange={["-10%", "2%"]} className="-mt-2">
+              <GalleryCol yRange={["0px", "-640px"]} className="-mt-2">
                 {MORE_COL_3.map((item) => (
-                  <Link key={item.id} to={`/cases/${item.id}`} className="cases__gallery-tile">
+                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
                     <img className="cases__gallery-img" src={item.image} alt="" />
                     <span>{item.title}</span>
                   </Link>
                 ))}
               </GalleryCol>
             </GalleryContainer>
+            {/* washed-light overlay: sits on top of the tilted tiles,
+                fades out as the gallery unfolds (progress 0 → 0.3) */}
+            <GalleryFadeOverlay className="cases__hero-glow" aria-hidden="true" />
           </ContainerSticky>
         </ContainerScroll>
       </section>
