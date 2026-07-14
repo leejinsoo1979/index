@@ -7,8 +7,12 @@ export const config = { maxDuration: 30 };
 
 interface ChatRequestBody {
   messages?: Array<{ role?: string; content?: string }>;
+  memoryMessages?: Array<{ role?: string; content?: string }>;
   userId?: string;
+  model?: string;
 }
+
+const ALLOWED_MODELS = new Set(["gpt-5.4-nano", "gpt-5.4-mini", "gpt-5.4"]);
 
 function normalizeMessages(input: ChatRequestBody["messages"]): ModelMessage[] {
   if (!Array.isArray(input)) return [];
@@ -37,7 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = (req.body ?? {}) as ChatRequestBody;
     const userId = body.userId?.trim();
     const messages = normalizeMessages(body.messages);
-    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+    const memoryMessages = normalizeMessages(body.memoryMessages);
+    const messagesForMemory = memoryMessages.length ? memoryMessages : messages;
+    const lastUserMessage = [...messagesForMemory].reverse().find((message) => message.role === "user");
 
     if (!userId || !lastUserMessage || typeof lastUserMessage.content !== "string") {
       res.status(400).json({ error: "A userId and at least one user message are required" });
@@ -64,13 +70,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ${memories ? `- ${memories}` : "관련 기억 없음"}`;
 
     const result = streamText({
-      model: openai(process.env.OPENAI_MODEL || "gpt-5.4-nano"),
+      model: openai(body.model && ALLOWED_MODELS.has(body.model) ? body.model : process.env.OPENAI_MODEL || "gpt-5.4-nano"),
       system,
       messages,
       onEnd: async ({ text }) => {
         if (!text.trim()) return;
         await mem0.add(
-          [...messages, { role: "assistant", content: text }],
+          [...messagesForMemory, { role: "assistant", content: text }],
           { userId, agentId: MEM0_AGENT_ID },
         );
       },

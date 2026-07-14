@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
-  ArrowLeft,
   Bot,
   BookOpen,
   Check,
   CheckSquare,
-  Download,
   FileText,
   Folder,
   Home,
-  LoaderCircle,
+  Image as ImageIcon,
   MessageSquare,
   Network,
   Plus,
@@ -20,12 +18,15 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
+import DocumentStudio from "../../features/agent-studio/DocumentStudio";
+import ImageLab from "../../features/agent-studio/ImageLab";
+import MemoryManager from "../../features/agent-studio/MemoryManager";
 import {
   createAgentId,
+  createBlock,
   hydrateAgentStudio,
   loadAgentStudio,
   saveAgentStudio,
-  type AgentBlockType,
   type AgentDocument,
   type AgentDocumentType,
   type AgentKnowledgeSource,
@@ -33,13 +34,13 @@ import {
 } from "../../lib/agentStudioStore";
 import "./AdminAgent.css";
 
-type Section = "home" | "projects" | "agents" | "knowledge" | "ontology" | "messenger" | "tasks" | "settings";
-type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type Section = "home" | "projects" | "agents" | "images" | "knowledge" | "ontology" | "messenger" | "tasks" | "settings";
 
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof Home }> = [
   { id: "home", label: "홈", icon: Home },
   { id: "projects", label: "프로젝트·문서", icon: Folder },
   { id: "agents", label: "에이전트", icon: Bot },
+  { id: "images", label: "이미지 스튜디오", icon: ImageIcon },
   { id: "knowledge", label: "지식베이스", icon: BookOpen },
   { id: "ontology", label: "온톨로지", icon: Network },
   { id: "messenger", label: "메신저", icon: MessageSquare },
@@ -79,21 +80,6 @@ function formatTime(iso: string) {
   return new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 }
 
-function exportMarkdown(document: AgentDocument) {
-  const markdown = document.blocks.map((block) => {
-    if (block.type === "heading") return `# ${block.content}`;
-    if (block.type === "quote") return `> ${block.content}`;
-    if (block.type === "checklist") return block.content.split("\n").map((line) => `- [ ] ${line}`).join("\n");
-    return block.content;
-  }).join("\n\n");
-  const url = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" }));
-  const anchor = window.document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${document.title || "document"}.md`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function AdminAgent() {
   const { user } = useAuth();
   const userId = user?.uid ?? "local-admin";
@@ -101,12 +87,6 @@ export default function AdminAgent() {
   const [section, setSection] = useState<Section>("home");
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [chatInput, setChatInput] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-  const [activeTeam, setActiveTeam] = useState("PM");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: createAgentId(), role: "assistant", content: "안녕하세요. INDEX Agent Studio입니다. 문서 초안, 공법 검토, 블록 수정을 요청하세요." },
-  ]);
   const [messengerInput, setMessengerInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,8 +118,8 @@ export default function AdminAgent() {
     setData((current) => updater(current));
   }
 
-  function createDocument(type: AgentDocumentType) {
-    let projectId = data.projects[0]?.id;
+  function createDocument(type: AgentDocumentType, targetProjectId?: string) {
+    let projectId = targetProjectId ?? data.projects[0]?.id;
     if (!projectId) {
       projectId = createAgentId();
       const now = new Date().toISOString();
@@ -155,10 +135,30 @@ export default function AdminAgent() {
       type,
       status: "DRAFT",
       updatedAt: new Date().toISOString(),
-      blocks: [{ id: createAgentId(), type: "heading", content: `제목 없는 ${TYPE_LABEL[type]}` }],
+      blocks: [createBlock("heading", `제목 없는 ${TYPE_LABEL[type]}`, 0)],
     };
     updateData((current) => ({ ...current, documents: [document, ...current.documents] }));
     setActiveDocumentId(document.id);
+  }
+
+  function createProject() {
+    const name = window.prompt("새 프로젝트 이름을 입력하세요.")?.trim();
+    if (!name) return;
+    const clientName = window.prompt("클라이언트명(선택)")?.trim() ?? "";
+    const location = window.prompt("현장 위치(선택)")?.trim() ?? "";
+    updateData((current) => ({ ...current, projects: [{ id: createAgentId(), name, clientName, location, createdAt: new Date().toISOString() }, ...current.projects] }));
+  }
+
+  function deleteDocument(documentId: string) {
+    const target = data.documents.find((document) => document.id === documentId);
+    if (!target || !window.confirm(`“${target.title}” 문서를 삭제할까요? 연결된 대화와 액션도 함께 삭제됩니다.`)) return;
+    updateData((current) => ({
+      ...current,
+      documents: current.documents.filter((document) => document.id !== documentId),
+      conversations: current.conversations.filter((conversation) => conversation.documentId !== documentId),
+      actions: current.actions.filter((action) => action.documentId !== documentId),
+      tasks: current.tasks.filter((task) => task.documentId !== documentId),
+    }));
   }
 
   function updateDocument(patch: Partial<AgentDocument>) {
@@ -169,73 +169,6 @@ export default function AdminAgent() {
         document.id === activeDocumentId ? { ...document, ...patch, updatedAt: new Date().toISOString() } : document,
       ),
     }));
-  }
-
-  function addBlock(type: AgentBlockType, content = "") {
-    if (!activeDocument) return;
-    updateDocument({ blocks: [...activeDocument.blocks, { id: createAgentId(), type, content }] });
-  }
-
-  function updateBlock(id: string, content: string) {
-    if (!activeDocument) return;
-    updateDocument({ blocks: activeDocument.blocks.map((block) => block.id === id ? { ...block, content } : block) });
-  }
-
-  function deleteBlock(id: string) {
-    if (!activeDocument || !window.confirm("이 블록을 삭제할까요?")) return;
-    updateDocument({ blocks: activeDocument.blocks.filter((block) => block.id !== id) });
-  }
-
-  async function sendAgentMessage(event: FormEvent) {
-    event.preventDefault();
-    const content = chatInput.trim();
-    if (!content || chatBusy) return;
-    const userMessage: ChatMessage = { id: createAgentId(), role: "user", content };
-    const nextMessages = [...chatMessages, userMessage];
-    setChatMessages(nextMessages);
-    setChatInput("");
-    setChatBusy(true);
-    const replyId = createAgentId();
-    let reply = "";
-    try {
-      const context = activeDocument
-        ? `\n\n현재 문서 제목: ${activeDocument.title}\n현재 문서 내용:\n${activeDocument.blocks.map((block) => block.content).join("\n")}`
-        : "";
-      const knowledgeContext = data.knowledge
-        .filter((source) => source.status === "APPROVED" && source.excerpt)
-        .slice(0, 5)
-        .map((source) => `[${source.title}] ${source.excerpt}`)
-        .join("\n");
-      const roleInstruction = `당신은 ARCHI Agent Studio의 ${activeTeam}입니다. 제안한 문서 변경은 사용자가 검토 후 적용할 수 있도록 답변으로 제시하세요.${activeTeam === "법규팀" ? " 법규·기준 답변에는 확인 가능한 출처를 포함하고 불확실하면 확인 불가라고 명시하세요." : ""}`;
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          messages: nextMessages.map((message, index) => ({
-            role: message.role,
-            content: index === nextMessages.length - 1
-              ? `${roleInstruction}\n\n${message.content}${context}${knowledgeContext ? `\n\n승인된 내부 지식:\n${knowledgeContext}` : ""}`
-              : message.content,
-          })),
-        }),
-      });
-      if (!response.ok || !response.body) throw new Error("AI 응답을 불러오지 못했습니다.");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      setChatMessages((current) => [...current, { id: replyId, role: "assistant", content: "" }]);
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        reply += decoder.decode(value, { stream: true });
-        setChatMessages((current) => current.map((message) => message.id === replyId ? { ...message, content: reply } : message));
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "AI 요청 중 오류가 발생했습니다.";
-      setChatMessages((current) => [...current.filter((item) => item.id !== replyId), { id: replyId, role: "assistant", content: message }]);
-    } finally {
-      setChatBusy(false);
-    }
   }
 
   async function addKnowledgeFiles(files: FileList | null) {
@@ -259,6 +192,26 @@ export default function AdminAgent() {
     updateData((current) => ({ ...current, knowledge: [...sources, ...current.knowledge] }));
   }
 
+  function extractOntologyCandidates() {
+    const approved = data.knowledge.filter((source) => source.status === "APPROVED");
+    const seeds = approved.flatMap((source) => `${source.title} ${source.excerpt ?? ""}`.match(/[가-힣A-Za-z0-9]{2,12}/g) ?? [])
+      .filter((word) => !["그리고", "대한", "관련", "위한", "합니다", "있는", "자료", "문서"].includes(word));
+    const counts = new Map<string, number>();
+    seeds.forEach((word) => counts.set(word, (counts.get(word) ?? 0) + 1));
+    const existing = new Set(data.ontologyNodes.map((node) => node.label));
+    const labels = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([label]) => label).filter((label) => !existing.has(label)).slice(0, 12);
+    const nodes = labels.map((label) => ({
+      id: createAgentId(),
+      label,
+      type: (/법|규정|기준|조례/.test(label) ? "regulation" : /자재|타일|목재|도장|석재/.test(label) ? "material" : /하자|균열|누수|결로/.test(label) ? "defect" : /공법|시공|방수|단열/.test(label) ? "method" : "space") as "space" | "method" | "material" | "defect" | "regulation",
+      description: "승인된 내부 지식에서 추출된 후보",
+      status: "CANDIDATE" as const,
+      confidence: Math.min(.98, .55 + (counts.get(label) ?? 1) * .08),
+    }));
+    const edges = nodes.slice(1).map((node, index) => ({ id: createAgentId(), sourceNodeId: nodes[index].id, targetNodeId: node.id, relationType: "관련", status: "CANDIDATE" as const }));
+    updateData((current) => ({ ...current, ontologyNodes: [...current.ontologyNodes, ...nodes], ontologyEdges: [...current.ontologyEdges, ...edges] }));
+  }
+
   function sendMessenger(event: FormEvent) {
     event.preventDefault();
     const title = messengerInput.trim();
@@ -273,56 +226,7 @@ export default function AdminAgent() {
   }
 
   if (activeDocument) {
-    return (
-      <div className="agent-editor">
-        <header className="agent-editor__topbar">
-          <button type="button" onClick={() => setActiveDocumentId(null)}><ArrowLeft /> 문서 목록</button>
-          <input value={activeDocument.title} onChange={(event) => updateDocument({ title: event.target.value })} aria-label="문서 제목" />
-          <select value={activeDocument.status} onChange={(event) => updateDocument({ status: event.target.value as AgentDocument["status"] })}>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <button type="button" onClick={() => exportMarkdown(activeDocument)}><Download /> Markdown</button>
-        </header>
-        <div className="agent-editor__workspace">
-          <aside className="agent-chat">
-            <header><span><Bot /></span><div><strong>AI 에이전트</strong><small>현재 문서 전체 모드</small></div></header>
-            <div className="agent-chat__teams">{TEAMS.map((team) => <button key={team.key} type="button" className={activeTeam === team.name ? "is-active" : ""} onClick={() => setActiveTeam(team.name)}>{team.name}</button>)}</div>
-            <div className="agent-chat__messages">
-              {chatMessages.map((message) => (
-                <div key={message.id} className={`agent-chat__message is-${message.role}`}>
-                  <p>{message.content || "작성 중..."}</p>
-                  {message.role === "assistant" && message.content && activeDocument && (
-                    <button type="button" onClick={() => addBlock("paragraph", message.content)}><Plus /> 문서에 추가</button>
-                  )}
-                </div>
-              ))}
-              {chatBusy && <span className="agent-chat__busy"><LoaderCircle /> 에이전트 작업 중</span>}
-            </div>
-            <form className="agent-chat__composer" onSubmit={sendAgentMessage}>
-              <textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="에이전트에게 작업을 지시하세요" rows={3} />
-              <button type="submit" disabled={!chatInput.trim() || chatBusy}><Send /></button>
-            </form>
-          </aside>
-          <main className="agent-canvas">
-            <div className="agent-canvas__paper">
-              <div className="agent-canvas__meta"><span>{TYPE_LABEL[activeDocument.type]}</span><span>자동 저장됨</span></div>
-              {activeDocument.blocks.map((block) => (
-                <article key={block.id} className={`agent-block agent-block--${block.type}`}>
-                  <span className="agent-block__type">{block.type}</span>
-                  <textarea value={block.content} onChange={(event) => updateBlock(block.id, event.target.value)} rows={block.type === "heading" ? 2 : 5} aria-label={`${block.type} 블록`} />
-                  <button type="button" onClick={() => deleteBlock(block.id)} aria-label="블록 삭제"><Trash2 /></button>
-                </article>
-              ))}
-              <div className="agent-canvas__add">
-                {(["heading", "paragraph", "checklist", "quote"] as AgentBlockType[]).map((type) => (
-                  <button key={type} type="button" onClick={() => addBlock(type)}><Plus /> {type}</button>
-                ))}
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
+    return <DocumentStudio userId={userId} document={activeDocument} data={data} onBack={() => setActiveDocumentId(null)} onUpdateDocument={updateDocument} onUpdateData={updateData} />;
   }
 
   return (
@@ -352,19 +256,21 @@ export default function AdminAgent() {
           </>
         )}
 
-        {section === "projects" && <section className="agent-section"><header><div><h1>프로젝트·문서</h1><p>에이전트가 생성한 산출물과 직접 작성한 문서를 관리합니다.</p></div><button type="button" onClick={() => createDocument("REPORT")}><Plus /> 새 문서</button></header><div className="agent-projects">{data.projects.map((project) => <article key={project.id}><span><Folder /></span><div><strong>{project.name}</strong><small>{project.clientName} · {project.location}</small></div><em>{data.documents.filter((document) => document.projectId === project.id).length}개 문서</em></article>)}</div><div className="agent-documents-grid">{filteredDocuments.map((document) => <button key={document.id} type="button" onClick={() => setActiveDocumentId(document.id)}><span><FileText /></span><strong>{document.title}</strong><small>{TYPE_LABEL[document.type]} · {formatTime(document.updatedAt)}</small><em>{STATUS_LABEL[document.status]}</em></button>)}</div></section>}
+        {section === "projects" && <section className="agent-section"><header><div><h1>프로젝트·문서</h1><p>에이전트가 생성한 산출물과 직접 작성한 문서를 관리합니다.</p></div><div className="agent-section__actions"><button type="button" onClick={createProject}><Folder /> 새 프로젝트</button><button type="button" onClick={() => createDocument("REPORT")}><Plus /> 새 문서</button></div></header><div className="agent-projects">{data.projects.map((project) => <article key={project.id}><span><Folder /></span><div><strong>{project.name}</strong><small>{project.clientName} · {project.location}</small></div><em>{data.documents.filter((document) => document.projectId === project.id).length}개 문서</em><button type="button" onClick={() => createDocument("REPORT", project.id)}><Plus /> 문서</button></article>)}</div><div className="agent-documents-grid">{filteredDocuments.map((document) => <article key={document.id}><button type="button" onClick={() => setActiveDocumentId(document.id)}><span><FileText /></span><strong>{document.title}</strong><small>{TYPE_LABEL[document.type]} · {formatTime(document.updatedAt)}</small><em>{STATUS_LABEL[document.status]}</em></button><button type="button" className="agent-document-delete" onClick={() => deleteDocument(document.id)}><Trash2 /> 삭제</button></article>)}</div></section>}
 
         {section === "agents" && <section className="agent-section"><header><div><h1>AI 에이전트</h1><p>업무 성격에 맞는 전문 팀을 선택해 문서 작업을 시작합니다.</p></div></header><div className="agent-team-grid">{TEAMS.map((team) => <article key={team.key}><span><Bot /></span><div><strong>{team.name}</strong><small>{team.description}</small></div><em><i /> 준비됨</em><button type="button" onClick={() => createDocument("REPORT")}>작업 시작</button></article>)}</div></section>}
 
+        {section === "images" && <section className="agent-section"><header><div><h1>이미지 스튜디오</h1><p>이미지를 생성하고 마스크 인페인트로 수정 버전을 관리합니다.</p></div></header><ImageLab userId={userId} data={data} onUpdateData={updateData} /></section>}
+
         {section === "knowledge" && <section className="agent-section"><header><div><h1>지식베이스</h1><p>내부 매뉴얼과 현장 자료를 검토한 뒤 에이전트 지식으로 승인합니다.</p></div><button type="button" onClick={() => fileInputRef.current?.click()}><Plus /> 자료 업로드</button><input ref={fileInputRef} type="file" multiple hidden onChange={(event) => void addKnowledgeFiles(event.target.files)} /></header><div className="agent-knowledge-list">{data.knowledge.length === 0 ? <div className="agent-empty"><BookOpen /><strong>등록된 자료가 없습니다.</strong><p>TXT, Markdown, CSV와 내부 문서를 업로드하세요.</p></div> : data.knowledge.map((source) => <article key={source.id}><span><FileText /></span><div><strong>{source.title}</strong><small>{source.sourceType} · {formatTime(source.createdAt)}</small><p>{source.excerpt?.slice(0, 120)}</p></div><em className={`is-${source.status.toLowerCase()}`}>{source.status === "APPROVED" ? "승인됨" : "검토 대기"}</em>{source.status !== "APPROVED" && <button type="button" onClick={() => updateData((current) => ({ ...current, knowledge: current.knowledge.map((item) => item.id === source.id ? { ...item, status: "APPROVED", trustLevel: "INTERNAL_APPROVED" } : item) }))}><Check /> 승인</button>}</article>)}</div></section>}
 
-        {section === "ontology" && <section className="agent-section"><header><div><h1>온톨로지 뇌지도</h1><p>INDEX의 시공·법규·자재 지식 관계를 시각화합니다.</p></div></header><div className="agent-ontology"><span className="is-center">INDEX 지식</span>{["방수", "단열", "마감", "전기", "설비", "하자", "법규", "자재", ...data.knowledge.filter((item) => item.status === "APPROVED").map((item) => item.title.slice(0, 8))].map((label, index) => <span key={`${label}-${index}`} style={{ "--node-index": index } as CSSProperties}>{label}</span>)}</div></section>}
+        {section === "ontology" && <section className="agent-section"><header><div><h1>온톨로지 뇌지도</h1><p>승인된 지식에서 관계 후보를 추출한 뒤 사람이 승인해야 그래프에 반영됩니다.</p></div><button type="button" onClick={extractOntologyCandidates} disabled={!data.knowledge.some((source) => source.status === "APPROVED")}><Sparkles /> 지식 후보 추출</button></header><div className="agent-ontology-layout"><div className="agent-ontology"><span className="is-center">INDEX 지식</span>{data.ontologyNodes.filter((node) => node.status === "APPROVED").slice(0, 12).map((node, index) => <span key={node.id} style={{ "--node-index": index } as CSSProperties}>{node.label}</span>)}</div><aside className="agent-ontology-review"><header><strong>검토 대기 후보</strong><small>{data.ontologyNodes.filter((node) => node.status === "CANDIDATE").length}개</small></header>{data.ontologyNodes.filter((node) => node.status === "CANDIDATE").length ? data.ontologyNodes.filter((node) => node.status === "CANDIDATE").map((node) => <article key={node.id}><div><strong>{node.label}</strong><small>{node.type} · 신뢰도 {Math.round((node.confidence ?? 0) * 100)}%</small></div><button type="button" onClick={() => updateData((current) => ({ ...current, ontologyNodes: current.ontologyNodes.map((item) => item.id === node.id ? { ...item, status: "REJECTED" } : item) }))}>거절</button><button type="button" onClick={() => updateData((current) => ({ ...current, ontologyNodes: current.ontologyNodes.map((item) => item.id === node.id ? { ...item, status: "APPROVED" } : item), ontologyEdges: current.ontologyEdges.map((edge) => edge.sourceNodeId === node.id || edge.targetNodeId === node.id ? { ...edge, status: "APPROVED" } : edge) }))}>승인</button></article>) : <div className="agent-empty"><Network /><strong>검토할 후보가 없습니다.</strong><p>지식베이스 자료를 승인한 뒤 후보를 추출하세요.</p></div>}</aside></div></section>}
 
         {section === "messenger" && <section className="agent-section"><header><div><h1>에이전트 메신저</h1><p>@콘텐츠, @법규, @시공처럼 팀을 지정하면 작업센터에 업무가 생성됩니다.</p></div></header><div className="agent-messenger"><div className="agent-messenger__intro"><MessageSquare /><h2>새 업무를 지시하세요</h2><p>예: @시공 욕실 방수 체크리스트를 기술자료로 만들어줘</p></div><form onSubmit={sendMessenger}><textarea value={messengerInput} onChange={(event) => setMessengerInput(event.target.value)} rows={4} placeholder="@에이전트에게 업무 지시" /><button type="submit" disabled={!messengerInput.trim()}><Send /> 작업 생성</button></form></div></section>}
 
         {section === "tasks" && <section className="agent-section"><header><div><h1>작업센터</h1><p>에이전트 업무의 진행 상태와 검토 대상을 확인합니다.</p></div></header><div className="agent-task-list">{data.tasks.map((task) => <article key={task.id}><span className={`is-${task.status.toLowerCase()}`} /><div><strong>{task.title}</strong><small>{task.agent} · {formatTime(task.createdAt)}</small></div><select value={task.status} onChange={(event) => updateData((current) => ({ ...current, tasks: current.tasks.map((item) => item.id === task.id ? { ...item, status: event.target.value as typeof task.status } : item) }))}><option value="QUEUED">대기</option><option value="RUNNING">진행 중</option><option value="NEEDS_REVIEW">검토 필요</option><option value="DONE">완료</option></select></article>)}</div></section>}
 
-        {section === "settings" && <section className="agent-section"><header><div><h1>Agent Studio 설정</h1><p>현재 INDEX 관리자 인증과 AI 연결 상태입니다.</p></div></header><div className="agent-settings"><article><span><Check /></span><div><strong>관리자 인증 공유</strong><small>{user?.email || "로컬 관리자"} 계정으로 별도 로그인 없이 사용 중</small></div></article><article><span><Sparkles /></span><div><strong>INDEX AI</strong><small>기존 /api/chat 스트리밍 엔드포인트와 연결됨</small></div></article><article><span><BookOpen /></span><div><strong>Mem0 사용자 기억</strong><small>현재 관리자 UID를 기준으로 대화 기억을 분리</small></div></article></div></section>}
+        {section === "settings" && <section className="agent-section"><header><div><h1>Agent Studio 설정</h1><p>현재 INDEX 관리자 인증과 AI 연결 상태입니다.</p></div></header><div className="agent-settings"><article><span><Check /></span><div><strong>Firebase 관리자 인증</strong><small>{user?.email || "로컬 관리자"}의 ID 토큰을 Agent 전용 API에서 검증</small></div></article><article><span><Sparkles /></span><div><strong>INDEX AI</strong><small>관리자 전용 /api/agent-chat 스트리밍 엔드포인트와 연결됨</small></div></article><article><span><BookOpen /></span><div><strong>Firebase 데이터·파일</strong><small>Firestore UID 워크스페이스와 Storage 이미지 버전 사용</small></div></article></div><MemoryManager userId={userId} /></section>}
       </main>
     </div>
   );
