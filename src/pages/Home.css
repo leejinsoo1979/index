@@ -69,6 +69,11 @@
   width: min(520px, 86vw);
 }
 
+.home__composer [role="textbox"]:focus,
+.home__composer [role="textbox"]:focus-visible {
+  outline: none;
+}
+
 .home__start {
   position: absolute;
   left: 50%;
