@@ -1,3 +1,7 @@
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+
 @font-face {
   font-family: "Chillax";
   src: url("/fonts/chillax/Chillax-Variable.woff2") format("woff2");
