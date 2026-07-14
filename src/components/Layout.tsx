@@ -4,7 +4,7 @@ import Header from "./Header";
 import Footer from "./Footer";
 
 // Routes rendered full-screen without the site header/footer.
-const BARE_ROUTES = new Set(["/mypage"]);
+const BARE_ROUTES = new Set(["/mypage", "/signup"]);
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();

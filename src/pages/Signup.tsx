@@ -4,10 +4,11 @@ import { ArrowLeftIcon } from "../components/icons";
 import { useAuth } from "../auth/AuthContext";
 import "./MyPage.css";
 
-export default function MyPage() {
+export default function Signup() {
   const navigate = useNavigate();
-  const { user, loading, configured, signInWithGoogle, signInWithEmail, logout } =
+  const { user, loading, configured, signInWithGoogle, signUpWithEmail } =
     useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,15 +21,15 @@ export default function MyPage() {
       await action();
       navigate("/cases");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
+      setError(err instanceof Error ? err.message : "회원가입에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  function handleEmailLogin(e: FormEvent) {
+  function handleSignup(e: FormEvent) {
     e.preventDefault();
-    void runAuth(() => signInWithEmail(email.trim(), password));
+    void runAuth(() => signUpWithEmail(email.trim(), password, name));
   }
 
   if (loading) {
@@ -46,7 +47,7 @@ export default function MyPage() {
           <Link to="/" className="auth-card__logo">
             index
           </Link>
-          <h1 className="auth-card__title">로그인됨</h1>
+          <h1 className="auth-card__title">이미 로그인됨</h1>
           <p className="auth-card__lead">
             {user.displayName || user.email} 계정으로 접속 중입니다.
           </p>
@@ -56,13 +57,6 @@ export default function MyPage() {
             onClick={() => navigate("/cases")}
           >
             서비스로 이동
-          </button>
-          <button
-            type="button"
-            className="auth-card__secondary"
-            onClick={() => void logout()}
-          >
-            로그아웃
           </button>
         </div>
       </div>
@@ -75,8 +69,8 @@ export default function MyPage() {
         <Link to="/" className="auth-card__logo">
           index
         </Link>
-        <h1 className="auth-card__title">로그인</h1>
-        <p className="auth-card__lead">Google 계정 또는 이메일로 계속하세요.</p>
+        <h1 className="auth-card__title">회원가입</h1>
+        <p className="auth-card__lead">Google 계정 또는 이메일로 가입하세요.</p>
 
         {!configured && (
           <div className="auth-card__notice">
@@ -92,12 +86,20 @@ export default function MyPage() {
           disabled={!configured || submitting}
         >
           <span>G</span>
-          Google로 로그인
+          Google로 가입
         </button>
 
         <div className="auth-card__divider">or</div>
 
-        <form className="auth-card__form" onSubmit={handleEmailLogin}>
+        <form className="auth-card__form" onSubmit={handleSignup}>
+          <input
+            type="text"
+            className="auth-card__field"
+            placeholder="이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+          />
           <input
             type="email"
             className="auth-card__field"
@@ -113,7 +115,8 @@ export default function MyPage() {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
+            minLength={6}
             required
           />
           {error && <p className="auth-card__error">{error}</p>}
@@ -122,12 +125,12 @@ export default function MyPage() {
             className="auth-card__submit"
             disabled={!configured || submitting}
           >
-            로그인
+            회원가입
           </button>
         </form>
 
         <p className="auth-card__switch">
-          아직 계정이 없나요? <Link to="/signup">회원가입</Link>
+          이미 계정이 있나요? <Link to="/mypage">로그인</Link>
         </p>
 
         <button
