@@ -493,7 +493,7 @@ export default function Home() {
         onKeyDown={(event) => {
           if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault();
         }}
-        placeholder="INDEX AI에게 질문하세요"
+        placeholder="무엇이든 물어보세요"
         aria-label="INDEX AI에게 질문"
         autoComplete="off"
       />
