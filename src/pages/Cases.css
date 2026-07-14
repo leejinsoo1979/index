@@ -38,6 +38,8 @@
 
 .cases__sticky {
   height: 100svh;
+  /* clear the fixed site header so the flattened top row isn't hidden */
+  padding-top: 84px;
 }
 
 .cases__more-scroll {
@@ -169,11 +171,19 @@
   padding-top: 34px;
 }
 
+/* Match the "더 많은 사례" gallery: same width (min(1200px, 100%-64px)),
+   same 8px gap, same 16:9 tiles with 8px radius */
 .cases__grid {
-  margin-top: 34px;
+  width: min(1200px, calc(100vw - 64px));
+  margin: 34px auto 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  gap: 8px;
+}
+
+.cases__grid .case-card__link {
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
 }
 
 /* card media height is fixed in CaseCard.css (208px) — no override needed */
