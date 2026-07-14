@@ -9,30 +9,105 @@
   padding-right: 24px;
 }
 
-/* Hero — centered gallery-style header */
+/* Hero — centered gallery-style header + scroll-driven gallery */
 .cases__hero {
-  padding: 110px 0 8px;
+  position: relative;
+  padding: 110px 0 0;
   text-align: center;
 }
 
-.cases__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 9999px;
-  background: #f1f2f5;
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 600;
+.cases__hero-stagger {
+  position: relative;
+  z-index: 20;
+  margin-bottom: -48px;
 }
 
-.cases__badge svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
+.cases__title-accent {
+  color: var(--accent);
+}
+
+.cases__hero-glow {
+  position: absolute;
+  z-index: 10;
+  width: 100%;
+  height: 70vh;
+  background: linear-gradient(to right, #8d99b8, #6b4fd8, #3556e8);
+  filter: blur(84px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.cases__scroll {
+  position: relative;
+  height: 300vh;
+}
+
+.cases__sticky {
+  height: 100svh;
+}
+
+.cases__more-scroll {
+  position: relative;
+  height: 220vh;
+}
+
+.cases__gallery-tile {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.cases__gallery-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.55));
+}
+
+.cases__gallery-tile span {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  left: 14px;
+  z-index: 2;
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cases__gallery-tile:hover .cases__gallery-img {
+  transform: scale(1.03);
+}
+
+.cases__gallery-tile .cases__gallery-img {
+  transition: transform 0.3s ease;
+}
+
+.cases__gallery-img {
+  display: block;
+  flex: none; /* keep 16:9 — columns may overflow the sticky viewport */
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.22);
+}
+
+.cases__eyebrow {
+  display: inline-block;
+  font-family: var(--font-logo);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
 .cases__title {
@@ -199,9 +274,6 @@
   background: var(--card);
 }
 
-:root[data-app-theme="dark"] .cases__badge {
-  background: var(--card);
-}
 
 :root[data-app-theme="dark"] .cases__filter {
   background: var(--card);
