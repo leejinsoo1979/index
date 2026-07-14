@@ -565,7 +565,12 @@ export default function Home() {
             <ParticleTitle text="index" className="home__logo-canvas" />
           </div>
 
-          <div className="home__composer">{composer}</div>
+          <div className="home__composer">
+            <p className="home__composer-tagline">
+              인테리어 공사 정보, 검색으로 시작하세요
+            </p>
+            {composer}
+          </div>
 
           <div className="home__mode-rail" role="tablist" aria-label="Animation mode">
             {aiModes.map((item) => (

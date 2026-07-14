@@ -90,6 +90,16 @@
   width: min(520px, 86vw);
 }
 
+.home__composer-tagline {
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
 /* Deep-blue glow bloom behind the composer (Gemini-style) */
 .home__composer::before {
   content: "";
