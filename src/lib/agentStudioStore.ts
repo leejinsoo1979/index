@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { firebaseDb } from "./firebase";
 
 export type AgentDocumentType = "REPORT" | "PROPOSAL" | "BLOG_POST" | "SNS_CAPTION" | "KNOWLEDGE_NOTE";
@@ -77,12 +77,29 @@ export interface AgentKnowledgeSource {
 export interface AgentAction {
   id: string;
   documentId?: string;
-  type: "insert_blocks" | "update_block" | "generate_image" | "extract_ontology";
+  type: "insert_blocks" | "update_block" | "replace_block_content" | "append_to_block" | "create_container" | "insert_block_before" | "create_child_block" | "convert_block_type" | "update_block_title" | "mark_block_approved" | "generate_image" | "extract_ontology";
   payload: Record<string, unknown>;
   status: "PROPOSED" | "EXECUTED" | "REJECTED" | "FAILED";
   requiresApproval: boolean;
   riskLevel: "low" | "medium" | "high";
   createdAt: string;
+}
+
+export interface AgentChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: AgentCitation[];
+  createdAt: string;
+}
+
+export interface AgentConversation {
+  id: string;
+  documentId: string;
+  title: string;
+  messages: AgentChatMessage[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AgentOntologyNode {
@@ -121,9 +138,22 @@ export interface AgentStudioData {
   ontologyNodes: AgentOntologyNode[];
   ontologyEdges: AgentOntologyEdge[];
   images: AgentImageAsset[];
+  conversations: AgentConversation[];
 }
 
 const STORAGE_PREFIX = "index-agent-studio-v1";
+const COLLECTION_KEYS = ["projects", "documents", "tasks", "knowledge", "actions", "ontologyNodes", "ontologyEdges", "images", "conversations"] as const;
+type CollectionKey = typeof COLLECTION_KEYS[number];
+const remoteHashes = new Map<string, Map<string, string>>();
+const saveQueues = new Map<string, Promise<void>>();
+
+function stableRecord(value: unknown) {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function recordHash(value: unknown) {
+  return JSON.stringify(value);
+}
 
 export function createAgentId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -201,6 +231,7 @@ function initialData(): AgentStudioData {
     ontologyNodes: [],
     ontologyEdges: [],
     images: [],
+    conversations: [],
   };
 }
 
@@ -221,6 +252,7 @@ function normalizeData(input: AgentStudioData): AgentStudioData {
     ontologyNodes: input.ontologyNodes ?? [],
     ontologyEdges: input.ontologyEdges ?? [],
     images: input.images ?? [],
+    conversations: (input.conversations ?? []).map((conversation) => ({ ...conversation, messages: conversation.messages.slice(-100) })),
   };
 }
 
@@ -244,31 +276,90 @@ export async function hydrateAgentStudio(userId: string): Promise<AgentStudioDat
   const local = loadAgentStudio(userId);
   if (!firebaseDb || userId === "local-admin") return local;
   try {
-    const snapshot = await getDoc(doc(firebaseDb, "agentWorkspaces", userId));
+    const rootRef = doc(firebaseDb, "agentWorkspaces", userId);
+    const [snapshot, ...collectionSnapshots] = await Promise.all([
+      getDoc(rootRef),
+      ...COLLECTION_KEYS.map((key) => getDocs(collection(rootRef, key))),
+    ]);
     if (!snapshot.exists()) {
       await saveAgentStudio(userId, local);
       return local;
     }
-    const remote = snapshot.data().data as AgentStudioData | undefined;
-    if (!remote || !Array.isArray(remote.projects) || !Array.isArray(remote.documents)) return local;
+    const hashes = new Map<string, string>();
+    const normalizedCollections = Object.fromEntries(COLLECTION_KEYS.map((key, index) => {
+      const values = collectionSnapshots[index].docs.map((item) => {
+        const value = item.data().value as Record<string, unknown>;
+        hashes.set(`${key}:${item.id}`, recordHash(value));
+        return value;
+      });
+      return [key, values];
+    })) as unknown as AgentStudioData;
+    remoteHashes.set(userId, hashes);
+    const hasNormalizedData = snapshot.data().schemaVersion === 2 || COLLECTION_KEYS.some((_, index) => !collectionSnapshots[index].empty);
+    const remote = hasNormalizedData ? normalizedCollections : snapshot.data().data as AgentStudioData | undefined;
+    if (!remote || !Array.isArray(remote.projects) || !Array.isArray(remote.documents)) {
+      await saveAgentStudio(userId, local);
+      return local;
+    }
     window.localStorage.setItem(`${STORAGE_PREFIX}:${userId}`, JSON.stringify(remote));
-    return normalizeData(remote);
+    const normalized = normalizeData(remote);
+    if (!hasNormalizedData) void saveAgentStudio(userId, normalized);
+    return normalized;
   } catch (error) {
     console.warn("[Agent Studio] Firestore hydrate failed; using local cache.", error);
     return local;
   }
 }
 
-export async function saveAgentStudio(userId: string, data: AgentStudioData) {
-  window.localStorage.setItem(`${STORAGE_PREFIX}:${userId}`, JSON.stringify(data));
+async function persistAgentStudio(userId: string, data: AgentStudioData) {
   if (!firebaseDb || userId === "local-admin") return;
   try {
-    await setDoc(
-      doc(firebaseDb, "agentWorkspaces", userId),
-      { ownerUid: userId, data, updatedAt: serverTimestamp() },
-      { merge: true },
-    );
+    const rootRef = doc(firebaseDb, "agentWorkspaces", userId);
+    const known = remoteHashes.get(userId) ?? new Map<string, string>();
+    const nextHashes = new Map<string, string>();
+    let batch = writeBatch(firebaseDb);
+    let operations = 0;
+    const commitIfFull = async () => {
+      if (operations < 450) return;
+      await batch.commit();
+      batch = writeBatch(firebaseDb!);
+      operations = 0;
+    };
+    for (const key of COLLECTION_KEYS) {
+      const records = data[key] as Array<{ id: string }>;
+      for (const record of records) {
+        const clean = stableRecord(record);
+        const hashKey = `${key}:${record.id}`;
+        const hash = recordHash(clean);
+        nextHashes.set(hashKey, hash);
+        if (known.get(hashKey) !== hash) {
+          batch.set(doc(collection(rootRef, key), record.id), { ownerUid: userId, value: clean, updatedAt: serverTimestamp() });
+          operations += 1;
+          await commitIfFull();
+        }
+      }
+    }
+    for (const hashKey of known.keys()) {
+      if (nextHashes.has(hashKey)) continue;
+      const separator = hashKey.indexOf(":");
+      const key = hashKey.slice(0, separator) as CollectionKey;
+      const id = hashKey.slice(separator + 1);
+      batch.delete(doc(collection(rootRef, key), id));
+      operations += 1;
+      await commitIfFull();
+    }
+    if (operations > 0) await batch.commit();
+    await setDoc(rootRef, { ownerUid: userId, schemaVersion: 2, updatedAt: serverTimestamp() }, { merge: true });
+    remoteHashes.set(userId, nextHashes);
   } catch (error) {
     console.warn("[Agent Studio] Firestore save failed; local cache remains active.", error);
   }
+}
+
+export function saveAgentStudio(userId: string, data: AgentStudioData) {
+  window.localStorage.setItem(`${STORAGE_PREFIX}:${userId}`, JSON.stringify(data));
+  const previous = saveQueues.get(userId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(() => persistAgentStudio(userId, data));
+  saveQueues.set(userId, next);
+  return next;
 }
