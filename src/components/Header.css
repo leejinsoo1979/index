@@ -103,67 +103,6 @@
   gap: 44px;
 }
 
-/* Centered search row below the nav (matches original layout) */
-.site-header__search-row {
-  display: flex;
-  justify-content: center;
-  padding: 0 40px 16px;
-}
-
-.site-header__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 240px;
-  height: 40px;
-  padding: 0 14px;
-  background: #fff;
-  border: 1px solid var(--line-strong);
-  border-radius: 9999px;
-  box-shadow: 0 2px 10px rgba(80, 100, 200, 0.06);
-}
-
-.site-header__search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--ink);
-}
-
-.site-header__search input::placeholder {
-  color: var(--ink-faint);
-}
-
-.site-header__search-icons {
-  display: flex;
-  gap: 4px;
-}
-
-.site-header__search-icons button {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: none;
-  color: var(--accent);
-  border-radius: 6px;
-}
-
-.site-header__search-icons button:hover {
-  background: var(--accent-bg);
-}
-
-.site-header__search-icons svg {
-  width: 16px;
-  height: 16px;
-}
-
 /* ── Shared link styles ── */
 .site-header__link {
   position: relative;
