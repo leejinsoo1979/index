@@ -36,6 +36,11 @@
 }
 
 .home__logo-canvas {
+  /* absolute so the JS-set canvas width/height attributes can never feed
+     back into layout — with height:100% in the hero grid the sizing was
+     circular and the logo drifted down after shrink→grow resizes */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
