@@ -211,3 +211,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+.apply-modal__fee {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.apply-modal__fee strong {
+  font-size: 15px;
+  font-weight: 700;
+}

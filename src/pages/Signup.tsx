@@ -7,6 +7,7 @@ import {
   privacySections,
   termsSections,
 } from "./Terms";
+import { registerMember } from "../lib/adminStore";
 import "./MyPage.css";
 import "./Signup.css";
 
@@ -109,6 +110,15 @@ export default function Signup() {
           agreedAt: new Date().toISOString(),
         }),
       );
+      // 관리자 회원 목록과 연동
+      registerMember({
+        name: name.trim(),
+        email: email.trim(),
+        provider: "이메일",
+        memberType: isAssociation ? "사업자회원" : "일반회원",
+        phone,
+        company: isAssociation ? company : undefined,
+      });
       navigate("/cases");
     } catch (err) {
       setError(err instanceof Error ? err.message : "회원가입에 실패했습니다.");

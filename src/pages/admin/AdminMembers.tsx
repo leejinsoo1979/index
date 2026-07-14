@@ -88,6 +88,7 @@ export default function AdminMembers() {
                 <th>이름</th>
                 <th>이메일</th>
                 <th>가입 방식</th>
+                <th>유형</th>
                 <th>가입일</th>
                 <th>권한</th>
                 <th>상태</th>
@@ -101,6 +102,9 @@ export default function AdminMembers() {
                   <td>{m.name}</td>
                   <td className="admin-table__mono">{m.email}</td>
                   <td>{m.provider}</td>
+                  <td title={m.company ? `업체명: ${m.company}` : undefined}>
+                    {m.memberType ?? "일반회원"}
+                  </td>
                   <td>{m.joined}</td>
                   <td>
                     <span
@@ -136,7 +140,7 @@ export default function AdminMembers() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="admin-table__empty">
+                  <td colSpan={9} className="admin-table__empty">
                     조건에 맞는 회원이 없습니다.
                   </td>
                 </tr>

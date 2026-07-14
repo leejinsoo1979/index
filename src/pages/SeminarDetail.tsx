@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { pastSeminars, upcomingSeminars, type SeminarLevel } from "../data/seminars";
+import { pastSeminars, type SeminarLevel } from "../data/seminars";
+import { mergedUpcomingSeminars } from "../lib/adminStore";
 import SeminarApplyModal from "../components/SeminarApplyModal";
 import Placeholder from "./Placeholder";
 import "./SeminarDetail.css";
@@ -21,7 +22,7 @@ interface DetailSeminar {
 }
 
 function findSeminar(id?: string): DetailSeminar | null {
-  const upcoming = upcomingSeminars.find((s) => String(s.id) === id);
+  const upcoming = mergedUpcomingSeminars().find((s) => String(s.id) === id);
   if (upcoming) return { ...upcoming, isPast: false };
   const past = pastSeminars.find((s) => String(s.id) === id);
   if (past)

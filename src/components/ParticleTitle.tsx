@@ -18,6 +18,8 @@ interface ParticleTitleProps {
   className?: string;
 }
 
+const LOGO_MOTION_SPEED = 0.55;
+
 /**
  * Draws `text` as a cloud of particles that scatter away from the pointer
  * (same interaction as the deployed 인덱스.kr logo) on a transparent canvas.
@@ -137,13 +139,15 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
       if (!ctx) return;
       const now = performance.now();
       const elapsed = now - startedAt;
+      const motionElapsed = elapsed * LOGO_MOTION_SPEED;
+      const motionNow = startedAt + motionElapsed;
 
       ctx.clearRect(0, 0, width, height);
 
       const pointer = pointerRef.current;
       const maxDistance = width < 768 ? 150 : 230;
-      const complete = elapsed > 1900;
-      const pulse = complete ? 1 : 1 + Math.sin(now * 0.002) * 0.014;
+      const complete = motionElapsed > 1900;
+      const pulse = complete ? 1 : 1 + Math.sin(motionNow * 0.002) * 0.014;
 
       for (let i = particles.length - 1; i >= 0; i -= 1) {
         const particle = particles[i];
@@ -151,15 +155,15 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
         const dy = pointer.y - particle.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        particle.phase += 0.03;
-        const intro = Math.min(1, Math.max(0, (elapsed - particle.delay) / 980));
+        particle.phase += 0.03 * LOGO_MOTION_SPEED;
+        const intro = Math.min(1, Math.max(0, (motionElapsed - particle.delay) / 980));
         const easedIntro = 1 - Math.pow(1 - intro, 3);
         const driftX = complete
           ? 0
-          : Math.sin(now * 0.0014 + particle.phase) * 1.25 * particle.depth;
+          : Math.sin(motionNow * 0.0014 + particle.phase) * 1.25 * particle.depth;
         const driftY = complete
           ? 0
-          : Math.cos(now * 0.0011 + particle.phase * 1.3) * 0.9 * particle.depth;
+          : Math.cos(motionNow * 0.0011 + particle.phase * 1.3) * 0.9 * particle.depth;
         const targetX = width / 2 + (particle.baseX - width / 2) * pulse + driftX;
         const targetY = height / 2 + (particle.baseY - height / 2) * pulse + driftY;
 
@@ -180,10 +184,10 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
             ctx.fillStyle = `rgb(${white}, ${white}, ${white})`;
           }
         } else {
-          const settleSpeed = complete ? 0.18 : 0.055 + easedIntro * 0.13;
+          const settleSpeed = (complete ? 0.18 : 0.055 + easedIntro * 0.13) * LOGO_MOTION_SPEED;
           particle.x += (targetX - particle.x) * settleSpeed;
           particle.y += (targetY - particle.y) * settleSpeed;
-          const sparkle = 0.84 + Math.sin(now * 0.0011 + particle.phase) * 0.16;
+          const sparkle = 0.84 + Math.sin(motionNow * 0.0011 + particle.phase) * 0.16;
           ctx.fillStyle =
             particle.hue > 0.96
               ? `rgba(125, 211, 252, ${0.72 + sparkle * 0.22})`
@@ -191,7 +195,7 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
         }
 
         const flickerSize =
-          particle.size * (0.82 + Math.sin(now * 0.0014 + particle.phase) * 0.16);
+          particle.size * (0.82 + Math.sin(motionNow * 0.0014 + particle.phase) * 0.16);
         ctx.fillRect(particle.x, particle.y, flickerSize, flickerSize);
       }
 

@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRightIcon } from "./icons";
+import {
+  loadSeminars,
+  recordSeminarApplication,
+  seminarFee,
+} from "../lib/adminStore";
 import "./SeminarApplyModal.css";
 
 interface ApplySeminar {
@@ -56,8 +61,14 @@ export default function SeminarApplyModal({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    // Demo only — no real backend.
-    alert(`신청이 완료되었습니다.\n${seminar.title}\n신청자: ${form.name}`);
+    // 결제 내역 생성 + 신청 인원 증가 (관리자 화면과 연동)
+    const payment = recordSeminarApplication(seminar.id, {
+      name: form.name.trim(),
+      email: form.email.trim(),
+    });
+    alert(
+      `신청이 완료되었습니다.\n${seminar.title}\n신청자: ${form.name}\n결제 금액: ${payment.amount.toLocaleString("ko-KR")}원 (주문번호 ${payment.orderNo})`,
+    );
     onClose();
   }
 
@@ -95,6 +106,18 @@ export default function SeminarApplyModal({
           <p>
             {seminar.date} · {seminar.location} · 참가 {seminar.enrolled}/
             {seminar.capacity}
+          </p>
+          <p className="apply-modal__fee">
+            수강료{" "}
+            <strong>
+              {(() => {
+                const fee =
+                  loadSeminars().find((s) => s.id === seminar.id)?.price ??
+                  seminarFee(seminar.level === "심화" ? "심화" : "기초");
+                return fee === 0 ? "무료" : `${fee.toLocaleString("ko-KR")}원`;
+              })()}
+            </strong>{" "}
+            — 신청 완료 시 결제됩니다.
           </p>
         </div>
 

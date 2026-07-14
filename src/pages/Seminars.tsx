@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { pastSeminars, upcomingSeminars } from "../data/seminars";
+import { pastSeminars } from "../data/seminars";
+import { mergedUpcomingSeminars } from "../lib/adminStore";
 import "./Seminars.css";
 
 type ViewMode = "list" | "calendar";
@@ -17,7 +18,7 @@ const topics = [
 ];
 
 const seminars = [
-  ...upcomingSeminars.map((seminar) => ({ ...seminar, isPast: false })),
+  ...mergedUpcomingSeminars().map((seminar) => ({ ...seminar, isPast: false })),
   ...pastSeminars.map((seminar) => ({
     ...seminar,
     status: "완료" as const,

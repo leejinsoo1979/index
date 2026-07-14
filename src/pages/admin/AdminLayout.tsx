@@ -50,6 +50,15 @@ function MemberIcon() {
   );
 }
 
+function AgentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="6" width="16" height="13" rx="3" />
+      <path d="M12 3v3M8.5 11h.01M15.5 11h.01M8.5 15c1 .8 2.2 1.2 3.5 1.2s2.5-.4 3.5-1.2" />
+    </svg>
+  );
+}
+
 function BackIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -60,6 +69,7 @@ function BackIcon() {
 
 const NAV = [
   { to: "/admin", label: "대시보드", icon: <DashIcon />, end: true },
+  { to: "/admin/agent", label: "Agent Studio", icon: <AgentIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/payments", label: "결제 관리", icon: <PayIcon /> },

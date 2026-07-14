@@ -13,6 +13,7 @@ import Team from "./pages/Team";
 import Placeholder from "./pages/Placeholder";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAgent from "./pages/admin/AdminAgent";
 import AdminBoards from "./pages/admin/AdminBoards";
 import AdminSeminars from "./pages/admin/AdminSeminars";
 import AdminPayments from "./pages/admin/AdminPayments";
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/about/organization" element={<Team />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="agent" element={<AdminAgent />} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="payments" element={<AdminPayments />} />
