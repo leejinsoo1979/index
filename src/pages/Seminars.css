@@ -45,7 +45,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
-  margin: 0 0 30px 356px;
+  margin: 0 0 30px 386px;
 }
 
 .seminar-schedule__view-switch {
@@ -112,7 +112,7 @@
 
 .seminar-schedule__layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 330px minmax(0, 1fr);
   gap: 56px;
   align-items: start;
 }
@@ -676,8 +676,8 @@
 }
 
 @media (max-width: 1280px) and (min-width: 1025px) {
-  .seminar-schedule__layout { grid-template-columns: 280px minmax(0, 1fr); gap: 32px; }
-  .seminar-schedule__toolbar { margin-left: 312px; }
+  .seminar-schedule__layout { grid-template-columns: 305px minmax(0, 1fr); gap: 32px; }
+  .seminar-schedule__toolbar { margin-left: 337px; }
   .schedule-card { padding: 28px 24px; }
 }
 
@@ -743,4 +743,71 @@
   .seminar-schedule__layout { display: block; }
   .seminar-schedule { padding: 0; }
   .schedule-card { break-inside: avoid; }
+}
+
+/* ── Dark theme ── */
+:root[data-app-theme="dark"] .seminar-schedule {
+  background: var(--bg-1);
+  color: var(--ink);
+}
+
+:root[data-app-theme="dark"] .seminar-schedule__breadcrumb strong,
+:root[data-app-theme="dark"] .seminar-schedule__title,
+:root[data-app-theme="dark"] .seminar-schedule__download,
+:root[data-app-theme="dark"] .seminar-results__notice strong,
+:root[data-app-theme="dark"] .schedule-card h2,
+:root[data-app-theme="dark"] .schedule-card__meta,
+:root[data-app-theme="dark"] .seminar-calendar__weekdays span,
+:root[data-app-theme="dark"] .seminar-calendar__day > time,
+:root[data-app-theme="dark"] .seminar-calendar strong,
+:root[data-app-theme="dark"] .seminar-results__paging button {
+  color: var(--ink);
+}
+
+:root[data-app-theme="dark"] .seminar-schedule__view-switch {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-app-theme="dark"] .seminar-schedule__view-switch button {
+  color: var(--ink);
+}
+
+:root[data-app-theme="dark"] .seminar-schedule__view-switch button.is-active {
+  background: var(--ink);
+  color: var(--bg-1);
+}
+
+:root[data-app-theme="dark"] .seminar-filter__search {
+  border-color: var(--line-strong);
+  background: var(--card);
+}
+
+:root[data-app-theme="dark"] .seminar-filter__search input {
+  color: var(--ink);
+}
+
+:root[data-app-theme="dark"] .seminar-filter__search svg {
+  stroke: var(--ink);
+}
+
+:root[data-app-theme="dark"] .seminar-filter__panel {
+  background: #000;
+}
+
+:root[data-app-theme="dark"] .schedule-card {
+  background: var(--bg-1);
+  border-left-color: rgba(255, 255, 255, 0.4);
+}
+
+:root[data-app-theme="dark"] .schedule-card::before,
+:root[data-app-theme="dark"] .schedule-card::after {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+:root[data-app-theme="dark"] .schedule-card:not(.schedule-card--featured):hover {
+  background: var(--bg-3);
+}
+
+:root[data-app-theme="dark"] .seminar-results__paging button.is-current {
+  background: rgba(255, 255, 255, 0.12);
 }

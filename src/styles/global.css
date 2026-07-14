@@ -88,6 +88,25 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Dark theme tokens — applied by the header ThemeToggle via data-app-theme */
+:root[data-app-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-1: #0c0e14;
+  --bg-2: #090b10;
+  --bg-3: #0e1018;
+  --card: #14161d;
+
+  --ink: #e8eaf1;
+  --ink-soft: #a2a9b8;
+  --ink-faint: #707786;
+
+  --accent-bg: rgba(79, 107, 246, 0.18);
+
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+}
+
 /* site-reset layer keeps this below Astryx component styles in the cascade */
 @layer site-reset {
   * {

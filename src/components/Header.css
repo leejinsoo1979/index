@@ -25,6 +25,10 @@
   border-bottom: 1px solid var(--line);
 }
 
+:root[data-app-theme="dark"] .site-header--inner {
+  background: rgba(9, 11, 16, 0.8);
+}
+
 .site-header__home-logo {
   position: absolute;
   left: 40px;
@@ -135,7 +139,7 @@
 }
 
 .site-header--inner .site-header__link {
-  color: #4b5563;
+  color: var(--ink-soft);
   text-shadow: none;
 }
 

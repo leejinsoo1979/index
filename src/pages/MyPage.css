@@ -214,3 +214,26 @@
   width: 16px;
   height: 16px;
 }
+
+/* ── Dark theme ── */
+:root[data-app-theme="dark"] .auth-page {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(79, 107, 246, 0.14), transparent 38%),
+    var(--bg-1);
+}
+
+:root[data-app-theme="dark"] .auth-card__field,
+:root[data-app-theme="dark"] .auth-card__field:focus,
+:root[data-app-theme="dark"] .auth-card__secondary {
+  background: var(--card);
+  border-color: var(--line-strong);
+}
+
+:root[data-app-theme="dark"] .auth-card__submit {
+  color: #0c0e14;
+  background: var(--ink);
+}
+
+:root[data-app-theme="dark"] .auth-card__submit:hover:not(:disabled) {
+  background: #ffffff;
+}
