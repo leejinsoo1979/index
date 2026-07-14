@@ -96,9 +96,11 @@ export default function Cases() {
       <section className="cases__list-section">
         <div className="cases__inner cases__list-head">
           <div>
-            <h2 className="cases__heading">더 많은 사례 읽어보기</h2>
+            <h2 className="cases__heading">다양한 사례들을 확인하는 도서관</h2>
             <p className="cases__sub">
-              전국 사례 데이터 중 최신 하자 건의 사례를 쉽게 찾아볼 수 있습니다.
+              INDEX는 국내 주택 하자의 실제 현장 사례를
+              <br />
+              수집·분석하여 원인과 해결방법을 정리했습니다.
             </p>
           </div>
         </div>
