@@ -1318,6 +1318,100 @@
   }
 }
 
+/* ── Windows-laptop effective viewports (1920×1080 at 125% scaling → 1536px,
+     at 150% → 1280px): the fixed-size hero/composer reads as zoomed-in there,
+     so step the landing elements down. min-width guard keeps the ≤760px
+     mobile rules authoritative on phones. ── */
+@media (min-width: 761px) and (max-width: 1536px) {
+  .home__hero {
+    transform: translateY(-38px);
+  }
+
+  .home__composer {
+    top: calc(50% + 118px);
+    width: min(560px, 86vw);
+  }
+
+  .home__composer-tagline {
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+
+  .home__composer::before {
+    width: min(1200px, 160vw);
+    height: 660px;
+  }
+
+  .home__ask {
+    height: 76px;
+    padding: 0 16px 0 14px;
+    border-radius: 20px;
+  }
+
+  .home__ask input {
+    font-size: 14px;
+  }
+
+  .home__ask-tool,
+  .home__ask-send {
+    width: 40px;
+    height: 40px;
+  }
+
+  .home__ask-tool svg,
+  .home__ask-send svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .home__mode-caption {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1280px) {
+  .home__hero {
+    transform: translateY(-34px);
+  }
+
+  .home__composer {
+    top: calc(50% + 104px);
+    width: min(512px, 86vw);
+  }
+
+  .home__composer-tagline {
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+
+  .home__composer::before {
+    width: min(1080px, 160vw);
+    height: 600px;
+  }
+
+  .home__ask {
+    height: 68px;
+    border-radius: 18px;
+  }
+
+  .home__ask-tool,
+  .home__ask-send {
+    width: 38px;
+    height: 38px;
+  }
+
+  .home__ask-tool svg,
+  .home__ask-send svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .home__controls {
+    bottom: 26px;
+    gap: 13px;
+  }
+}
+
 /* very narrow phones: give the input room by hiding the model selector */
 @media (max-width: 480px) {
   .home__ask-model-wrap {

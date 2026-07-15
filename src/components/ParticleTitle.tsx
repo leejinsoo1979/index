@@ -51,8 +51,11 @@ export default function ParticleTitle({ text, className }: ParticleTitleProps) {
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      /* wordmark width ≈ font-size × 2.67 — slightly narrower than the composer */
-      const fontSize = Math.min(200, width * 0.28);
+      /* wordmark width ≈ font-size × 2.67 — slightly narrower than the composer;
+         tiered caps match the 1536/1280 composer breakpoints in Home.css
+         (Windows laptops at 125%/150% display scaling) */
+      const capSize = width <= 1280 ? 152 : width <= 1536 ? 172 : 200;
+      const fontSize = Math.min(capSize, width * 0.28);
       ctx.font = `600 ${fontSize}px Chillax, Arial, sans-serif`;
       ctx.fillText(textRef.current, width / 2, height / 2);
       textImageData = ctx.getImageData(0, 0, width, height);
