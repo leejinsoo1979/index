@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowLeft, Bot, Check, ChevronDown, Download, FileText, Image as ImageIcon, LoaderCircle, Send, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Bot, Check, ChevronDown, Download, FileText, Image as ImageIcon, LoaderCircle, Network, Send, Sparkles, X } from "lucide-react";
 import {
   createAgentId,
   createBlock,
@@ -20,9 +20,10 @@ import FlowBlockEditor from "./FlowBlockEditor";
 import ImageLab from "./ImageLab";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { agentAuthorizedFetch } from "../../lib/agentApi";
+import "../../pages/admin/AdminAgent.css";
 
 const STATUS_LABEL: Record<AgentDocument["status"], string> = { DRAFT: "작성 중", NEEDS_REVIEW: "검토 필요", APPROVED: "승인됨", ARCHIVED: "보관됨" };
-const TEAMS = ["PM", "콘텐츠팀", "법규팀", "시공팀", "이미지팀", "지식팀"];
+const TEAMS = ["콘텐츠팀", "법규팀", "시공디테일팀", "이미지팀", "지식관리팀", "PM"];
 const MODELS = [
   { value: "gpt-5.4-nano", label: "GPT-5.4 nano" },
   { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
@@ -79,11 +80,11 @@ export default function DocumentStudio({ userId, document, data, onBack, onUpdat
   onUpdateDocument: (patch: Partial<AgentDocument>) => void;
   onUpdateData: (updater: (current: AgentStudioData) => AgentStudioData) => void;
 }) {
-  const chatPanel = useResizable({ initial: 310, min: 250, max: 480, side: "right", storageKey: "agent-studio-chat-width" });
-  const outlinePanel = useResizable({ initial: 238, min: 190, max: 360, side: "left", storageKey: "agent-studio-outline-width" });
+  const chatPanel = useResizable({ initial: 340, min: 280, max: 560, side: "right", storageKey: "archi.studio.chat.w" });
+  const outlinePanel = useResizable({ initial: 224, min: 180, max: 420, side: "left", storageKey: "archi.studio.outline.w" });
   const [view, setView] = useState<"flow" | "canvas">("flow");
   const [selectedId, setSelectedId] = useState<string | null>(document.blocks[0]?.id ?? null);
-  const [team, setTeam] = useState("PM");
+  const [team, setTeam] = useState("콘텐츠팀");
   const [model, setModel] = useState(MODELS[0].value);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -153,6 +154,19 @@ export default function DocumentStudio({ userId, document, data, onBack, onUpdat
     onUpdateDocument({ blocks: [...document.blocks, next] }); setSelectedId(next.id); setActionStatus(action.id, "EXECUTED");
   };
 
+  const extractOntology = () => {
+    const words = [...new Set(document.blocks.flatMap((block) => getBlockText(block).match(/[가-힣A-Za-z0-9]{2,12}/g) ?? []))].slice(0, 10);
+    onUpdateData((current) => ({
+      ...current,
+      ontologyNodes: [
+        ...current.ontologyNodes,
+        ...words
+          .filter((label) => !current.ontologyNodes.some((node) => node.label === label))
+          .map((label) => ({ id: createAgentId(), label, type: "method" as const, description: `${document.title}에서 추출`, status: "CANDIDATE" as const, confidence: .72 })),
+      ],
+    }));
+  };
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     const content = input.trim();
@@ -206,21 +220,23 @@ export default function DocumentStudio({ userId, document, data, onBack, onUpdat
       <FileText />
       <input value={document.title} onChange={(event) => onUpdateDocument({ title: event.target.value })} aria-label="문서 제목" />
       <span className="agent-document-toolbar__saved">자동 저장됨</span>
-      <div className="agent-document-toolbar__views"><button type="button" className={view === "flow" ? "is-active" : ""} onClick={() => setView("flow")}>플로우</button><button type="button" className={view === "canvas" ? "is-active" : ""} onClick={() => setView("canvas")}>캔버스</button></div>
       <select value={document.status} onChange={(event) => onUpdateDocument({ status: event.target.value as AgentDocument["status"] })}>{Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <button type="button" onClick={extractOntology}><Network /> 지식 추출</button>
       <button type="button" onClick={() => setImageLabOpen(true)}><ImageIcon /> 이미지</button>
       <div className="agent-document-export"><button type="button" onClick={() => setExportOpen((value) => !value)}><Download /> 내보내기 <ChevronDown /></button>{exportOpen && <div><button type="button" onClick={() => void download(document, "docx")}>Word DOCX</button><button type="button" onClick={() => void download(document, "md")}>Markdown</button><button type="button" onClick={() => void download(document, "txt")}>TXT</button><button type="button" onClick={() => void download(document, "html")}>HTML</button><button type="button" onClick={() => window.print()}>PDF 인쇄</button></div>}</div>
     </header>
+    <div className="agent-view-switcher"><button type="button" className={view === "flow" ? "is-active" : ""} onClick={() => setView("flow")}>문서</button><button type="button" className={view === "canvas" ? "is-active" : ""} onClick={() => setView("canvas")}>캔버스</button>{view === "canvas" && <span>클릭=선택 · 드래그=이동 · 핸들=크기 · 더블클릭=편집 · Del=삭제</span>}</div>
     <div className="agent-document-workspace">
       <aside className="agent-ai-panel" style={{ width: chatPanel.width }}>
         <ResizeHandle side="right" onPointerDown={chatPanel.beginResize} />
-        <header><span><Bot /></span><div><strong>AI 에이전트</strong><small>{selectedBlock ? `선택: ${selectedBlock.type} · ${getBlockText(selectedBlock).slice(0, 24) || "빈 블록"}` : "문서 전체 컨텍스트"}</small></div></header>
-        <div className="agent-ai-panel__controls"><select value={team} onChange={(event) => setTeam(event.target.value)}>{TEAMS.map((name) => <option key={name}>{name}</option>)}</select><select value={model} onChange={(event) => setModel(event.target.value)}>{MODELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
+        <header><span><Bot /></span><div><strong>AI 에이전트</strong><small>{selectedBlock ? `선택: ${selectedBlock.type} · ${getBlockText(selectedBlock).slice(0, 24) || "빈 블록"}` : "문서 전체 컨텍스트"}</small></div><select aria-label="AI 모델" value={model} onChange={(event) => setModel(event.target.value)}>{MODELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></header>
+        <div className="agent-ai-panel__teams">{TEAMS.map((name) => <button key={name} type="button" className={team === name ? "is-active" : ""} onClick={() => setTeam(name)}>{name}</button>)}</div>
         <div className="agent-ai-panel__messages">{messages.map((message) => {
           const actions = documentActions.filter((action) => action.payload.messageId === message.id);
           return <div key={message.id} className={`agent-ai-message is-${message.role}`}><p>{message.content || "작성 중..."}</p>{message.citations && message.citations.length > 0 && <div className="agent-source-cards">{message.citations.map((citation) => <a key={citation.id} href={citation.url} target="_blank" rel="noreferrer"><strong>{citation.title}</strong><small>{citation.url}</small></a>)}</div>}{actions.map((action) => <div key={action.id} className={`agent-action-card is-${action.status.toLowerCase()}`}><div><Sparkles /><span><strong>{action.type === "update_block" ? "선택 블록 수정" : action.type === "append_to_block" ? "선택 블록 이어쓰기" : action.type === "generate_image" ? "이미지 생성" : action.type === "extract_ontology" ? "온톨로지 후보 추출" : "문서 블록 삽입"}</strong><small>{action.riskLevel === "high" ? "출처 또는 비용 검토가 필요한 고위험 변경" : action.riskLevel === "medium" ? "기존 콘텐츠에 영향을 주는 변경" : "검토 후 적용되는 변경"}</small></span></div>{action.status === "PROPOSED" ? <footer><button type="button" onClick={() => setActionStatus(action.id, "REJECTED")}><X /> 거절</button><button type="button" onClick={() => approveAction(action)}><Check /> 적용</button></footer> : <em>{action.status === "EXECUTED" ? "적용됨" : "거절됨"}</em>}</div>)}</div>;
         })}{busy && <span className="agent-ai-panel__busy"><LoaderCircle /> 응답 생성 중</span>}</div>
-        <form onSubmit={sendMessage}><textarea rows={3} value={input} onChange={(event) => setInput(event.target.value)} placeholder="문서 수정이나 자료 조사를 요청하세요" /><div><span>{approvedKnowledge.length}개 승인 지식 연결</span><button type="submit" disabled={!input.trim() || busy}><Send /></button></div></form>
+        <div className="agent-ai-presets">{["블로그 초안 작성해줘", "방화문 법규 알려줘", "공정별 비용 차트 만들어줘"].map((preset) => <button key={preset} type="button" onClick={() => setInput(preset)}>{preset}</button>)}</div>
+        <form onSubmit={sendMessage}><textarea rows={3} value={input} onChange={(event) => setInput(event.target.value)} placeholder="AI에게 요청하기... (예: 블로그 초안 작성해줘)" /><div><span>{approvedKnowledge.length}개 승인 지식 연결</span><button type="submit" disabled={!input.trim() || busy}><Send /></button></div></form>
       </aside>
       <main className={`agent-document-canvas is-${view}`}>
         {view === "flow" ? <div className="agent-document-paper"><FlowBlockEditor blocks={document.blocks} selectedId={selectedId} onSelect={setSelectedId} onChange={updateBlock} onDelete={deleteBlock} onAdd={addBlock} onReorder={reorder} /></div> : <CanvasView blocks={document.blocks} selectedId={selectedId} onSelect={(id) => setSelectedId(id || null)} onChange={updateBlock} />}

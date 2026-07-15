@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Cases from "./pages/Cases";
@@ -13,7 +13,7 @@ import Team from "./pages/Team";
 import Placeholder from "./pages/Placeholder";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminAgent from "./pages/admin/AdminAgent";
+import AgentStandalone from "./pages/AgentStandalone";
 import AdminBoards from "./pages/admin/AdminBoards";
 import AdminSeminars from "./pages/admin/AdminSeminars";
 import AdminPayments from "./pages/admin/AdminPayments";
@@ -52,9 +52,10 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/about/organization" element={<Team />} />
+        <Route path="/agent-studio" element={<AgentStandalone />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
-          <Route path="agent" element={<AdminAgent />} />
+          <Route path="agent" element={<Navigate to="/agent-studio" replace />} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="payments" element={<AdminPayments />} />

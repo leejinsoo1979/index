@@ -69,7 +69,7 @@ function BackIcon() {
 
 const NAV = [
   { to: "/admin", label: "대시보드", icon: <DashIcon />, end: true },
-  { to: "/admin/agent", label: "Agent Studio", icon: <AgentIcon /> },
+  { to: "/agent-studio", label: "Agent Studio", icon: <AgentIcon />, external: true },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/payments", label: "결제 관리", icon: <PayIcon /> },
@@ -124,7 +124,11 @@ export default function AdminLayout() {
         </Link>
 
         <nav className="admin__nav" aria-label="관리자 메뉴">
-          {NAV.map((item) => (
+          {NAV.map((item) => item.external ? (
+            <a key={item.to} href={item.to} target="_blank" rel="noreferrer" className="admin__nav-item">
+              {item.icon}{item.label}
+            </a>
+          ) : (
             <NavLink
               key={item.to}
               to={item.to}
