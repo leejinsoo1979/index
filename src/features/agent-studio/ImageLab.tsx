@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Brush, Check, Image as ImageIcon, LoaderCircle, Plus, RotateCcw, Sparkles, X } from "lucide-react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, list, ref, uploadBytes } from "firebase/storage";
 import { createAgentId, type AgentImageAsset, type AgentStudioData } from "../../lib/agentStudioStore";
 import { firebaseStorage } from "../../lib/firebase";
 import { agentAuthorizedFetch } from "../../lib/agentApi";
@@ -18,6 +18,15 @@ async function persistImage(userId: string, assetId: string, versionId: string, 
   const objectRef = ref(firebaseStorage, `agent-studio/${userId}/${assetId}/${versionId}.${extension}`);
   await uploadBytes(objectRef, bytes, { contentType: mime });
   return getDownloadURL(objectRef);
+}
+
+async function ensureStorageReady(userId: string) {
+  if (!firebaseStorage) throw new Error("Firebase Storage 설정이 필요합니다.");
+  try {
+    await list(ref(firebaseStorage, `agent-studio/${userId}`), { maxResults: 1 });
+  } catch {
+    throw new Error("Firebase Storage 버킷 또는 보안 규칙이 아직 준비되지 않았습니다. Storage를 활성화한 뒤 규칙을 배포하세요.");
+  }
 }
 
 export default function ImageLab({ userId, data, onUpdateData, onInsertImage, initialPrompt = "" }: {
@@ -60,6 +69,7 @@ export default function ImageLab({ userId, data, onUpdateData, onInsertImage, in
     if (!prompt.trim() || busy) return;
     setBusy(true); setError("");
     try {
+      await ensureStorageReady(userId);
       const result = await requestImage({ action: "generate", prompt: prompt.trim(), size });
       const assetId = createAgentId();
       const versionId = createAgentId();
@@ -101,6 +111,7 @@ export default function ImageLab({ userId, data, onUpdateData, onInsertImage, in
     if (!editAsset || !latest || !editPrompt.trim() || busy) return;
     setBusy(true); setError("");
     try {
+      await ensureStorageReady(userId);
       const result = await requestImage({ action: "inpaint", prompt: editPrompt.trim(), size, ...(latest.dataUrl.startsWith("data:") ? { imageDataUrl: latest.dataUrl } : { imageUrl: latest.dataUrl }), maskDataUrl: hasMaskRef.current ? maskRef.current?.toDataURL("image/png") : undefined });
       const versionId = createAgentId();
       const imageUrl = await persistImage(userId, editAsset.id, versionId, result.imageDataUrl!);
