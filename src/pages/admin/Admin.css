@@ -559,12 +559,21 @@ a.admin-stat:hover {
   font-weight: 700;
 }
 
+/* block (not grid) so the label text and the required * stay on one
+   line — as grid items they split into separate rows and required
+   fields grew taller, misaligning the form columns */
 .admin-modal__card label {
-  display: grid;
-  gap: 6px;
+  display: block;
   color: #454c59;
   font-size: 12.5px;
   font-weight: 600;
+}
+
+.admin-modal__card label > input,
+.admin-modal__card label > select,
+.admin-modal__card label > textarea {
+  width: 100%;
+  margin-top: 6px;
 }
 
 .admin-modal__card input,
