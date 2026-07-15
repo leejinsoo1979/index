@@ -1,4 +1,6 @@
-import { NavLink, Link, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX } from "react-icons/fi";
+import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { ADMIN_EMAILS } from "../../lib/adminStore";
 import "./Admin.css";
@@ -78,6 +80,8 @@ const NAV = [
 
 export default function AdminLayout() {
   const { user, loading, configured } = useAuth();
+  const { pathname } = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Firebase 미설정(로컬 데모)일 때는 게이트 없이 통과시킨다.
   const allowed = !configured || (user && ADMIN_EMAILS.includes(user.email ?? ""));
@@ -116,45 +120,53 @@ export default function AdminLayout() {
     );
   }
 
+  const current = NAV.find((item) => item.to === pathname || (!item.end && pathname.startsWith(item.to)));
+  const renderItem = (item: (typeof NAV)[number]) => item.external ? (
+    <a key={item.to} href={item.to} target="_blank" rel="noreferrer" className="admin__nav-item">
+      {item.icon}<span>{item.label}</span><em>↗</em>
+    </a>
+  ) : (
+    <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)} className={({ isActive }) => `admin__nav-item${isActive ? " is-active" : ""}`}>
+      {item.icon}<span>{item.label}</span>
+    </NavLink>
+  );
+
   return (
-    <div className="admin">
+    <div className={`admin${mobileOpen ? " admin--menu-open" : ""}`}>
+      <button type="button" className="admin__side-overlay" aria-label="메뉴 닫기" onClick={() => setMobileOpen(false)} />
       <aside className="admin__side">
         <Link to="/" className="admin__logo">
-          index <span>admin</span>
+          <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M18 28c2.76 0 5.05-2.26 4.5-4.97a27.2 27.2 0 0 0-1.25-4.21 24 24 0 0 0-4.99-7.79A23.7 23.7 0 0 0 8.8 5.83a23.9 23.9 0 0 0-3.84-1.27C2.27 3.94 0 6.24 0 9v14c0 2.76 2.24 5 5 5h13Z" fill="#5D87FF"/><path d="M14 28c-2.76 0-5.05-2.26-4.5-4.97a27.2 27.2 0 0 1 1.25-4.21 24 24 0 0 1 4.99-7.79 23.7 23.7 0 0 1 7.46-5.2 23.9 23.9 0 0 1 3.84-1.27C29.73 3.94 32 6.24 32 9v14c0 2.76-2.24 5-5 5H14Z" fill="#49BEFF" style={{ mixBlendMode: "multiply" }}/></svg>
+          <strong>index<span>Admin</span></strong>
         </Link>
 
         <nav className="admin__nav" aria-label="관리자 메뉴">
-          {NAV.map((item) => item.external ? (
-            <a key={item.to} href={item.to} target="_blank" rel="noreferrer" className="admin__nav-item">
-              {item.icon}{item.label}
-            </a>
-          ) : (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `admin__nav-item${isActive ? " is-active" : ""}`
-              }
-            >
-              {item.icon}
-              {item.label}
-            </NavLink>
-          ))}
+          <p className="admin__nav-label">HOME</p>
+          {NAV.slice(0, 2).map(renderItem)}
+          <p className="admin__nav-label">MANAGEMENT</p>
+          {NAV.slice(2).map(renderItem)}
         </nav>
 
         <div className="admin__side-foot">
+          <div className="admin__profile"><span>{(user?.email || "A").slice(0, 1).toUpperCase()}</span><p><strong>INDEX Admin</strong><small>{user?.email || "Local manager"}</small></p></div>
           <Link to="/" className="admin__back">
             <BackIcon />
             사이트로 돌아가기
           </Link>
-          {user?.email && <p className="admin__whoami">{user.email}</p>}
         </div>
       </aside>
 
-      <main className="admin__main">
-        <Outlet />
-      </main>
+      <div className="admin__body">
+        <header className="admin__topbar">
+          <button type="button" className="admin__menu" onClick={() => setMobileOpen((value) => !value)} aria-label="메뉴 열기">{mobileOpen ? <FiX /> : <FiMenu />}</button>
+          <label className="admin__global-search"><FiSearch /><input type="search" placeholder="Search..." aria-label="관리자 전체 검색" /></label>
+          <div className="admin__top-actions"><button type="button" aria-label="알림"><FiBell /><i>2</i></button><button type="button" aria-label="설정"><FiSettings /></button><span className="admin__avatar"><FiUser /></span></div>
+        </header>
+        <main className="admin__main">
+          <div className="admin__breadcrumb"><span>INDEX Admin</span><b>/</b><strong>{current?.label ?? "대시보드"}</strong></div>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

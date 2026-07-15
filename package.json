@@ -18,6 +18,7 @@
     "@astryxdesign/theme-neutral": "^0.1.5",
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@fontsource/black-han-sans": "^5.2.8",
     "@gsap/react": "^2.1.2",
     "@radix-ui/react-toggle": "^1.1.14",
