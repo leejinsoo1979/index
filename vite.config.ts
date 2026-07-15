@@ -6,6 +6,9 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
   resolve: {
+    // Keep hooks bound to the same React instance even when Vite rebuilds its
+    // dependency graph after packages are installed while the dev server runs.
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "src"),
       // @astryxdesign/core dist is compiled with the DEV jsx transform;
@@ -20,6 +23,15 @@ export default defineConfig(({ command }) => ({
           }
         : {}),
     },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+    ],
   },
   server: {
     port: 5173,
