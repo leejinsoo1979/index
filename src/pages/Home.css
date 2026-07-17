@@ -135,8 +135,8 @@
   gap: 8px;
   height: 64px;
   padding: 0 12px 0 14px;
-  border: 1px solid rgba(var(--mode-glow, 111, 141, 255), 0.8);
-  transition: border-color 0.4s ease;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
   border-radius: 9999px;
   /* frosted-glass pill, same translucent tone as the intro Start button */
   background: rgba(255, 255, 255, 0.14);
@@ -144,6 +144,11 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   overflow: visible;
+}
+
+/* Neon glow only while the input is focused */
+.home__ask:focus-within {
+  border-color: rgba(var(--mode-glow, 111, 141, 255), 0.8);
   animation: askNeonPulse 2s ease-in-out infinite;
 }
 
