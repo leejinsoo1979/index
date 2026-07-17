@@ -138,7 +138,8 @@
   border: 1px solid rgba(var(--mode-glow, 111, 141, 255), 0.8);
   transition: border-color 0.4s ease;
   border-radius: 9999px;
-  background: rgba(28, 30, 36, 0.88);
+  /* frosted-glass pill, same translucent tone as the intro Start button */
+  background: rgba(255, 255, 255, 0.14);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -178,7 +179,7 @@
 }
 
 .home__ask input::placeholder {
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .home__ask input:focus,
@@ -1423,43 +1424,9 @@
    composer pill and the chat workspace swap palettes.
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Landing composer pill ── */
-:root:not([data-app-theme="dark"]) .home__ask {
-  background: rgba(255, 255, 255, 0.93);
-  color: #1f2533;
-}
-
-:root:not([data-app-theme="dark"]) .home__ask input {
-  color: #1f2533;
-}
-
-:root:not([data-app-theme="dark"]) .home__ask input::placeholder {
-  color: rgba(31, 37, 51, 0.45);
-}
-
-:root:not([data-app-theme="dark"]) .home__ask-tool {
-  color: rgba(31, 37, 51, 0.62);
-}
-
-:root:not([data-app-theme="dark"]) .home__ask-tool:hover:not(:disabled) {
-  background: rgba(31, 37, 51, 0.07);
-  color: #1f2533;
-}
-
-:root:not([data-app-theme="dark"]) .home__ask-tool.is-listening {
-  background: rgba(79, 107, 246, 0.16);
-  color: #3350d8;
-}
-
-:root:not([data-app-theme="dark"]) .home__ask-model {
-  color: rgba(31, 37, 51, 0.58);
-}
-
-:root:not([data-app-theme="dark"]) .home__ask-send {
-  background: #1f2533;
-  color: #fff;
-}
-
+/* ── Landing composer pill: frosted glass over the space background in
+     both themes (matches the intro Start button) — only the dropdown
+     menu popover swaps to a light palette ── */
 :root:not([data-app-theme="dark"]) .home__ask-menu {
   border-color: rgba(17, 24, 39, 0.08);
   background: rgba(255, 255, 255, 0.98);
