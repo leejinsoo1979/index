@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   AiStateAnimation,
-  AnimatedModeText,
-  aiModes,
-  aiShapeGlyph,
-  aiShapes,
   modeColor,
-  modeLabel,
   type AiMode,
   type AiShape,
 } from "../components/AiStateAnimation";
@@ -191,10 +186,8 @@ function MemoryIcon() {
 
 export default function Home() {
   const { user } = useAuth();
-  const [mode, setMode] = useState<AiMode>("analyze");
-  const [shape, setShape] = useState<AiShape>("clean");
-  const modeAudioRef = useRef<HTMLAudioElement>(null);
-  const shapeAudioRef = useRef<HTMLAudioElement>(null);
+  const [mode] = useState<AiMode>("analyze");
+  const [shape] = useState<AiShape>("clean");
   const [message, setMessage] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -231,33 +224,12 @@ export default function Home() {
   );
 
   useEffect(() => {
-    if (modeAudioRef.current) modeAudioRef.current.volume = 0.45;
-    if (shapeAudioRef.current) shapeAudioRef.current.volume = 0.45;
-  }, []);
-
-  useEffect(() => {
     window.localStorage.setItem(HISTORY_KEY, JSON.stringify(conversations));
   }, [conversations]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [activeConversation?.messages.length, isResponding, chatOpen]);
-
-  function playAudio(audio: HTMLAudioElement | null) {
-    if (!audio) return;
-    audio.currentTime = 0;
-    audio.play().catch(() => undefined);
-  }
-
-  function handleModeChange(item: AiMode) {
-    setMode(item);
-    playAudio(modeAudioRef.current);
-  }
-
-  function handleShapeChange(item: AiShape) {
-    setShape(item);
-    playAudio(shapeAudioRef.current);
-  }
 
   function addEntry(conversationId: string, entry: ChatEntry) {
     setConversations((current) =>
@@ -555,9 +527,6 @@ export default function Home() {
       className={`home${chatOpen ? " home--chat" : ""}`}
       style={{ "--mode-glow": `${glowR}, ${glowG}, ${glowB}` } as CSSProperties}
     >
-      <audio ref={modeAudioRef} src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/animation-menu-SBSEhsCLzhfXdw8sBI16r613N8tkGr.mp3" preload="auto" />
-      <audio ref={shapeAudioRef} src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/select-forms-Y6f2sUOHatrkKO1eoSZpRtMTCUUzTD.mp3" preload="auto" />
-
       {!chatOpen ? (
         <>
           <AiStateAnimation mode={mode} shape={shape} />
@@ -566,32 +535,9 @@ export default function Home() {
           </div>
 
           <div className="home__composer">
-            <p className="home__composer-tagline">
-              인테리어 공사 정보, 검색으로 시작하세요
-            </p>
             {composer}
           </div>
 
-          <div className="home__mode-rail" role="tablist" aria-label="Animation mode">
-            {aiModes.map((item) => (
-              <button key={item} type="button" className={`home__mode${mode === item ? " is-active" : ""}`} onClick={() => handleModeChange(item)} aria-pressed={mode === item}>
-                {modeLabel(item)}
-              </button>
-            ))}
-          </div>
-
-          <div className="home__controls" aria-label="AI animation controls">
-            <p className="home__mode-caption" aria-live="polite">
-              <AnimatedModeText text={modeLabel(mode)} />
-            </p>
-            <div className="home__shape-tabs" role="tablist" aria-label="Particle shape">
-              {aiShapes.map((item) => (
-                <button key={item} type="button" className={`home__control${shape === item ? " is-active" : ""}`} onClick={() => handleShapeChange(item)} aria-pressed={shape === item} aria-label={item === "clean" ? "픽셀 효과 없음" : `${item} 픽셀`} title={item === "clean" ? "픽셀 효과 없음" : undefined}>
-                  {aiShapeGlyph[item]}
-                </button>
-              ))}
-            </div>
-          </div>
         </>
       ) : (
         <div className={`home-chat${sidebarHidden ? " home-chat--collapsed" : ""}`}>
