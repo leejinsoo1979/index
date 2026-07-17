@@ -64,7 +64,7 @@
 .home__composer {
   position: absolute;
   left: 50%;
-  top: calc(50% + 132px);
+  top: calc(50% + 112px);
   z-index: 10;
   transform: translateX(-50%);
   width: min(640px, 86vw);
@@ -1040,7 +1040,7 @@
   }
 
   .home__composer {
-    top: calc(50% + 58px);
+    top: calc(50% + 48px);
   }
 
   .home__ask {
@@ -1123,7 +1123,7 @@
   }
 
   .home__composer {
-    top: calc(50% + 118px);
+    top: calc(50% + 100px);
     width: min(560px, 86vw);
   }
 
@@ -1160,7 +1160,7 @@
   }
 
   .home__composer {
-    top: calc(50% + 104px);
+    top: calc(50% + 88px);
     width: min(512px, 86vw);
   }
 
