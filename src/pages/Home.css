@@ -67,7 +67,8 @@
   top: calc(50% + 112px);
   z-index: 10;
   transform: translateX(-50%);
-  width: min(640px, 86vw);
+  /* match the ParticleTitle wordmark: font-size × 2.67 (200px → ≈534px) */
+  width: min(534px, 86vw);
 }
 
 /* Deep-blue glow bloom behind the composer (Gemini-style) */
@@ -1124,7 +1125,8 @@
 
   .home__composer {
     top: calc(50% + 100px);
-    width: min(560px, 86vw);
+    /* logo font caps at 172px here → wordmark ≈459px */
+    width: min(459px, 86vw);
   }
 
   .home__composer::before {
@@ -1161,7 +1163,8 @@
 
   .home__composer {
     top: calc(50% + 88px);
-    width: min(512px, 86vw);
+    /* logo font caps at 152px here → wordmark ≈406px */
+    width: min(406px, 86vw);
   }
 
   .home__composer::before {
