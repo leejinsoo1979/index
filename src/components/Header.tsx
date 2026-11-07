@@ -8,6 +8,7 @@ import "./Header.css";
 export default function Header() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
+  const isAdmin = isAdminEmail(user?.email);
   // Same layout everywhere; home gets the transparent dark-overlay variant.
   const isHome = pathname === "/";
 
@@ -19,7 +20,7 @@ export default function Header() {
         index
       </Link>
       <div className="site-header__auth">
-        {isAdminEmail(user?.email) && (
+        {isAdmin && (
           <Link to="/admin" className="site-header__admin" aria-label="관리자 페이지">
             Admin
           </Link>
@@ -42,7 +43,7 @@ export default function Header() {
         )}
       </div>
       <nav className="site-header__nav" aria-label="주요 메뉴">
-        {primaryNav.map((item) => (
+        {primaryNav.filter((item) => !item.adminOnly || isAdmin).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
