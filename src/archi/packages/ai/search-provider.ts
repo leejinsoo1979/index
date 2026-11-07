@@ -1,6 +1,6 @@
 /** Search Provider Adapter (ARCHITECTURE.md 6.2) */
 
-export type SearchSourceType = 'official_law' | 'kcsc' | 'web' | 'knowledge_base';
+export type SearchSourceType = 'official_law' | 'kcsc' | 'public_data' | 'web' | 'knowledge_base';
 
 export type SearchResult = {
   id: string;

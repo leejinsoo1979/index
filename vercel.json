@@ -1,6 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/((?!api/|assets/|fonts/|.*\\..*).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/|assets/|fonts/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/kiscon-sync",
+      "schedule": "0 19 * * *"
+    }
   ]
 }

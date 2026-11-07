@@ -1,7 +1,6 @@
 import { prisma, type Prisma } from '@archi/db';
 import {
   agentActionSchema,
-  MockSearchProvider,
   planAgentResponse,
   requiresCitation,
   routeAgentRole,
@@ -13,6 +12,7 @@ import {
 } from '@archi/ai';
 import { blockInputSchema } from '@archi/editor';
 import { getLlmProviderForWorkspace } from './llm-config';
+import { getSearchProvider } from '../regulation-search';
 import { buildSessionMemoryContext, summarizeSessionIfNeeded } from './memory';
 import { sanitizeUntrustedText } from '@archi/security';
 import { AppError, Capabilities, ErrorCodes } from '@archi/shared';
@@ -117,7 +117,7 @@ export async function chat(userId: string, input: z.infer<typeof chatRequestSche
   // 법규/공법 질문이면 출처 검색을 먼저 수행한다 (citation 없는 확답 금지)
   let searchResults: SearchResult[] | undefined;
   if (requiresCitation(input.message)) {
-    const provider = new MockSearchProvider();
+    const provider = await getSearchProvider();
     const raw = await provider.search(input.message, { limit: 5 });
     // 외부 검색 결과는 신뢰할 수 없는 입력 — LLM 컨텍스트 투입 전 injection 필터 적용
     searchResults = raw.map((r) => ({

@@ -28,5 +28,6 @@ needed a server are replaced at the seams below instead of rewriting the app.
   original's mock provider.
 - **Schema changes:** edit `db/schema.prisma`, then run `npm run archi:schema`.
 - **Not ported:** the desktop *companion* worker, which needs a server the device can
-  poll, and LLM OAuth sign-in, which needs a server callback. Web/law search is the
-  original's mock search provider, as in the original.
+  poll, and LLM OAuth sign-in, which needs a server callback. Web search is still the
+  original's mock. Law/KDS/building search uses the public APIs in `api/_regulations.ts`
+  when their keys and `OPENAI_API_KEY` are set (`web/lib/regulation-search.ts`); otherwise the mock.

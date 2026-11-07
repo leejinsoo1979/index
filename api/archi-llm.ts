@@ -8,6 +8,8 @@ import { GeminiProvider } from "../src/archi/packages/ai/gemini.js";
 import { GrokProvider } from "../src/archi/packages/ai/grok.js";
 import { OpenAIImageProvider } from "../src/archi/packages/image/openai-image.js";
 import { fetchProviderModels } from "../src/archi/web/lib/llm-models.js";
+import { anyRegulationSource, regulationStatus } from "./_regulations.js";
+import { searchRegulationSources } from "./_regulationTools.js";
 
 /**
  * Server side of the ported Agent Studio (everything else runs in the browser).
@@ -154,8 +156,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           available: true,
           serverProviders: serverProviders(),
           canEncrypt: Boolean(process.env.ARCHI_KEY_SECRET && process.env.ARCHI_KEY_SECRET.length >= 16),
+          // Public regulation APIs (api/_regulations.ts); studio search needs one of them plus OPENAI_API_KEY.
+          regulationSources: regulationStatus(),
+          regulationSearch: anyRegulationSource() && Boolean(process.env.OPENAI_API_KEY),
         });
         return;
+
+      case "regulation-search": {
+        const query = body.query;
+        if (typeof query !== "string" || !query.trim() || query.length > 4000) throw new HttpError(400, "검색어가 올바르지 않습니다.");
+        const limit = typeof body.limit === "number" ? Math.min(Math.max(body.limit, 1), 10) : 8;
+        res.status(200).json({ results: await searchRegulationSources(query, limit) });
+        return;
+      }
 
       case "encrypt": {
         const plaintext = body.plaintext;

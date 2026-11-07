@@ -10,6 +10,8 @@ export type ServerStatus = {
   /** Providers usable with the server's own environment keys, with default model. */
   serverProviders: Partial<Record<'openai' | 'anthropic' | 'google' | 'grok', string>>;
   canEncrypt: boolean;
+  /** Real law/KDS/building search is available (api/_regulations.ts keys + OPENAI_API_KEY). */
+  regulationSearch?: boolean;
 };
 
 export class ServerProxyError extends Error {

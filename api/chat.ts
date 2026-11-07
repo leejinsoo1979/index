@@ -1,9 +1,11 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText, type ModelMessage } from "ai";
+import { isStepCount, streamText, type ModelMessage } from "ai";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
+import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_regulationTools.js";
 
-export const config = { maxDuration: 30 };
+// Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
+export const config = { maxDuration: 90 };
 
 interface ChatRequestBody {
   messages?: Array<{ role?: string; content?: string }>;
@@ -69,10 +71,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 사용자에 대해 기억하는 내용:
 ${memories ? `- ${memories}` : "관련 기억 없음"}`;
 
+    // Public regulation/building lookups; empty when no API key is configured.
+    const tools = regulationTools();
+    const hasTools = Object.keys(tools).length > 0;
+
     const result = streamText({
       model: openai(body.model && ALLOWED_MODELS.has(body.model) ? body.model : process.env.OPENAI_MODEL || "gpt-5.4-nano"),
-      system,
+      system: hasTools
+        ? `${system}\n\n${INTERIOR_LAW_MAP}\n\n${REGULATION_TOOL_GUIDE}`
+        : `${system}\n\n${INTERIOR_LAW_MAP}\n원문 조회 도구가 없으므로 법규 답변에는 관련 법령명을 밝히고, 조문 번호·수치는 국가법령정보센터 원문 확인이 필요하다고 안내한다.`,
       messages,
+      ...(hasTools ? { tools, stopWhen: isStepCount(6) } : {}),
       onEnd: async ({ text }) => {
         if (!text.trim()) return;
         await mem0.add(

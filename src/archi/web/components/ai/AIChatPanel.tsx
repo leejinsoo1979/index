@@ -342,7 +342,9 @@ export function AIChatPanel({
                           ? '공식 법령'
                           : source.sourceType === 'kcsc'
                             ? 'KCSC'
-                            : '출처'}
+                            : source.sourceType === 'public_data'
+                              ? '공공데이터'
+                              : '출처'}
                       </span>
                       <span className="text-[11px] text-zinc-400">{source.publisher}</span>
                     </div>

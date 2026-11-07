@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "archi:schema": "node scripts/gen-archi-schema.mjs"
+    "archi:schema": "node scripts/gen-archi-schema.mjs",
+    "kiscon:backfill": "esbuild scripts/kiscon-backfill.ts --bundle --platform=node --format=esm --packages=external --outfile=node_modules/.cache/kiscon-backfill.mjs --log-level=warning && node --env-file-if-exists=.env.local node_modules/.cache/kiscon-backfill.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.13",
@@ -31,6 +32,7 @@
     "clsx": "^2.1.1",
     "docx": "^9.7.1",
     "firebase": "^12.16.0",
+    "firebase-admin": "^13.10.0",
     "gsap": "^3.15.0",
     "html-to-image": "^1.11.13",
     "jose": "^6.1.3",
