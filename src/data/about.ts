@@ -6,8 +6,8 @@
 export const about = {
   hero: {
     eyebrow: "K-IAA · INDEX CASE LIBRARY",
-    title: "하자의 기록이,",
-    titleAccent: "실내건축의 기준이 됩니다.",
+    title: "AI 시대,",
+    titleAccent: "인테리어 하는 방식을 바꾸는 전문가들.",
     lead: "한국실내건축가협회와 함께\n현장의 경험을 기록하고, 다음 현장의 실수를 막으세요.",
     body: "INDEX는 실내건축 현장에서 축적된 하자 사례를 원인 분석부터 보수 방법, 재발 방지 방안까지 정리하고, 실무 세미나로 현장의 기준을 함께 만들어 갑니다.",
     primary: { label: "사례 검색하기", to: "/cases" },
