@@ -43,22 +43,33 @@ export default function Header() {
         )}
       </div>
       <nav className="site-header__nav" aria-label="주요 메뉴">
-        {primaryNav.filter((item) => !item.adminOnly || isAdmin).map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              "site-header__link" + (isActive ? " is-active" : "")
-            }
-          >
-            <span className="site-header__label site-header__label--en">
-              {item.englishLabel ?? item.label}
-            </span>
-            <span className="site-header__label site-header__label--ko">
-              {item.label}
-            </span>
-          </NavLink>
-        ))}
+        {primaryNav.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+          const labels = (
+            <>
+              <span className="site-header__label site-header__label--en">
+                {item.englishLabel ?? item.label}
+              </span>
+              <span className="site-header__label site-header__label--ko">
+                {item.label}
+              </span>
+            </>
+          );
+          return item.newTab ? (
+            <a key={item.to} href={item.to} target="_blank" rel="noopener" className="site-header__link">
+              {labels}
+            </a>
+          ) : (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                "site-header__link" + (isActive ? " is-active" : "")
+              }
+            >
+              {labels}
+            </NavLink>
+          );
+        })}
       </nav>
     </header>
   );

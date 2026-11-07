@@ -4,10 +4,12 @@ export interface NavLink {
   to: string;
   /** Shown in the header only to admin accounts (e.g. while the page is being prepared). */
   adminOnly?: boolean;
+  /** Open in a new tab (standalone pages with their own navigation, e.g. /ai). */
+  newTab?: boolean;
 }
 
 export const primaryNav: NavLink[] = [
-  { label: "AI", englishLabel: "AI", to: "/ai", adminOnly: true },
+  { label: "AI", englishLabel: "AI", to: "/ai", adminOnly: true, newTab: true },
   { label: "케이스 라이브러리", englishLabel: "Case Library", to: "/cases" },
   { label: "세미나", englishLabel: "Seminars", to: "/seminars" },
   { label: "마이페이지", englishLabel: "My Page", to: "/mypage" },

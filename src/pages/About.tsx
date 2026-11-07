@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { about } from "../data/about";
@@ -14,6 +14,95 @@ function Arrow() {
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M3 8h10M9 4l4 4-4 4" />
     </svg>
+  );
+}
+
+/** Section anchors in the page's own navigation (cdsa.kr-style). */
+const NAV_SECTIONS = [
+  { id: "mission", label: "미션" },
+  { id: "problems", label: "우리가 푸는 문제" },
+  { id: "curriculum", label: "커리큘럼" },
+  { id: "showcase", label: "쇼케이스" },
+  { id: "people", label: "전문가" },
+] as const;
+const NAV_PAGES = [
+  { to: "/cases", label: "사례" },
+  { to: "/seminars", label: "세미나" },
+] as const;
+
+function AiNav({ notice }: { notice: { text: string; to: string } }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (hit) setActive(hit.target.id);
+      },
+      { rootMargin: "-30% 0px -60% 0px" },
+    );
+    NAV_SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className={`ai-top${scrolled ? " is-scrolled" : ""}${open ? " is-open" : ""}`}>
+      <Link className="ai-notice" to={notice.to}>
+        <span className="ai-notice__dot" aria-hidden="true" />
+        <span className="ai-notice__text">{notice.text}</span>
+        <span className="ai-notice__go">
+          확인 <Arrow />
+        </span>
+      </Link>
+      <header className="ai-nav">
+        <div className="ai-nav__inner">
+          <a className="ai-nav__brand" href="#top" onClick={() => setOpen(false)}>
+            index<span>AI</span>
+          </a>
+          <nav className="ai-nav__links" aria-label="AI 페이지 메뉴">
+            {NAV_SECTIONS.map((s) => (
+              <a key={s.id} href={`#${s.id}`} className={active === s.id ? "is-active" : ""} onClick={() => setOpen(false)}>
+                {s.label}
+              </a>
+            ))}
+            {NAV_PAGES.map((p) => (
+              <Link key={p.to} to={p.to}>
+                {p.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="ai-nav__actions">
+            <Link className="ai-nav__mini" to="/seminars">
+              + 세미나 일정
+            </Link>
+            <Link className="ai-nav__cta" to="/seminars">
+              교육 신청
+            </Link>
+            <button
+              type="button"
+              className="ai-nav__toggle"
+              aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
+              <span />
+              <span />
+            </button>
+          </div>
+        </div>
+      </header>
+    </div>
   );
 }
 
@@ -44,9 +133,14 @@ export default function About() {
   if (!isAdminEmail(user?.email)) return <Placeholder title="AI" />;
 
   const { hero, mission, problems, curriculum, showcase: sc, people, cloud, cta } = about;
+  const notice = nextSeminar
+    ? { text: `다가오는 세미나 · ${formatSeminarDate(nextSeminar.date)} ${nextSeminar.title}`, to: `/seminars/${nextSeminar.id}` }
+    : { text: "INDEX 실무 세미나 · 일정과 신청은 세미나 페이지에서 확인하세요", to: "/seminars" };
 
   return (
-    <main className="ab">
+    <main className="ab" id="top">
+      <AiNav notice={notice} />
+
       {/* ── 1. Hero ── */}
       <section className="ab-hero">
         <div className="ab-hero__orb" aria-hidden="true" />
@@ -95,7 +189,7 @@ export default function About() {
       </section>
 
       {/* ── 2. Mission ── */}
-      <section className="ab-section ab-mission">
+      <section className="ab-section ab-mission" id="mission">
         <div className="ab-wrap">
           <Eyebrow>{mission.eyebrow}</Eyebrow>
           <p className="ab-mission__statement">
@@ -118,7 +212,7 @@ export default function About() {
       </section>
 
       {/* ── 3. Problems ── */}
-      <section className="ab-section">
+      <section className="ab-section" id="problems">
         <div className="ab-wrap">
           <div className="ab-head">
             <div>
@@ -151,7 +245,7 @@ export default function About() {
       </section>
 
       {/* ── 4. Curriculum (live seminars) ── */}
-      <section className="ab-section ab-section--tint">
+      <section className="ab-section ab-section--tint" id="curriculum">
         <div className="ab-wrap">
           <Eyebrow>{curriculum.eyebrow}</Eyebrow>
           <h2 className="ab-title">
@@ -212,7 +306,7 @@ export default function About() {
       </section>
 
       {/* ── 5. Showcase (cases) ── */}
-      <section className="ab-section">
+      <section className="ab-section" id="showcase">
         <div className="ab-wrap">
           <div className="ab-head">
             <div>
@@ -255,7 +349,7 @@ export default function About() {
       </section>
 
       {/* ── 6. People ── */}
-      <section className="ab-section ab-section--tint">
+      <section className="ab-section ab-section--tint" id="people">
         <div className="ab-wrap">
           <div className="ab-head">
             <div>
@@ -322,6 +416,24 @@ export default function About() {
           </div>
         </div>
       </section>
+
+      <footer className="ai-foot">
+        <div className="ab-wrap ai-foot__inner">
+          <div>
+            <p className="ai-foot__brand">
+              index<span>AI</span>
+            </p>
+            <p>한국실내건축가협회 (K-IAA) · INDEX</p>
+          </div>
+          <nav aria-label="바로가기">
+            <Link to="/">index 홈</Link>
+            <Link to="/cases">Case Library</Link>
+            <Link to="/seminars">Seminars</Link>
+            <Link to="/mypage">My Page</Link>
+          </nav>
+        </div>
+        <div className="ab-wrap ai-foot__bottom">© 2025 한국실내건축가협회 (K-IAA). All rights reserved.</div>
+      </footer>
     </main>
   );
 }
