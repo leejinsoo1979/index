@@ -1,21 +1,15 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { about, type Maybe } from "../data/about";
+import { about } from "../data/about";
+import { cases } from "../data/cases";
+import { kiaaMembers } from "../data/team";
 import { isAdminEmail } from "../lib/adminStore";
+import { effectiveStatus, formatSeminarDate, useSeminars, type Seminar } from "../lib/seminars";
 import Placeholder from "./Placeholder";
 import "./About.css";
 
-const SECTIONS = [
-  { id: "numbers", no: "01", kicker: "숫자로", title: "핵심 수치" },
-  { id: "services", no: "02", kicker: "무엇을", title: "서비스 영역" },
-  { id: "partners", no: "03", kicker: "함께한", title: "협력 기관" },
-  { id: "philosophy", no: "04", kicker: "왜", title: "운영 철학" },
-  { id: "people", no: "05", kicker: "사람", title: about.person.section },
-  { id: "contact", no: "06", kicker: "찾아오는", title: "연락처" },
-] as const;
-
-/** Editorial serif for headings (loaded only when this page is opened). */
+/** Editorial serif for headlines (loaded only when this page is opened). */
 function useSerifFont() {
   useEffect(() => {
     const id = "about-serif-font";
@@ -23,231 +17,326 @@ function useSerifFont() {
     const link = document.createElement("link");
     link.id = id;
     link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap";
     document.head.appendChild(link);
   }, []);
 }
 
-/** Marks content that hasn't been provided yet (see src/data/about.ts). */
-function Todo({ hint }: { hint: string }) {
-  return <span className="about-todo">입력 필요 · {hint}</span>;
-}
-
-function Value({ value, hint, children }: { value: Maybe<string>; hint: string; children?: ReactNode }) {
-  if (value === null) return <Todo hint={hint} />;
-  return <>{children ?? value}</>;
-}
-
-function SectionHead({ no, kicker, title }: { no: string; kicker: string; title: string }) {
+function Arrow() {
   return (
-    <header className="about-section__head">
-      <p className="about-section__kicker">
-        {no} / {kicker}
-      </p>
-      <h2>{title}</h2>
-    </header>
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
   );
+}
+
+function Eyebrow({ children }: { children: string }) {
+  return <p className="ab-eyebrow">{children}</p>;
 }
 
 export default function About() {
   const { user, loading } = useAuth();
   useSerifFont();
-  const [active, setActive] = useState<string>(SECTIONS[0].id);
+  const { data: seminars } = useSeminars();
 
-  // Highlight the section currently in view in the "on this page" index.
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActive(visible[0].target.id);
-      },
-      { rootMargin: "-20% 0px -60% 0px" },
-    );
-    SECTIONS.forEach((s) => {
-      const el = document.getElementById(s.id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, [user]);
+  const upcoming = useMemo(() => seminars.filter((s) => effectiveStatus(s) !== "완료"), [seminars]);
+  const nextSeminar = upcoming[0] ?? null;
+  const latestCase = useMemo(() => [...cases].sort((a, b) => b.date.localeCompare(a.date))[0], []);
+  const showcase = useMemo(() => [...cases].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6), []);
+
+  // Seminar matrix: rows = level, columns = topic; each seminar lands in its first matching topic.
+  const matrix = useMemo(() => {
+    const topics = about.curriculum.topics;
+    const pick = (s: Seminar) => topics.find((t) => t.match.test(s.title))?.key ?? "기타";
+    const cell = (level: string, key: string) =>
+      seminars.filter((s) => s.level === level && pick(s) === key).sort((a, b) => b.date.localeCompare(a.date));
+    return (["기초", "심화"] as const).map((level) => ({ level, cells: topics.map((t) => cell(level, t.key)) }));
+  }, [seminars]);
 
   if (loading) return null;
   // Draft page: admins only for now (the footer's "협회 소개" also links here).
   if (!isAdminEmail(user?.email)) return <Placeholder title="협회 소개" />;
 
-  const { stats, services, partners, philosophy, person, contact, footer } = about;
-  const firstChar = about.intro.slice(0, 1);
+  const { hero, mission, problems, curriculum, showcase: sc, people, cloud, cta } = about;
 
   return (
-    <main className="about">
-      <div className="about__layout">
-        <article className="about__main">
-          <nav className="about__breadcrumb" aria-label="현재 위치">
-            <Link to="/">← INDEX 홈</Link>
-            <span aria-hidden="true">/</span>
-            <span>About</span>
-          </nav>
+    <main className="ab">
+      {/* ── 1. Hero ── */}
+      <section className="ab-hero">
+        <div className="ab-hero__orb" aria-hidden="true" />
+        <div className="ab-wrap ab-hero__grid">
+          <div className="ab-hero__copy">
+            <Eyebrow>{hero.eyebrow}</Eyebrow>
+            <h1 className="ab-display">
+              {hero.title}
+              <br />
+              <span className="ab-accent">{hero.titleAccent}</span>
+            </h1>
+            <p className="ab-hero__lead">{hero.lead}</p>
+            <p className="ab-hero__body">{hero.body}</p>
+            <div className="ab-actions">
+              <Link className="ab-btn ab-btn--dark" to={hero.primary.to}>
+                {hero.primary.label} <Arrow />
+              </Link>
+              <Link className="ab-btn ab-btn--line" to={hero.secondary.to}>
+                {hero.secondary.label}
+              </Link>
+            </div>
+          </div>
 
-          <p className="about__eyebrow">{about.eyebrow}</p>
-          <h1 className="about__title">
-            {about.title}
-            <em>{about.titleAccent}</em>
-          </h1>
-          <p className="about__tagline">{about.tagline}</p>
+          <div className="ab-hero__cards" aria-label="지금 INDEX에서">
+            <Link className="ab-float ab-float--seminar" to={nextSeminar ? `/seminars/${nextSeminar.id}` : "/seminars"}>
+              <span className="ab-float__kicker">다가오는 세미나</span>
+              <strong>{nextSeminar ? nextSeminar.title : "새 세미나를 준비하고 있습니다"}</strong>
+              <span className="ab-float__meta">
+                {nextSeminar ? `${formatSeminarDate(nextSeminar.date)} · ${nextSeminar.location}` : "세미나 일정 보기"}
+              </span>
+            </Link>
+            <Link className="ab-float ab-float--case" to={`/cases/${latestCase.id}`}>
+              <span className="ab-float__kicker">최근 등록 사례 · {latestCase.category}</span>
+              <strong>{latestCase.title}</strong>
+              <span className="ab-float__meta">{latestCase.date}</span>
+            </Link>
+            <div className="ab-float ab-float--stat">
+              <strong>{cases.length}</strong>
+              <span>
+                건의 하자 사례
+                <br />
+                Case Library
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <p className="about__intro">
-            <span className="about__dropcap" aria-hidden="true">
-              {firstChar}
-            </span>
-            <span className="sr-only">{firstChar}</span>
-            {about.intro.slice(1)}
+      {/* ── 2. Mission ── */}
+      <section className="ab-section ab-mission">
+        <div className="ab-wrap">
+          <Eyebrow>{mission.eyebrow}</Eyebrow>
+          <p className="ab-mission__statement">
+            {mission.statement}
+            <br />
+            <span className="ab-accent">{mission.statementAccent}</span>
           </p>
-
-          <section className="about-section" id="numbers">
-            <SectionHead {...SECTIONS[0]} />
-            <div className="about-stats">
-              {stats.items.map((s) => (
-                <div className="about-stat" key={s.label}>
-                  <strong className="about-stat__value">
-                    <Value value={s.value} hint="수치" />
-                  </strong>
-                  <p className="about-stat__label">{s.label}</p>
-                  <p className="about-stat__note">{s.note}</p>
-                </div>
-              ))}
-            </div>
-            <div className="about-callout">
-              <p className="about-callout__label">{stats.highlight.label}</p>
-              <p>
-                <Value value={stats.highlight.text} hint="회원·자문 구성 한 줄 소개" />
-              </p>
-            </div>
-          </section>
-
-          <section className="about-section" id="services">
-            <SectionHead {...SECTIONS[1]} />
-            <p className="about-section__lead">{services.lead}</p>
-            <div className="about-services">
-              {services.items.map((s) => {
-                const body = (
-                  <>
-                    <span className="about-service__letter">{s.letter}</span>
-                    <div>
-                      <p className="about-service__kicker">{s.kicker}</p>
-                      <h3>{s.title}</h3>
-                      <p>{s.body}</p>
-                    </div>
-                  </>
-                );
-                return s.to ? (
-                  <Link className="about-service" to={s.to} key={s.letter}>
-                    {body}
-                  </Link>
-                ) : (
-                  <div className="about-service" key={s.letter}>
-                    {body}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="about-section" id="partners">
-            <SectionHead {...SECTIONS[2]} />
-            <p className="about-section__lead">
-              <Value value={partners.lead} hint="협력 기관 소개 한 줄" />
-            </p>
-            {partners.groups.map((g) => (
-              <div className="about-partners" key={g.label}>
-                <p className="about-partners__label">{g.label}</p>
-                <p className="about-partners__items">
-                  {g.items.length ? g.items.join(" · ") : <Todo hint={`${g.label} 목록`} />}
-                </p>
+          <div className="ab-pillars">
+            {mission.pillars.map((p) => (
+              <div className="ab-pillar" key={p.no}>
+                <span className="ab-pillar__no">{p.no}</span>
+                <h3>
+                  {p.title} <small>{p.en}</small>
+                </h3>
+                <p>{p.body}</p>
               </div>
             ))}
-          </section>
+          </div>
+        </div>
+      </section>
 
-          <section className="about-section" id="philosophy">
-            <SectionHead {...SECTIONS[3]} />
-            <blockquote className="about-quote">
-              <p>{philosophy.quote}</p>
-              <cite>— {philosophy.by}</cite>
-            </blockquote>
-            {philosophy.paragraphs.map((p) => (
-              <p className="about-prose" key={p.slice(0, 16)}>
-                {p}
-              </p>
-            ))}
-            <p className="about-pull">{philosophy.pullQuote}</p>
-            <p className="about-prose">{philosophy.closing}</p>
-          </section>
-
-          <section className="about-section" id="people">
-            <SectionHead {...SECTIONS[4]} />
-            <div className="about-person">
-              <p className="about-person__name">
-                <Value value={person.name} hint="이름" />
-              </p>
-              <p className="about-person__role">{person.role}</p>
-              <ul>
-                {person.credentials.length ? (
-                  person.credentials.map((c) => <li key={c}>{c}</li>)
-                ) : (
-                  <li>
-                    <Todo hint="주요 약력" />
-                  </li>
-                )}
-              </ul>
+      {/* ── 3. Problems ── */}
+      <section className="ab-section">
+        <div className="ab-wrap">
+          <div className="ab-head">
+            <div>
+              <Eyebrow>{problems.eyebrow}</Eyebrow>
+              <h2 className="ab-title">
+                {problems.title} <span className="ab-accent">{problems.titleAccent}</span> {problems.titleTail}
+              </h2>
+              <p className="ab-lead">{problems.lead}</p>
             </div>
-            <Link className="about-more" to={person.moreLink.to}>
-              {person.moreLink.label} →
+            <Link className="ab-textlink" to="/cases">
+              사례로 확인하기 <Arrow />
             </Link>
-          </section>
+          </div>
+          <div className="ab-problems">
+            {problems.items.map((item, i) => (
+              <Link className="ab-problem" to="/cases" key={item.title}>
+                <div className="ab-problem__top">
+                  <span className="ab-problem__no">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="ab-chip">{item.tag}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <span className="ab-problem__go">
+                  관련 사례 <Arrow />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <section className="about-section" id="contact">
-            <SectionHead {...SECTIONS[5]} />
-            <dl className="about-contact">
-              {contact.map((row) => (
-                <div key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>
-                    <Value value={row.value} hint={row.label}>
-                      {row.href ? (
-                        <a href={row.href} target="_blank" rel="noreferrer">
-                          {row.value}
-                        </a>
-                      ) : (
-                        row.value
-                      )}
-                    </Value>
-                  </dd>
+      {/* ── 4. Curriculum (live seminars) ── */}
+      <section className="ab-section ab-section--tint">
+        <div className="ab-wrap">
+          <Eyebrow>{curriculum.eyebrow}</Eyebrow>
+          <h2 className="ab-title">
+            {curriculum.title}
+            <br />
+            <span className="ab-accent">{curriculum.titleAccent}</span>
+          </h2>
+          <p className="ab-lead">{curriculum.lead}</p>
+
+          <div className="ab-matrix" role="table" aria-label="세미나 과정표">
+            <div className="ab-matrix__row ab-matrix__row--head" role="row">
+              <div role="columnheader">단계 \ 분야</div>
+              {curriculum.topics.map((t) => (
+                <div role="columnheader" key={t.key}>
+                  {t.label}
                 </div>
               ))}
-            </dl>
-          </section>
-
-          <footer className="about__foot">
-            <strong>{footer.org}</strong>
-            <span>{footer.copyright}</span>
-          </footer>
-          <nav className="about__pager" aria-label="다른 페이지">
-            <Link to="/">← INDEX 홈으로</Link>
-            <Link to="/cases">Case Library →</Link>
-          </nav>
-        </article>
-
-        <aside className="about__toc" aria-label="이 페이지의 목차">
-          <p>ON THIS PAGE</p>
-          <ol>
-            {SECTIONS.map((s) => (
-              <li key={s.id}>
-                <a href={`#${s.id}`} className={active === s.id ? "is-active" : ""}>
-                  {s.title}
-                </a>
-              </li>
+            </div>
+            {matrix.map((row) => (
+              <div className="ab-matrix__row" role="row" key={row.level}>
+                <div role="rowheader" className="ab-matrix__level">
+                  <strong>{row.level}</strong>
+                  <span>{row.level === "기초" ? "하자의 원리와 시공 기준" : "진단·보수 판단 실무"}</span>
+                </div>
+                {row.cells.map((list, i) => (
+                  <div role="cell" key={curriculum.topics[i]!.key} className="ab-matrix__cell">
+                    {list.length === 0 ? (
+                      <span className="ab-matrix__empty">개설 예정</span>
+                    ) : (
+                      list.slice(0, 2).map((s) => (
+                        <Link key={s.id} to={`/seminars/${s.id}`} className={effectiveStatus(s) === "완료" ? "is-done" : ""}>
+                          <b>{s.title}</b>
+                          <small>
+                            {formatSeminarDate(s.date)} · {effectiveStatus(s)}
+                          </small>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                ))}
+              </div>
             ))}
-          </ol>
-        </aside>
-      </div>
+          </div>
+
+          <div className="ab-tracks">
+            {curriculum.cards.map((c) => (
+              <Link className={`ab-track${c.dark ? " ab-track--dark" : ""}`} to="/seminars" key={c.kicker}>
+                <span className="ab-track__kicker">{c.kicker}</span>
+                <h3>{c.title}</h3>
+                <p>{c.body}</p>
+                <span className="ab-track__go">
+                  {c.link} <Arrow />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. Showcase (cases) ── */}
+      <section className="ab-section">
+        <div className="ab-wrap">
+          <div className="ab-head">
+            <div>
+              <Eyebrow>{sc.eyebrow}</Eyebrow>
+              <h2 className="ab-title">
+                {sc.title}
+                <br />
+                <span className="ab-accent">{sc.titleAccent}</span>
+              </h2>
+              <p className="ab-lead">{sc.lead}</p>
+            </div>
+            <div className="ab-bignum">
+              <strong>{cases.length}</strong>
+              <span>CASES · 현재 공개 사례</span>
+            </div>
+          </div>
+          <div className="ab-cases">
+            {showcase.map((c) => (
+              <Link className="ab-case" to={`/cases/${c.id}`} key={c.id}>
+                <div className="ab-case__media">
+                  <img src={c.image} alt="" loading="lazy" />
+                  <span className="ab-chip ab-chip--onimg">{c.category}</span>
+                </div>
+                <div className="ab-case__body">
+                  <h3>
+                    {c.title} <Arrow />
+                  </h3>
+                  <p>{c.excerpt}</p>
+                  <small>{c.date}</small>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="ab-center">
+            <Link className="ab-btn ab-btn--line" to="/cases">
+              {sc.more} <Arrow />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. People ── */}
+      <section className="ab-section ab-section--tint">
+        <div className="ab-wrap">
+          <div className="ab-head">
+            <div>
+              <Eyebrow>{people.eyebrow}</Eyebrow>
+              <h2 className="ab-title">{people.title}</h2>
+              <p className="ab-lead">{people.lead}</p>
+            </div>
+            <Link className="ab-textlink" to="/about/organization">
+              {people.more} <Arrow />
+            </Link>
+          </div>
+          <div className="ab-people">
+            {kiaaMembers.map((m, i) => (
+              <Link className="ab-person" to="/about/organization" key={m.id}>
+                <span className="ab-person__word" aria-hidden="true">
+                  {people.keywords[i] ?? ""}
+                </span>
+                <img src={m.image} alt="" loading="lazy" />
+                <div>
+                  <strong>{m.name}</strong>
+                  <span>{m.role}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 7. Keyword cloud ── */}
+      <section className="ab-section ab-cloud-section">
+        <div className="ab-wrap">
+          <Eyebrow>{cloud.eyebrow}</Eyebrow>
+          <h2 className="ab-title">
+            {cloud.title} <span className="ab-accent">{cloud.titleAccent}</span>
+          </h2>
+          <p className="ab-lead">{cloud.lead}</p>
+          <div className="ab-cloud" aria-label="하자 유형">
+            {cloud.words.map(([word, weight], i) => (
+              <span key={word} className={`ab-cloud__w w${weight}${i % 3 === 1 ? " is-accent" : ""}`}>
+                {word}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8. CTA ── */}
+      <section className="ab-section ab-cta">
+        <div className="ab-wrap">
+          <Eyebrow>{cta.eyebrow}</Eyebrow>
+          <h2 className="ab-display ab-display--center">
+            {cta.title}
+            <br />
+            <span className="ab-accent">{cta.titleAccent}</span>
+          </h2>
+          <p className="ab-cta__body">{cta.body}</p>
+          <div className="ab-actions ab-actions--center">
+            <Link className="ab-btn ab-btn--dark" to={cta.primary.to}>
+              {cta.primary.label} <Arrow />
+            </Link>
+            <Link className="ab-btn ab-btn--line" to={cta.secondary.to}>
+              {cta.secondary.label}
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
