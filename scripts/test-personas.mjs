@@ -76,3 +76,16 @@ await test('legacy unsupported assistant claims do not become evidence in a late
  const next=p.begin(room.id,{question:'그럼 다음은?',requestId:randomUUID()},member);
  assert.ok(!next.messages.some(m=>m.content.includes('오래된 근거 없는')));assert.ok(next.messages.some(m=>m.content==='유튜브 친구 안녕~'));
 }));
+
+await test('the initial home description stays in later conversation context without leaking into another room or the expert wiki',()=>fixture(p=>{
+ const room=p.createRoom('interior-show',member);
+ for(let i=0;i<18;i++){
+  const requestId=randomUUID();p.begin(room.id,{question:i===0?'32평 아파트에 네 식구가 살고 주방은 ㄷ자야.':'생활 동선 이야기 '+i,requestId},member);
+  p.finish(room.id,{requestId,content:'공간을 쓰는 순서를 생각해 보자.',sources:[],grounding:'general'},member);
+ }
+ const next=p.begin(room.id,{question:'그럼 우리 집에서는 어떻게 할까?',requestId:randomUUID()},member);
+ assert.ok(next.messages.some(m=>m.content.includes('32평 아파트')));
+ const otherRoom=p.createRoom('interior-show',other);
+ assert.ok(!p.replyHistory(otherRoom).some(m=>m.content.includes('32평')));
+ assert.equal(p.pages('interior-show').length,0);assert.equal(p.store.pages().length,0);
+}));

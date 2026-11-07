@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PanelLeft, PanelRight } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@archi-web/lib/client/api';
 import { AIChatPanel } from '@archi-web/components/ai/AIChatPanel';
@@ -63,6 +64,11 @@ export default function DocumentStudioPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [addMenuKey, setAddMenuKey] = useState(0);
   const [viewMode, setViewMode] = useState<'doc' | 'canvas'>('doc');
+  // 패널 접기/펴기 — 문서 공간을 넓게 쓰도록. 상태는 브라우저에 기억한다.
+  const [showChat, setShowChat] = useState(() => readPanelPref('archi.doc.chat', true));
+  const [showOutline, setShowOutline] = useState(() => readPanelPref('archi.doc.outline', false));
+  useEffect(() => writePanelPref('archi.doc.chat', showChat), [showChat]);
+  useEffect(() => writePanelPref('archi.doc.outline', showOutline), [showOutline]);
   const chatPanel = useResizable({
     initial: 340,
     min: 280,
@@ -108,6 +114,7 @@ export default function DocumentStudioPage() {
       <NavRail />
 
       {/* 좌측 AI 에이전트 패널 (드래그로 너비 조절) */}
+      {showChat && (
       <aside style={{ width: chatPanel.width }} className="sd-pane sd-pane--chat relative shrink-0 overflow-hidden">
         <AIChatPanel
           documentId={documentId}
@@ -118,6 +125,7 @@ export default function DocumentStudioPage() {
         />
         <ResizeHandle side="left" onPointerDown={chatPanel.onPointerDown} />
       </aside>
+      )}
 
       {/* 중앙: 상단 바 + 문서 캔버스 */}
       <main className="sd-main flex min-w-0 flex-1 flex-col">
@@ -148,6 +156,26 @@ export default function DocumentStudioPage() {
               {label}
             </button>
           ))}
+          <div className="sd-tabs__toggles">
+            <button
+              type="button"
+              className={`sd-toggle${showChat ? ' is-on' : ''}`}
+              onClick={() => setShowChat((v) => !v)}
+              aria-pressed={showChat}
+              title={showChat ? 'AI 패널 접기' : 'AI 패널 펴기'}
+            >
+              <PanelLeft size={15} /> AI
+            </button>
+            <button
+              type="button"
+              className={`sd-toggle${showOutline ? ' is-on' : ''}`}
+              onClick={() => setShowOutline((v) => !v)}
+              aria-pressed={showOutline}
+              title={showOutline ? '문서 구조 접기' : '문서 구조 펴기'}
+            >
+              <PanelRight size={15} /> 구조
+            </button>
+          </div>
           {viewMode === 'canvas' && (
             <span className="sd-tabs__hint ml-2 text-[11px] text-zinc-400">
               클릭=선택 · 드래그=이동 · 핸들=크기 · 더블클릭=편집 · Del=삭제 · ⌘/Ctrl+C·V=복사·붙여넣기
@@ -187,6 +215,7 @@ export default function DocumentStudioPage() {
       </main>
 
       {/* 우측 블록 패널 (드래그로 너비 조절) */}
+      {showOutline && (
       <aside style={{ width: outlinePanel.width }} className="sd-pane sd-pane--outline relative shrink-0 overflow-hidden">
         <ResizeHandle side="right" onPointerDown={outlinePanel.onPointerDown} />
         <BlockOutline
@@ -197,6 +226,24 @@ export default function DocumentStudioPage() {
           onDeleteBlock={handleDeleteBlock}
         />
       </aside>
+      )}
     </div>
   );
+}
+
+function readPanelPref(key: string, fallback: boolean): boolean {
+  try {
+    const v = window.localStorage.getItem(key);
+    return v === null ? fallback : v === '1';
+  } catch {
+    return fallback;
+  }
+}
+
+function writePanelPref(key: string, value: boolean) {
+  try {
+    window.localStorage.setItem(key, value ? '1' : '0');
+  } catch {
+    // storage unavailable (private mode) — keep in-memory state only
+  }
 }

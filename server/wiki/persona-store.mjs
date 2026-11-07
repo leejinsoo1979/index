@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync,readFileSync,existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { atomicFile } from './store.mjs';
-import { rankPersonalEvidence } from './persona-evidence.mjs';
+import { PersonalWikiSearch } from './persona-search.mjs';
 
 const BUILTIN = {id:'interior-show',name:'인테리어쇼 대표',role:'주거 실내건축 · 개인 AI',bio:'자료와 경험을 쌓고, 생각을 나누는 인테리어쇼 대표의 개인 지식 공간입니다.',video:'/media/representative/interior-show-greeting.webm',animation:'/media/representative/interior-show-greeting.webp',poster:'/media/representative/interior-show-poster.png',published:true,version:1,ownerUid:'',voice:'',principles:'',suggestions:['주거 공간을 계획할 때 무엇부터 정리하면 좋을까요?','디자인과 실제 생활의 편리함을 어떻게 맞추면 좋을까요?','공사를 시작하기 전에 어떤 질문을 해봐야 할까요?']};
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -22,6 +22,7 @@ export class PersonaStore {
       CREATE TABLE IF NOT EXISTS expert_messages(id TEXT PRIMARY KEY,room_id TEXT NOT NULL,role TEXT NOT NULL,state TEXT NOT NULL,data TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS expert_message_room ON expert_messages(room_id);`);
     this.db.prepare('INSERT OR IGNORE INTO expert_profiles VALUES(?,?)').run(BUILTIN.id,JSON.stringify(BUILTIN));
+    this.searchIndex=new PersonalWikiSearch(store);
   }
   profile(id){if(!safeId(id))fail('인물 식별자가 올바르지 않습니다.');return unpack(this.db.prepare('SELECT data FROM expert_profiles WHERE id=?').get(id))??fail('인물 공간을 찾지 못했습니다.',404);}
   canManage(p,actor){return Boolean(actor?.uid&&(actor.admin||p.ownerUid===actor.uid));}
@@ -59,6 +60,13 @@ export class PersonaStore {
   }
   room(id,actor){this.requireMember(actor);const r=this.db.prepare('SELECT * FROM expert_rooms WHERE id=? AND member_uid=?').get(id,actor.uid);if(!r)fail('대화방을 찾지 못했습니다.',404);const p=this.profile(r.person_id);this.view(p,actor);return r;}
   messages(room){return this.db.prepare('SELECT data FROM expert_messages WHERE room_id=? ORDER BY rowid DESC LIMIT 80').all(room.id).map(unpack).reverse();}
+  replyHistory(room){
+    // Keep the initial description of the member's home as the chat grows. These
+    // are original private messages, never added to an expert's shared knowledge.
+    const early=this.db.prepare('SELECT data FROM expert_messages WHERE room_id=? ORDER BY rowid LIMIT 10').all(room.id).map(unpack);
+    const recent=this.db.prepare('SELECT data FROM expert_messages WHERE room_id=? ORDER BY rowid DESC LIMIT 24').all(room.id).map(unpack).reverse();
+    return [...new Map([...early,...recent].map(m=>[m.id,m])).values()].filter(m=>m.state==='complete'&&(m.role==='user'||m.kind==='greeting'||['social','grounded','wiki_first','general'].includes(m.grounding)||m.sources?.length)).map(m=>({role:m.role,content:m.content}));
+  }
   roomView(r,messages=false){return {id:r.id,personId:r.person_id,title:r.title,updatedAt:r.updated_at,...(messages?{messages:this.messages(r)}:{})};}
   createRoom(id,actor){
     this.requireMember(actor);const p=this.profile(id);this.view(p,actor);
@@ -92,22 +100,24 @@ export class PersonaStore {
   retrieve(person,question){
     const docs=this.pages(person.id).filter(p=>p.status==='published');
     const voice=docs.filter(isVoice).slice(0,6).map(p=>`${p.title}\n${p.content.slice(0,3000)}`).join('\n\n');
-    const hits=rankPersonalEvidence(docs.filter(p=>!isVoice(p)),question);
+    const hits=this.searchIndex.search(person.id,this.pages(person.id),question);
     const style=this.styleContext(person.id,question);
-    return {voice:[voice,style.text].filter(Boolean).join('\n\n'),styleVersion:style.version,sources:hits.map((h,i)=>({id:h.p.id,title:h.p.title,personId:person.id,personName:person.name,version:h.p.version,excerpt:h.text,updatedAt:h.p.updatedAt,url:h.url,timestamp:h.timestamp,attribution:h.attribution,ref:i+1}))};
+    return {voice:[voice,style.text].filter(Boolean).join('\n\n'),styleVersion:style.version,sources:hits.map((h,i)=>({id:h.p.id,title:h.p.title,personId:person.id,personName:person.name,version:h.p.version,excerpt:h.text,updatedAt:h.p.updatedAt,url:h.url,timestamp:h.timestamp,attribution:h.attribution,pages:h.pages,chunkIndex:h.chunkIndex,ref:i+1}))};
   }
   begin(id,body,actor){
     const question=text(body.question,6000);if(!question)fail('질문을 입력해 주세요.');if(!safeId(body.requestId))fail('요청 식별자가 올바르지 않습니다.');
     const r=this.room(id,actor),p=this.profile(r.person_id);
-    const context=this.retrieve(p,question),at=new Date().toISOString();const requestId=body.requestId;
+    const previousQuestion=this.messages(r).filter(m=>m.role==='user').at(-1)?.content;
+    const lookup=previousQuestion&&/^(그럼|그러면|그런데|근데|그건|그게|이건|아까|그거|그렇게)/.test(question)?previousQuestion+'\n'+question:question;
+    const context=this.retrieve(p,lookup),at=new Date().toISOString();const requestId=body.requestId;
     this.store.transaction(()=>{const current=this.room(id,actor);if(current.lease_until>Date.now()&&current.pending_id)fail('이 대화방에서 답변을 작성하고 있습니다.',409);if(this.db.prepare('SELECT id FROM expert_messages WHERE id=?').get(requestId))fail('이미 보낸 요청입니다.',409);
       const message={id:requestId,role:'user',content:question,state:'complete',createdAt:at,sources:[]};
       this.db.prepare('INSERT INTO expert_messages VALUES(?,?,?,?,?)').run(requestId,id,'user','complete',JSON.stringify(message));
       this.db.prepare('UPDATE expert_rooms SET title=?,updated_at=?,pending_id=?,lease_until=? WHERE id=?').run(r.title==='새 대화'?question.slice(0,50):r.title,at,requestId,Date.now()+180000,id);
     });
-    return {profile:p,context,requestId,roomId:id,messages:this.messages(r).filter(m=>m.state==='complete'&&(m.role==='user'||m.kind==='greeting'||m.grounding==='social'||m.grounding==='grounded'||m.sources?.length)).slice(-20).map(m=>({role:m.role,content:m.content}))};
+    return {profile:p,context,requestId,roomId:id,messages:this.replyHistory(r)};
   }
-  finish(id,body,actor){const r=this.room(id,actor);if(r.pending_id!==body.requestId)fail('응답 요청이 일치하지 않습니다.',409);const content=text(body.content,50000),state=body.error?'error':'complete';if(!content&&!body.error)fail('빈 답변은 저장할 수 없습니다.');const m={id:randomUUID(),role:'assistant',content,state,createdAt:new Date().toISOString(),sources:Array.isArray(body.sources)?body.sources:[],profileVersion:body.profileVersion,styleVersion:body.styleVersion,grounding:['grounded','not_found','social'].includes(body.grounding)?body.grounding:undefined,error:body.error?text(body.error,500):undefined};this.store.transaction(()=>{this.db.prepare('INSERT INTO expert_messages VALUES(?,?,?,?,?)').run(m.id,id,m.role,state,JSON.stringify(m));this.db.prepare('UPDATE expert_rooms SET pending_id=NULL,lease_until=NULL,updated_at=? WHERE id=?').run(m.createdAt,id);});return m;}
+  finish(id,body,actor){const r=this.room(id,actor);if(r.pending_id!==body.requestId)fail('응답 요청이 일치하지 않습니다.',409);const content=text(body.content,50000),state=body.error?'error':'complete';if(!content&&!body.error)fail('빈 답변은 저장할 수 없습니다.');const m={id:randomUUID(),role:'assistant',content,state,createdAt:new Date().toISOString(),sources:Array.isArray(body.sources)?body.sources:[],profileVersion:body.profileVersion,styleVersion:body.styleVersion,grounding:['grounded','not_found','social','wiki_first','general'].includes(body.grounding)?body.grounding:undefined,error:body.error?text(body.error,500):undefined};this.store.transaction(()=>{this.db.prepare('INSERT INTO expert_messages VALUES(?,?,?,?,?)').run(m.id,id,m.role,state,JSON.stringify(m));this.db.prepare('UPDATE expert_rooms SET pending_id=NULL,lease_until=NULL,updated_at=? WHERE id=?').run(m.createdAt,id);});return m;}
   async importDraft(id,body,actor){
     this.manage(this.profile(id),actor);
     const name=text(body.name,200);if(!/\.(pdf|md|txt)$/i.test(name))fail('PDF, Markdown, TXT 자료를 올려 주세요.');
@@ -138,6 +148,9 @@ export class PersonaStore {
     if(action==='createRoom')return this.createRoom(pid,actor);
     if(action==='room')return this.roomView(this.room(body.roomId,actor),true);
     if(action==='deleteRoom'){const r=this.room(body.roomId,actor);this.store.transaction(()=>{this.db.prepare('DELETE FROM expert_messages WHERE room_id=?').run(r.id);this.db.prepare('DELETE FROM expert_rooms WHERE id=?').run(r.id);});return {deleted:true};}
+    if(action==='searchEvidence'){const r=this.room(body.roomId,actor);return this.retrieve(this.profile(r.person_id),text(body.query,2000));}
+    if(action==='readEvidence'){const r=this.room(body.roomId,actor);return this.searchIndex.read(r.person_id,this.pages(r.person_id),body.pageId,body.chunkIndex)??fail('공유된 원문을 찾지 못했습니다.',404);}
+    if(action==='knowledgeCatalog'){const r=this.room(body.roomId,actor);return this.pages(r.person_id).filter(p=>p.status==='published'&&!isVoice(p)).map(p=>({id:p.id,title:p.title,category:p.category})).slice(0,400);}
     if(action==='begin')return this.begin(body.roomId,body,actor);
     if(action==='finish')return this.finish(body.roomId,body,actor);
     fail('지원하지 않는 요청입니다.');

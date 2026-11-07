@@ -1,4 +1,4 @@
-import { terms,chunkMarkdown } from './retrieval/index.mjs';
+import { terms,chunkMarkdown,chunkPages } from './retrieval/index.mjs';
 
 const TRANSCRIPT='## 원문 자막';
 const SUMMARY='## 참고 정리';
@@ -6,8 +6,12 @@ const ATTRIBUTION=/^발언 출처: (.+)$/m;
 
 /** Imported notes remain readable, but only their exact timestamped transcript is evidence. */
 export function personalEvidenceChunks(page){
-  if(page.tags?.includes('유튜브 목차'))return [];
-  if(!page.tags?.includes('유튜브 원문'))return chunkMarkdown(page.content).map(c=>({text:c.text}));
+  if(page.tags?.some(t=>['유튜브 목차','자료 목록','참고 이미지'].includes(t)))return [];
+  if(page.tags?.includes('PDF 원문')){
+    const sections=[...page.content.matchAll(/^## (\d+)쪽\s*\n([\s\S]*?)(?=^## \d+쪽\s*\n|(?![\s\S]))/gm)];
+    return sections.flatMap(m=>chunkPages([{num:Number(m[1]),text:m[2]}]).map(c=>({text:c.text,pages:`${c.page}쪽`,attribution:'사용자가 제공한 협회 연구자료 PDF · 원문 본문과 별도 표시된 OCR'})));
+  }
+  if(!page.tags?.includes('유튜브 원문'))return chunkMarkdown(page.content).filter(c=>!c.heading||!/^(참고 출처|관련 항목|관련 문서|목차)/.test(c.heading)).map(c=>({text:c.text,heading:c.heading,attribution:page.tags?.includes('지식백과')?'영상 자막에 기반한 개념 정리 · 직접 발언 인용 아님':undefined}));
   const start=page.content.indexOf(TRANSCRIPT);
   if(start<0)return [];
   const raw=page.content.slice(start+TRANSCRIPT.length).split(SUMMARY)[0];

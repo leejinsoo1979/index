@@ -6,7 +6,10 @@ import { apiFetch } from '@archi-web/lib/client/api';
 import { moveItem } from '@archi-web/lib/client/reorder';
 import { ImageGenerateModal } from '@archi-web/components/image/ImageGenerateModal';
 import { InpaintModal } from '@archi-web/components/image/InpaintModal';
+import { ArrowDown, ArrowUp, Copy, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { BlockContentEditor } from './BlockContentEditor';
+import { AI_IMAGE, BlockPalette, QUICK_TYPES, paletteItem } from './BlockPalette';
+import './BlockEditor.css';
 
 export type CanvasLayout = { x: number; y: number; w: number; h: number };
 
@@ -102,6 +105,9 @@ const NEW_BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
   [BlockTypes.ONTOLOGY_SUMMARY]: { title: '관련 지식', nodes: [] },
 };
 
+/** Block types this editor can create (palette hides anything else). */
+const AVAILABLE: ReadonlySet<string> = new Set(Object.values(BlockTypes));
+
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   heading: '제목',
   paragraph: '문단',
@@ -165,7 +171,12 @@ export function BlockEditor({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [palette, setPalette] = useState<{ after: string } | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
+  const itemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
+  const imageInsertAfter = useRef<string | undefined>(undefined);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [inpaintTarget, setInpaintTarget] = useState<EditorBlock | null>(null);
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -205,7 +216,7 @@ export function BlockEditor({
   const addMenuKeyRef = useRef(openAddMenuKey);
   useEffect(() => {
     if (openAddMenuKey !== addMenuKeyRef.current && openAddMenuKey && openAddMenuKey > 0) {
-      setAddMenuOpen(true);
+      setPalette({ after: 'end' });
     }
     addMenuKeyRef.current = openAddMenuKey;
   }, [openAddMenuKey]);
@@ -238,10 +249,15 @@ export function BlockEditor({
     );
   }
 
-  async function handleAddBlock(type: string) {
-    setAddMenuOpen(false);
+  /** Insert a new block after `afterBlockId` (undefined → server default position / end). */
+  async function insertBlock(type: string, afterBlockId: string | undefined) {
+    setPalette(null);
+    if (type === AI_IMAGE) {
+      imageInsertAfter.current = afterBlockId;
+      setImageModalOpen(true);
+      return;
+    }
     try {
-      const afterBlockId = selectedBlockId ?? undefined;
       const block = await apiFetch<EditorBlock>(`/api/documents/${documentId}/blocks`, {
         method: 'POST',
         body: JSON.stringify({
@@ -256,7 +272,22 @@ export function BlockEditor({
     }
   }
 
+  async function handleDuplicate(block: EditorBlock) {
+    setMenuFor(null);
+    try {
+      const copy = await apiFetch<EditorBlock>(`/api/documents/${documentId}/blocks`, {
+        method: 'POST',
+        body: JSON.stringify({ afterBlockId: block.id, block: { type: block.type, content: block.content } }),
+      });
+      load();
+      onSelectBlock(copy.id);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   async function handleDeleteBlock(blockId: string) {
+    setMenuFor(null);
     try {
       await apiFetch(`/api/blocks/${blockId}`, { method: 'DELETE' });
       if (selectedBlockId === blockId) onSelectBlock(null);
@@ -266,13 +297,11 @@ export function BlockEditor({
     }
   }
 
-  async function handleMove(blockId: string, direction: 'up' | 'down') {
+  /** Persist a new order (optimistic, then server reorder; reload on failure). */
+  async function applyOrder(nextIds: string[]) {
     if (!doc) return;
     const ids = doc.blocks.map((b) => b.id);
-    const index = ids.indexOf(blockId);
-    const nextIds = moveItem(ids, index, direction);
     if (nextIds.join() === ids.join()) return;
-    // 낙관적 갱신 후 서버 재정렬
     setDoc({
       ...doc,
       blocks: nextIds
@@ -290,133 +319,222 @@ export function BlockEditor({
     }
   }
 
+  function handleMove(blockId: string, direction: 'up' | 'down') {
+    setMenuFor(null);
+    if (!doc) return;
+    const ids = doc.blocks.map((b) => b.id);
+    void applyOrder(moveItem(ids, ids.indexOf(blockId), direction));
+  }
+
+  function handleDrop(targetId: string, position: 'before' | 'after') {
+    const dragged = dragId;
+    setDragId(null);
+    setDropAt(null);
+    if (!doc || !dragged || dragged === targetId) return;
+    const ids = doc.blocks.map((b) => b.id).filter((id) => id !== dragged);
+    const at = ids.indexOf(targetId);
+    if (at < 0) return;
+    ids.splice(position === 'before' ? at : at + 1, 0, dragged);
+    void applyOrder(ids);
+  }
+
   if (loading && !doc) {
-    return (
-      <div className="flex h-full items-center justify-center text-zinc-400">
-        문서를 불러오는 중...
-      </div>
-    );
+    return <div className="be-state">문서를 불러오는 중…</div>;
   }
 
   if (error && !doc) {
-    return <div className="p-8 text-red-600">{error}</div>;
+    return <div className="be-state be-state--error">{error}</div>;
   }
 
   if (!doc) return null;
 
-  return (
-    <div className="relative flex h-full flex-col">
-      {error && <p className="px-6 pt-2 text-sm text-red-600">{error}</p>}
+  const lastId = doc.blocks[doc.blocks.length - 1]?.id;
 
-      <div className="flex-1 overflow-y-auto px-6 py-6 pb-28">
+  return (
+    <div className="be relative flex h-full flex-col" onClick={() => setMenuFor(null)}>
+      {error && (
+        <p className="be-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="be-scroll flex-1 overflow-y-auto">
         {doc.blocks.length === 0 ? (
-          <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 text-zinc-400">
-            <p>아직 블록이 없습니다.</p>
-            <p className="text-sm">우측 하단 + 버튼으로 첫 블록을 추가하거나 AI에게 요청해 보세요.</p>
+          <div className="be-empty">
+            <strong>빈 문서입니다</strong>
+            <span>블록을 추가하거나, 왼쪽 AI 패널에 “블로그 초안 써줘”처럼 요청하면 자동으로 채워집니다.</span>
+            <div className="be-empty__quick">
+              {QUICK_TYPES.filter((t) => AVAILABLE.has(t)).map((t) => {
+                const item = paletteItem(t);
+                return (
+                  <button key={t} type="button" onClick={() => void insertBlock(t, undefined)}>
+                    {item?.icon}
+                    {item?.label ?? BLOCK_TYPE_LABELS[t]}
+                  </button>
+                );
+              })}
+              <button type="button" className="is-more" onClick={() => setPalette({ after: 'end' })}>
+                <Plus size={15} />
+                모든 블록
+              </button>
+            </div>
+            {palette?.after === 'end' && (
+              <div className="be-anchor">
+                <BlockPalette available={AVAILABLE} onPick={(t) => void insertBlock(t, undefined)} onClose={() => setPalette(null)} />
+              </div>
+            )}
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {doc.blocks.map((block, index) => (
-              <li
-                key={block.id}
-                onClick={() => onSelectBlock(block.id)}
-                className={`group relative rounded-lg border p-3 transition ${
-                  selectedBlockId === block.id
-                    ? 'border-zinc-900 bg-zinc-50'
-                    : 'border-transparent hover:border-zinc-200'
-                }`}
-              >
-                <div className="absolute -top-2.5 right-2 hidden gap-1 rounded-md border border-zinc-200 bg-white px-1 py-0.5 text-xs shadow-sm group-hover:flex">
-                  <span className="px-1 text-zinc-400">{BLOCK_TYPE_LABELS[block.type] ?? block.type}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMove(block.id, 'up');
-                    }}
-                    disabled={index === 0}
-                    className="px-1 text-zinc-500 hover:text-zinc-900 disabled:opacity-30"
-                    aria-label="위로 이동"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMove(block.id, 'down');
-                    }}
-                    disabled={index === doc.blocks.length - 1}
-                    className="px-1 text-zinc-500 hover:text-zinc-900 disabled:opacity-30"
-                    aria-label="아래로 이동"
-                  >
-                    ↓
-                  </button>
-                  {block.type === 'image' &&
-                    Boolean((block.content as { versionId?: string }).versionId) && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setInpaintTarget(block);
-                        }}
-                        className="px-1 text-zinc-500 hover:text-zinc-900"
-                        aria-label="이미지 편집"
-                        title="이미지 편집 (인페인트)"
-                      >
-                        ✎
+          <ul className="be-list">
+            {doc.blocks.map((block, index) => {
+              const isSelected = selectedBlockId === block.id;
+              const drop = dropAt?.id === block.id ? dropAt.position : null;
+              const hasImageEdit = block.type === 'image' && Boolean((block.content as { versionId?: string }).versionId);
+              return (
+                <li
+                  key={block.id}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(block.id, el);
+                    else itemRefs.current.delete(block.id);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuFor(null);
+                    onSelectBlock(block.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!dragId) return;
+                    e.preventDefault();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                    if (dropAt?.id !== block.id || dropAt.position !== position) setDropAt({ id: block.id, position });
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dropAt) handleDrop(block.id, dropAt.position);
+                  }}
+                  className={`be-block${isSelected ? ' is-selected' : ''}${dragId === block.id ? ' is-dragging' : ''}${
+                    drop ? ` drop-${drop}` : ''
+                  }${block.parentId ? ' is-child' : ''}`}
+                >
+                  <div className="be-gutter" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="be-gutter__btn"
+                      aria-label="아래에 블록 추가"
+                      title="아래에 블록 추가"
+                      onClick={() => {
+                        setMenuFor(null);
+                        setPalette((cur) => (cur?.after === block.id ? null : { after: block.id }));
+                      }}
+                    >
+                      <Plus size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="be-gutter__btn be-gutter__handle"
+                      aria-label="끌어서 이동 · 눌러서 메뉴"
+                      title="끌어서 이동 · 눌러서 메뉴"
+                      draggable
+                      onDragStart={(e) => {
+                        setPalette(null);
+                        setMenuFor(null);
+                        setDragId(block.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', block.id);
+                        const row = itemRefs.current.get(block.id);
+                        if (row) e.dataTransfer.setDragImage(row, 24, 18);
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null);
+                        setDropAt(null);
+                      }}
+                      onClick={() => {
+                        setPalette(null);
+                        setMenuFor((cur) => (cur === block.id ? null : block.id));
+                      }}
+                    >
+                      <GripVertical size={15} />
+                    </button>
+                  </div>
+
+                  {menuFor === block.id && (
+                    <div className="be-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                      <p className="be-menu__label">{BLOCK_TYPE_LABELS[block.type] ?? block.type}</p>
+                      <button type="button" role="menuitem" onClick={() => handleMove(block.id, 'up')} disabled={index === 0}>
+                        <ArrowUp size={14} /> 위로 이동
                       </button>
-                    )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteBlock(block.id);
-                    }}
-                    className="px-1 text-zinc-500 hover:text-red-600"
-                    aria-label="블록 삭제"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <BlockContentEditor
-                  type={block.type}
-                  content={block.content}
-                  onChange={(content) => handleBlockChange(block.id, content)}
-                />
-              </li>
-            ))}
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleMove(block.id, 'down')}
+                        disabled={index === doc.blocks.length - 1}
+                      >
+                        <ArrowDown size={14} /> 아래로 이동
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => void handleDuplicate(block)}>
+                        <Copy size={14} /> 복제
+                      </button>
+                      {hasImageEdit && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuFor(null);
+                            setInpaintTarget(block);
+                          }}
+                        >
+                          <Pencil size={14} /> 이미지 부분 수정
+                        </button>
+                      )}
+                      <button type="button" role="menuitem" className="is-danger" onClick={() => void handleDeleteBlock(block.id)}>
+                        <Trash2 size={14} /> 삭제
+                      </button>
+                    </div>
+                  )}
+
+                  {palette?.after === block.id && (
+                    <div className="be-anchor" onClick={(e) => e.stopPropagation()}>
+                      <BlockPalette
+                        available={AVAILABLE}
+                        placement={index >= doc.blocks.length - 2 && doc.blocks.length > 3 ? 'above' : 'below'}
+                        onPick={(t) => void insertBlock(t, block.id)}
+                        onClose={() => setPalette(null)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="be-content">
+                    <BlockContentEditor
+                      type={block.type}
+                      content={block.content}
+                      onChange={(content) => handleBlockChange(block.id, content)}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
-      </div>
 
-      {/* 우측 하단 + 버튼 */}
-      <div className="absolute bottom-6 right-6 flex flex-col items-end gap-2">
-        {addMenuOpen && (
-          <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
-            {Object.values(BlockTypes).map((type) => (
-              <button
-                key={type}
-                onClick={() => handleAddBlock(type)}
-                className="px-4 py-2 text-left text-sm hover:bg-zinc-100"
-              >
-                {BLOCK_TYPE_LABELS[type]}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setAddMenuOpen(false);
-                setImageModalOpen(true);
-              }}
-              className="border-t border-zinc-100 px-4 py-2 text-left text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-            >
-              AI 이미지 생성
+        {doc.blocks.length > 0 && (
+          <div className="be-end" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="be-end__add" onClick={() => setPalette((cur) => (cur?.after === 'end' ? null : { after: 'end' }))}>
+              <Plus size={15} /> 블록 추가
+              <span>표·이미지·견적표·법규 등</span>
             </button>
+            {palette?.after === 'end' && (
+              <div className="be-anchor be-anchor--end">
+                <BlockPalette
+                  available={AVAILABLE}
+                  placement="above"
+                  onPick={(t) => void insertBlock(t, lastId)}
+                  onClose={() => setPalette(null)}
+                />
+              </div>
+            )}
           </div>
         )}
-        <button
-          onClick={() => setAddMenuOpen((v) => !v)}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-2xl text-white shadow-lg hover:bg-zinc-700"
-          aria-label="블록 추가"
-        >
-          +
-        </button>
       </div>
 
       {inpaintTarget &&
@@ -454,7 +572,7 @@ export function BlockEditor({
               await apiFetch(`/api/documents/${documentId}/blocks`, {
                 method: 'POST',
                 body: JSON.stringify({
-                  afterBlockId: selectedBlockId ?? undefined,
+                  afterBlockId: imageInsertAfter.current ?? selectedBlockId ?? undefined,
                   block: {
                     type: 'image',
                     content: {
