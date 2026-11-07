@@ -365,3 +365,7 @@ export function hiddenPostIds(): Set<number> {
 
 /** Emails allowed into /admin. */
 export const ADMIN_EMAILS = ["sbbc212@gmail.com"];
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return Boolean(email && ADMIN_EMAILS.includes(email));
+}

@@ -1,6 +1,7 @@
 import { NavLink, Link, useLocation } from "react-router-dom";
 import { primaryNav } from "../data/navigation";
 import { useAuth } from "../auth/AuthContext";
+import { isAdminEmail } from "../lib/adminStore";
 import ThemeToggle from "./ThemeToggle";
 import "./Header.css";
 
@@ -18,6 +19,11 @@ export default function Header() {
         index
       </Link>
       <div className="site-header__auth">
+        {isAdminEmail(user?.email) && (
+          <Link to="/admin" className="site-header__admin" aria-label="관리자 페이지">
+            Admin
+          </Link>
+        )}
         <ThemeToggle />
         {user ? (
           <>
