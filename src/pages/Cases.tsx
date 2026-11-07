@@ -1,17 +1,9 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cases, caseFilters, type CaseFilter } from "../data/cases";
-import { CaseCard } from "../components/CaseCard";
+import { CaseCard, CaseRow } from "../components/CaseCard";
+import Pagination from "../components/Pagination";
 import { FlipReveal, FlipRevealItem } from "@/components/ui/flip-reveal";
-import {
-  ContainerAnimated,
-  ContainerScroll,
-  ContainerStagger,
-  ContainerSticky,
-  GalleryCol,
-  GalleryContainer,
-  GalleryFadeOverlay,
-} from "@/components/blocks/animated-gallery";
+import { ContainerAnimated, ContainerStagger } from "@/components/blocks/animated-gallery";
 import { hiddenPostIds } from "@/lib/adminStore";
 import "./Cases.css";
 
@@ -19,17 +11,56 @@ import "./Cases.css";
 const hidden = hiddenPostIds();
 const visibleCases = cases.filter((item) => !hidden.has(item.id));
 
-// 16 tiles for the bottom gallery — cycle through the case data
-const moreItems = Array.from({ length: 16 }, (_, i) => ({
-  ...visibleCases[i % Math.max(1, visibleCases.length)],
-  key: `more-${i}`,
-}));
-const MORE_COL_1 = moreItems.filter((_, i) => i % 3 === 0);
-const MORE_COL_2 = moreItems.filter((_, i) => i % 3 === 1);
-const MORE_COL_3 = moreItems.filter((_, i) => i % 3 === 2);
+type SortKey = "latest" | "views" | "title";
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "latest", label: "최신순" },
+  { key: "views", label: "조회순" },
+  { key: "title", label: "제목순" },
+];
+const PAGE_SIZE = 8;
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
 
 export default function Cases() {
   const [filter, setFilter] = useState<CaseFilter>("전체");
+  const libraryRef = useRef<HTMLElement>(null);
+
+  // Library (도서관): search + category + sort + paging over every case, no repeats.
+  const [query, setQuery] = useState("");
+  const [libraryFilter, setLibraryFilter] = useState<CaseFilter>("전체");
+  const [sort, setSort] = useState<SortKey>("latest");
+  const [page, setPage] = useState(1);
+
+  const libraryItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = visibleCases.filter(
+      (item) =>
+        (libraryFilter === "전체" || item.group === libraryFilter) &&
+        (!q || `${item.title} ${item.excerpt} ${item.category}`.toLowerCase().includes(q)),
+    );
+    return [...rows].sort((a, b) => {
+      if (sort === "views") return (b.views ?? 0) - (a.views ?? 0) || b.date.localeCompare(a.date);
+      if (sort === "title") return a.title.localeCompare(b.title, "ko");
+      return b.date.localeCompare(a.date) || b.id - a.id;
+    });
+  }, [query, libraryFilter, sort]);
+
+  useEffect(() => setPage(1), [query, libraryFilter, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(libraryItems.length / PAGE_SIZE));
+  const pageItems = libraryItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const goToPage = (next: number) => {
+    setPage(Math.min(Math.max(1, next), totalPages));
+    libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const flipKeys = useMemo(
     () => [filter === "전체" ? "all" : filter],
@@ -90,59 +121,103 @@ export default function Cases() {
         </FlipReveal>
 
         <div className="cases__more">
-          <button type="button" className="cases__more-btn">
-            더보기
+          <button
+            type="button"
+            className="cases__more-btn"
+            onClick={() => libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            전체 사례 보기
           </button>
         </div>
       </section>
 
-      <section className="cases__list-section">
-        <div className="cases__inner cases__list-head">
-          <div>
-            <h2 className="cases__heading">다양한 사례들을 확인하는 도서관</h2>
-            <p className="cases__sub">
-              INDEX는 국내 주택 하자의 실제 현장 사례를
-              <br />
-              수집·분석하여 원인과 해결방법을 정리했습니다.
-            </p>
+      <section className="cases__list-section" ref={libraryRef} aria-labelledby="case-library-heading">
+        <div className="cases__inner">
+          <div className="cases__list-head">
+            <div>
+              <h2 className="cases__heading" id="case-library-heading">
+                다양한 사례들을 확인하는 도서관
+              </h2>
+              <p className="cases__sub">
+                INDEX는 국내 주택 하자의 실제 현장 사례를
+                <br />
+                수집·분석하여 원인과 해결방법을 정리했습니다.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <ContainerScroll className="cases__more-scroll">
-          <ContainerSticky className="cases__sticky">
-            <GalleryContainer className="mx-auto w-[min(1200px,calc(100%-64px))]">
-              <GalleryCol yRange={["0px", "-640px"]} className="-mt-2">
-                {MORE_COL_1.map((item) => (
-                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
-                    <img className="cases__gallery-img" src={item.image} alt="" />
-                    <span>{item.title}</span>
-                  </Link>
-                ))}
-              </GalleryCol>
-              {/* Tilted: staggered up by the margin; flattened: yRange end value
-                  cancels the margin so the top row isn't clipped. */}
-              <GalleryCol className="mt-[-32%]" yRange={["215px", "-320px"]}>
-                {MORE_COL_2.map((item) => (
-                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
-                    <img className="cases__gallery-img" src={item.image} alt="" />
-                    <span>{item.title}</span>
-                  </Link>
-                ))}
-              </GalleryCol>
-              <GalleryCol yRange={["0px", "-640px"]} className="-mt-2">
-                {MORE_COL_3.map((item) => (
-                  <Link key={item.key} to={`/cases/${item.id}`} className="cases__gallery-tile">
-                    <img className="cases__gallery-img" src={item.image} alt="" />
-                    <span>{item.title}</span>
-                  </Link>
-                ))}
-              </GalleryCol>
-            </GalleryContainer>
-            {/* washed-light overlay: sits on top of the tilted tiles,
-                fades out as the gallery unfolds (progress 0 → 0.3) */}
-            <GalleryFadeOverlay className="cases__hero-glow" aria-hidden="true" />
-          </ContainerSticky>
-        </ContainerScroll>
+          <div className="cases__library-toolbar">
+            <label className="cases__library-search">
+              <span className="sr-only">사례 검색</span>
+              <SearchIcon />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="하자 유형, 부위, 키워드로 검색 (예: 누수, 결로, 타일)"
+              />
+            </label>
+            <div className="cases__library-chips" role="group" aria-label="사례 분류">
+              {caseFilters.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`cases__filter${libraryFilter === item ? " is-active" : ""}`}
+                  aria-pressed={libraryFilter === item}
+                  onClick={() => setLibraryFilter(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="cases__library-bar">
+            <p>
+              총 <strong>{libraryItems.length}</strong>건의 사례
+            </p>
+            <div className="cases__library-sort" role="group" aria-label="정렬">
+              {SORTS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={sort === item.key ? "is-active" : ""}
+                  aria-pressed={sort === item.key}
+                  onClick={() => setSort(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {pageItems.length > 0 ? (
+            <div className="cases__list">
+              {pageItems.map((item) => (
+                <CaseRow key={item.id} item={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="cases__library-empty">
+              <p>조건에 맞는 사례가 없습니다.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setLibraryFilter("전체");
+                }}
+              >
+                검색 조건 초기화
+              </button>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="cases__pagination">
+              <Pagination current={page} total={totalPages} onChange={goToPage} />
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

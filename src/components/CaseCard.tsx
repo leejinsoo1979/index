@@ -34,6 +34,8 @@ export function CaseRow({ item }: { item: CaseItem }) {
         <div className="case-row__meta">
           <span className="case-row__cat">{item.category}</span>
           <time className="case-row__date">{item.date}</time>
+          {item.views !== undefined && <span className="case-row__date">조회 {item.views.toLocaleString("ko-KR")}</span>}
+          {item.isNew && <span className="case-row__new">NEW</span>}
         </div>
         <h3 className="case-row__title">
           <Link to={`/cases/${item.id}`}>{item.title}</Link>
