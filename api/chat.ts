@@ -1,10 +1,11 @@
 import { createOpenAI, openai } from "@ai-sdk/openai";
-import { isStepCount, streamText, type ModelMessage } from "ai";
+import { isStepCount, jsonSchema, streamText, tool, type ModelMessage } from "ai";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
 import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_regulationTools.js";
 import { consumeChatQuota, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { searchWiki, wikiContext, wikiSources } from "./_wiki.js";
 
 // Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
 export const config = { maxDuration: 90 };
@@ -30,17 +31,32 @@ function normalizeMessages(input: ChatRequestBody["messages"]): ModelMessage[] {
 }
 
 /**
- * Chat model. CHAT_LLM_BASE_URL points at any OpenAI-compatible server (e.g. a local
- * Ollama: http://localhost:11434/v1 with CHAT_LLM_MODEL=qwen3.5:27b); otherwise OpenAI.
+ * Questions that usually need several regulation/building lookups and careful reading
+ * of legal text; these go to the stronger (pricier) model, everything else to the light one.
  */
-function chatModel(requested?: string) {
+const HEAVY_QUESTION =
+  /법|령|조례|규정|규칙|고시|기준|허가|신고|용도|대수선|소방|방화|방염|피난|스프링클러|건축물\s*대장|토지|사업자|면허|행정\s*처분|KDS|KCS|시방|[가-힣\d]+(?:로|길)\s*\d+/i;
+
+/**
+ * Chat model. CHAT_LLM_BASE_URL points at any OpenAI-compatible server (e.g. a local
+ * Ollama: http://localhost:11434/v1 with CHAT_LLM_MODEL=qwen3.5:27b); otherwise OpenAI with
+ * per-question routing: OPENAI_MODEL (light, default gpt-5.4-nano) for everyday and
+ * wiki-answerable questions, OPENAI_MODEL_HEAVY (default gpt-5.4-mini) for regulation work.
+ */
+/** "방법", "공법", "기법" … contain 법 but aren't about law. */
+const isHeavyQuestion = (question: string) => HEAVY_QUESTION.test(question.replace(/(?<!소)(?:방|해|용|요|수|비|문|작|기|공|편|마)법/g, ""));
+
+function chatModel(question: string, requested?: string) {
   const baseURL = process.env.CHAT_LLM_BASE_URL?.trim();
   if (baseURL) {
     const local = createOpenAI({ baseURL, apiKey: process.env.CHAT_LLM_API_KEY || "local", name: "local" });
     // Chat Completions: the API most OpenAI-compatible servers implement.
     return local.chat(process.env.CHAT_LLM_MODEL?.trim() || "qwen3.5:27b");
   }
-  return openai(requested && ALLOWED_MODELS.has(requested) ? requested : process.env.OPENAI_MODEL || "gpt-5.4-nano");
+  if (requested && ALLOWED_MODELS.has(requested)) return openai(requested);
+  return isHeavyQuestion(question)
+    ? openai(process.env.OPENAI_MODEL_HEAVY || "gpt-5.4-mini")
+    : openai(process.env.OPENAI_MODEL || "gpt-5.4-nano");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -116,16 +132,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 사용자에 대해 기억하는 내용:
 ${memories ? `- ${memories}` : "관련 기억 없음"}`;
 
+    // INDEX wiki (검수 완료 pages) as the first source of answers.
+    const wikiHits = await searchWiki(lastUserMessage.content).catch((error: unknown) => {
+      console.error("[chat] wiki search failed", error);
+      return [];
+    });
+    const wiki = wikiContext(wikiHits);
+
     // Public regulation/building lookups; empty when no API key is configured.
     const tools = regulationTools();
+    if (wikiHits.length > 0) {
+      tools.searchWiki = tool({
+        description: "INDEX 위키(검수 완료 문서)를 다른 검색어로 다시 찾는다. 처음 제공된 위키 발췌로 부족할 때 사용한다.",
+        inputSchema: jsonSchema<{ query: string }>({
+          type: "object",
+          properties: { query: { type: "string", description: "핵심어 (예: '욕실 방수 하자')" } },
+          required: ["query"],
+          additionalProperties: false,
+        }),
+        execute: async ({ query }) => {
+          const hits = await searchWiki(query, 3);
+          return { ok: true, sources: wikiSources(hits), data: hits.map((h) => ({ title: h.title, category: h.category, excerpt: h.excerpt })) };
+        },
+      });
+    }
     const hasTools = Object.keys(tools).length > 0;
 
     let answered = false;
     const result = streamText({
-      model: chatModel(body.model),
-      system: hasTools
-        ? `${system}\n\n${INTERIOR_LAW_MAP}\n\n${REGULATION_TOOL_GUIDE}`
-        : `${system}\n\n${INTERIOR_LAW_MAP}\n원문 조회 도구가 없으므로 법규 답변에는 관련 법령명을 밝히고, 조문 번호·수치는 국가법령정보센터 원문 확인이 필요하다고 안내한다.`,
+      model: chatModel(lastUserMessage.content, body.model),
+      system: [
+        system,
+        wiki,
+        INTERIOR_LAW_MAP,
+        hasTools
+          ? REGULATION_TOOL_GUIDE
+          : "원문 조회 도구가 없으므로 법규 답변에는 관련 법령명을 밝히고, 조문 번호·수치는 국가법령정보센터 원문 확인이 필요하다고 안내한다.",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       messages,
       ...(hasTools ? { tools, stopWhen: isStepCount(6) } : {}),
       onError: async () => {

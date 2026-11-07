@@ -14,7 +14,7 @@ import { find, findAll, parseXml, pick, records, textOf, type XmlNode } from "./
  * These APIs only supply source text and records; they do not decide legality.
  */
 
-export type RegulationSourceType = "official_law" | "kcsc" | "public_data";
+export type RegulationSourceType = "official_law" | "kcsc" | "public_data" | "knowledge_base";
 
 /** Same shape as the Agent Studio's SearchResult, so studio search can show these directly. */
 export type RegulationSource = {
