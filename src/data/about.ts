@@ -9,7 +9,6 @@ export const about = {
     title: "AI 시대,",
     titleAccent: "인테리어 하는 방식을 바꾸는 전문가들.",
     lead: "인덱스와 함께\n변화하는 AX시대, 개인과 팀조직의 역량을 증폭시키세요.",
-    body: "INDEX는 실내건축 현장에서 축적된 하자 사례를 원인 분석부터 보수 방법, 재발 방지 방안까지 정리하고, 실무 세미나로 현장의 기준을 함께 만들어 갑니다.",
     primary: { label: "사례 검색하기", to: "/cases" },
     secondary: { label: "세미나 일정 보기", to: "/seminars" },
   },

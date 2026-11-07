@@ -73,7 +73,6 @@ export default function About() {
               <span className="ab-accent">{hero.titleAccent}</span>
             </h1>
             <p className="ab-hero__lead">{hero.lead}</p>
-            <p className="ab-hero__body">{hero.body}</p>
             <div className="ab-actions">
               <Link className="ab-btn ab-btn--dark" to={hero.primary.to}>
                 {hero.primary.label} <Arrow />
