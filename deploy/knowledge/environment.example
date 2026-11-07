@@ -1,0 +1,18 @@
+# Copy to .env.knowledge.local at the repository root. Do not commit real values.
+FIREBASE_PROJECT_ID=
+ADMIN_EMAILS=
+# Existing INDEX AI connection, reachable from the cloud VM (localhost is the VM itself).
+CHAT_LLM_BASE_URL=
+CHAT_LLM_MODEL=
+CHAT_LLM_API_KEY=
+# Optional: select a different endpoint/model for Wiki only.
+WIKI_LLM_BASE_URL=
+WIKI_LLM_MODEL=
+WIKI_LLM_API_KEY=
+# Include the existing VITE_FIREBASE_* web configuration before building the image.
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=

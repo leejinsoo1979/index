@@ -31,3 +31,64 @@ needed a server are replaced at the seams below instead of rewriting the app.
   poll, and LLM OAuth sign-in, which needs a server callback. Web search is still the
   original's mock. Law/KDS/building search uses the public APIs in `api/_regulations.ts`
   when their keys and `OPENAI_API_KEY` are set (`web/lib/regulation-search.ts`); otherwise the mock.
+
+## INDEX Wiki library
+
+The library at `/agent-studio/wiki` provides Markdown reading/editing, full-text
+search, `[[title|label]]` links, backlinks, a document graph, source import, revision
+preview/restore, archive, generated covers, and Markdown/JSON export. It is linked
+from the Studio navigation and the AI tools catalog.
+
+`wiki/repository.ts` now connects the library to the shared knowledge server at
+`/api/wiki/`. Start it with `npm run wiki:server` (Node 24) alongside Vite on 5180.
+The server keeps original files, SQLite transactions/revisions, an activity journal,
+durable compilation jobs and Markdown exports in `.index-knowledge/`. Existing
+INDEX AI settings are reused for two-stage analysis/generation and grounded Q&A.
+Generated pages require review; human edits and approvals are never silently replaced.
+The old per-user Firebase/browser repository remains available as
+`createLegacyWikiRepository`; existing sources can be selected in the import dialog.
+Connection errors do not silently change storage. Historical data is not automatically
+bulk-migrated. Firebase remains the authentication provider. Supabase is not used by
+this file-based server deployment.
+
+`npm run wiki:mercury` starts the separately pinned Mercury runtime with three
+restricted INDEX MCP tools. The deterministic worker continues without a browser.
+See `deploy/knowledge/README.md` for Docker deployment, backup and operational limits.
+
+Run `npm run test:wiki` and `npm run test:knowledge` for persistence, revisions,
+conflicts, job recovery, actual PDF extraction, provenance, Q&A and HTTP auth.
+Representative generated cover
+assets and prompt metadata live in `public/images/wiki`.
+
+### Encyclopedia
+
+`/agent-studio/wiki?view=encyclopedia` (also the default wiki home) presents
+residential interior knowledge as a subject encyclopedia. Entries are distinct
+from source summaries and operational notes through the persisted `entryType`
+field (`article`, `source`, `note`). Legacy `source-*` pages remain source
+summaries without rewriting their original revisions. The term index defaults
+to published entries; editors can explicitly include unreviewed drafts.
+
+The portal includes Korean initial-letter/Latin/numeric indexes, subject filters,
+full-text and previous-title search, recent changes, and wanted entries derived
+from unresolved wiki links. New entries use a definition/practice/related
+entries/references template. Reading shows an inline table of contents, original
+sources, review state and a link to immutable revision history. The existing
+library and graph remain available in the same workspace. There is no anonymous
+editing or public access change; existing authentication still applies.
+
+### Knowledge graph engine
+
+`GraphView` uses Sigma.js 4, React Sigma 6 and Graphology ForceAtlas2. Rendering,
+picking, camera interaction and native node dragging belong to Sigma; initial
+placement and background layout belong to Graphology. The previous custom SVG
+renderer and hand-written force simulation have been removed. Reciprocal wiki
+links are displayed as one undirected relationship; no sample notes are added.
+
+The default display uses small screen-sized nodes, thin links and native Sigma
+text labels. `itemSizesReference: 'screen'` is explicit to keep layout coordinates
+from inflating node radii. Label font family and label pixel size are specified
+separately. ForceAtlas2 runs in its library worker and is stopped after settling;
+the worker and WebGL resources are destroyed when leaving the view. Tests cover
+real ForceAtlas2 layouts, orphan filters, duplicate/reverse/missing links and
+search/neighbor focus. Website authentication is unchanged.

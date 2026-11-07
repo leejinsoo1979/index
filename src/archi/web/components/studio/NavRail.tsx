@@ -14,6 +14,7 @@ import {
   FiSettings,
   FiShare2,
   FiBookOpen,
+  FiArrowLeft,
 } from 'react-icons/fi';
 
 const NAV_ITEMS: { icon: IconType; label: string; href: string; exact?: boolean }[] = [
@@ -21,7 +22,8 @@ const NAV_ITEMS: { icon: IconType; label: string; href: string; exact?: boolean 
   { icon: FiFolder, label: '프로젝트', href: '/studio', exact: true },
   { icon: FiFileText, label: '문서', href: '/studio', exact: true },
   { icon: FiCpu, label: '에이전트', href: '/studio', exact: true },
-  { icon: FiBookOpen, label: '지식베이스', href: '/studio/knowledge' },
+  { icon: FiBookOpen, label: 'INDEX LLM Wiki', href: '/studio/wiki' },
+  { icon: FiBookOpen, label: '원본 자료', href: '/studio/sources' },
   { icon: FiShare2, label: '온톨로지', href: '/studio/ontology' },
   { icon: FiMessageSquare, label: '메신저', href: '/studio/messenger' },
   { icon: FiCheckSquare, label: '작업센터', href: '/studio/messenger' },
@@ -49,7 +51,7 @@ export function NavRail() {
           A
         </span>
         <span className="text-[13px] font-bold leading-tight text-white">
-          ARCHI
+          INDEX
           <br />
           <span className="font-medium text-zinc-400">Agent Studio</span>
         </span>
@@ -76,6 +78,17 @@ export function NavRail() {
             </Link>
           );
         })}
+      </div>
+
+      {/* 관리자 대시보드로 복귀 — 스튜디오는 /admin 바깥 전체 화면이라 별도 출구가 필요 */}
+      <div className="mx-2 mt-2 border-t border-white/10 pt-2">
+        <Link
+          href="/admin"
+          className="flex items-center gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-3 py-2 text-[13px] text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+        >
+          <FiArrowLeft size={15} className="shrink-0" aria-hidden />
+          관리자 대시보드
+        </Link>
       </div>
 
       <div className="m-3 rounded-xl bg-white/5 p-3">

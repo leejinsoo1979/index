@@ -1,9 +1,11 @@
+import { loadServerPublishedWiki } from "../server/wiki/chat-context.mjs";
 import { getAuth } from "firebase-admin/auth";
 import { isServerFirestoreConfigured, serverFirestore } from "./_firebaseServer.js";
 import type { RegulationSource } from "./_regulations.js";
 
 /**
- * INDEX Wiki as the chatbot's knowledge base. Wiki pages live per owner in Firestore
+ * INDEX Wiki as the chatbot's knowledge base. The shared file/SQLite server is preferred.
+ * Legacy installations without that database read per-owner Firestore pages
  * `archiStudio/{uid}/WikiPage/{id}` (src/archi/wiki/repository.ts); only pages an admin
  * marked 검수 완료 (`status: "published"`) are used. Owners: WIKI_OWNER_UIDS (comma-
  * separated) or, by default, the Firebase users of ADMIN_EMAILS. Needs
@@ -33,6 +35,8 @@ async function ownerUids(): Promise<string[]> {
 }
 
 export async function loadPublishedWiki(): Promise<WikiDoc[]> {
+  const shared = await loadServerPublishedWiki();
+  if (shared !== null) return shared as WikiDoc[];
   if (!isServerFirestoreConfigured()) return [];
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.pages;
   const db = serverFirestore();

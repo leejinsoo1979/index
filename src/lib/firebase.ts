@@ -23,6 +23,9 @@ if (isFirebaseConfigured) {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  // 기본값은 10분 재시도 — 버킷 미생성·네트워크 오류 시 업로드가 끝없이 멈춰 보이므로 짧게 끊는다.
+  storage.maxUploadRetryTime = 20_000;
+  storage.maxOperationRetryTime = 15_000;
 }
 
 export const firebaseAuth = auth;

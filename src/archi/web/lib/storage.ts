@@ -1,4 +1,5 @@
 import { getBytes, getDownloadURL, ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
+import { captureKnowledgeFile } from '@/lib/knowledgeCapture';
 
 /**
  * Object storage for the in-browser port. The original wrote to a local `.storage`
@@ -50,6 +51,7 @@ export async function saveStorageFile(key: string, data: Uint8Array): Promise<st
   const prev = memory.get(key);
   if (prev?.url) URL.revokeObjectURL(prev.url);
   memory.set(key, { data });
+  await captureKnowledgeFile(key, data);
   return key;
 }
 

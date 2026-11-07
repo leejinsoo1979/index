@@ -395,7 +395,7 @@ async function planWithLlm(
   },
 ): Promise<PlanResult> {
   const system = [
-    args.role?.persona ?? '너는 건축·인테리어 전문 콘텐츠를 작성하는 ARCHI Agent Studio의 AI 에이전트다.',
+    args.role?.persona ?? '너는 주거인테리어 전문 콘텐츠를 작성하는 INDEX Agent Studio의 AI 에이전트다.',
     '반드시 JSON 객체 하나만 출력해라. 마크다운 코드펜스나 설명 텍스트를 붙이지 마라.',
     '최상위 형식: {"reply": "...", "blocks": [...], "updated_text": "..."}',
     'reply는 사용자에게 보여줄 짧은 한국어 안내 문장 1~2개다. 절대 reply에 JSON이나 블록 내용을 넣지 마라.',

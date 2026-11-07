@@ -10,7 +10,7 @@ export default function Footer() {
           <Link to="/" className="site-footer__logo">
             index
           </Link>
-          <p className="site-footer__org">한국실내건축가협회</p>
+          <p className="site-footer__org">주거인테리어 협회</p>
         </div>
 
         {footerColumns.map((col, i) => (
@@ -28,7 +28,7 @@ export default function Footer() {
 
       <div className="site-footer__bottom">
         <p className="site-footer__copy">
-          © 2025 한국실내건축가협회 (K-IAA). All rights reserved.
+          © 2025 주거인테리어 협회. All rights reserved.
         </p>
         <nav className="site-footer__legal" aria-label="약관">
           {legalLinks.map((link, i) => (

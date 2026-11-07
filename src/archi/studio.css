@@ -1,9 +1,126 @@
-/* ARCHI Agent Studio host styles. The studio itself is styled with Tailwind utilities. */
+@import "./design-tokens.css";
+
+/*
+ * ARCHI Agent Studio host styles. The studio itself is styled with Tailwind utilities;
+ * colours come from the shared tokens in design-tokens.css (same palette as the wiki).
+ */
 .archi-studio {
   min-height: 100dvh;
-  background: #fafafa;
-  color: #18181b;
-  font-family: "Pretendard", "Geist Variable", system-ui, sans-serif;
+  background: var(--wk-surface);
+  color: var(--wk-text);
+  font-family: var(--wk-font);
+  color-scheme: dark;
+
+  /*
+   * The studio is built from Tailwind's neutral (zinc/white/black) utilities, which read
+   * these variables. Mapping the ramp onto the tokens turns every screen into the same
+   * near-black design as the wiki without touching the components: page bg (zinc-100)
+   * is the content surface, cards (white) sit one step above, borders (zinc-200) are the
+   * token hairline, and text (zinc-400…900) uses the four token text levels.
+   */
+  --color-white: var(--wk-surface-2);
+  --color-black: var(--wk-text);
+  --color-zinc-50: var(--wk-surface-2);
+  --color-zinc-100: var(--wk-surface);
+  --color-zinc-200: var(--wk-line-strong);
+  --color-zinc-300: var(--wk-line-heavy);
+  --color-zinc-400: var(--wk-text-3);
+  --color-zinc-500: var(--wk-text-2b);
+  --color-zinc-600: var(--wk-text-2);
+  --color-zinc-700: var(--wk-text-1b);
+  --color-zinc-800: var(--wk-text-1b);
+  --color-zinc-900: var(--wk-text);
+  --color-zinc-950: var(--wk-text);
+
+  /* status tints: token state colours */
+  --color-red-50: var(--wk-danger-bg);
+  --color-red-100: var(--wk-danger-bg);
+  --color-red-200: var(--wk-danger-line);
+  --color-red-600: var(--wk-danger);
+  --color-red-700: var(--wk-danger);
+  --color-red-800: var(--wk-danger);
+  --color-rose-50: var(--wk-danger-bg);
+  --color-rose-100: var(--wk-danger-bg);
+  --color-rose-200: var(--wk-danger-line);
+  --color-rose-600: var(--wk-danger);
+  --color-rose-700: var(--wk-danger);
+  --color-amber-50: var(--wk-warn-bg);
+  --color-amber-100: var(--wk-warn-bg);
+  --color-amber-200: var(--wk-warn-line);
+  --color-amber-600: var(--wk-warn);
+  --color-amber-700: var(--wk-warn);
+  --color-emerald-50: var(--wk-ok-bg);
+  --color-emerald-100: var(--wk-ok-bg);
+  --color-emerald-600: var(--wk-ok);
+  --color-emerald-700: var(--wk-ok);
+  --color-sky-50: var(--wk-accent-bg);
+  --color-sky-100: var(--wk-accent-bg);
+  --color-sky-600: var(--wk-accent);
+  --color-sky-700: var(--wk-accent);
+  --color-indigo-50: var(--wk-accent-bg);
+  --color-indigo-100: var(--wk-accent-bg);
+  --color-indigo-600: var(--wk-accent);
+  --color-indigo-700: var(--wk-accent);
+}
+
+/*
+ * Primary actions and selected options were "bg-zinc-900 text-white", which the dark
+ * ramp turns into white pills. Use the wiki's language instead: INDEX blue for actions.
+ */
+.archi-studio .bg-zinc-900.text-white {
+  background-color: var(--wk-accent-strong);
+  color: #fff;
+}
+
+.archi-studio .bg-zinc-900.text-white:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--wk-accent-strong) 85%, #fff);
+}
+
+/* Nav rail: same chrome as the wiki rail; selected item is a soft tint, not a white pill. */
+.archi-studio nav.bg-\[\#111114\] {
+  background-color: var(--wk-bg-2);
+  border-right: 1px solid var(--wk-line);
+}
+
+.archi-studio nav.bg-\[\#111114\] .bg-white.text-zinc-900 {
+  background-color: var(--wk-accent-bg);
+  color: var(--wk-text);
+}
+
+/*
+ * Panels that were designed dark from the start (nav rail, AI chat, ontology) use Tailwind's
+ * light-on-dark zinc meaning (zinc-100 = light text, zinc-800 = dark surface). Give them the
+ * same tokens in that direction, so they match the rest of the studio and the wiki.
+ */
+.archi-studio :is(.bg-\[\#111114\], .bg-\[\#1c1c2a\], .bg-\[\#23232f\], .bg-\[\#16161f\], .bg-\[\#1c1c24\], .bg-\[\#16161b\], .bg-\[\#0f0f13\]) {
+  --color-white: var(--wk-text);
+  --color-black: var(--wk-bg);
+  --color-zinc-50: var(--wk-text);
+  --color-zinc-100: var(--wk-text);
+  --color-zinc-200: var(--wk-text-1b);
+  --color-zinc-300: var(--wk-text-2);
+  --color-zinc-400: var(--wk-text-3);
+  --color-zinc-500: var(--wk-text-4);
+  --color-zinc-600: var(--wk-line-heavy);
+  --color-zinc-700: var(--wk-line-strong);
+  --color-zinc-800: var(--wk-surface-3);
+  --color-zinc-900: var(--wk-surface-2);
+  --color-zinc-950: var(--wk-bg);
+}
+
+/* Their hard-coded backgrounds (some navy/purple-tinted) become token surfaces. */
+.archi-studio .bg-\[\#1c1c2a\], .archi-studio .bg-\[\#1c1c24\] { background-color: var(--wk-surface-2); }
+.archi-studio .bg-\[\#23232f\] { background-color: var(--wk-surface-3); }
+.archi-studio .bg-\[\#16161f\], .archi-studio .bg-\[\#16161b\] { background-color: var(--wk-surface); }
+.archi-studio .bg-\[\#0f0f13\] { background-color: var(--wk-bg-2); }
+
+/* Hard-coded light surfaces on the home screen */
+.archi-studio .bg-\[\#f7f7f8\] {
+  background-color: var(--wk-surface);
+}
+
+.archi-studio .bg-\[\#f4f4f5\] {
+  background-color: var(--wk-surface-2);
 }
 
 /* `next/font/google` Black_Han_Sans stand-in (font is loaded by src/styles/global.css). */

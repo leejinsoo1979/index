@@ -18,6 +18,18 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // Curriculum builder: the module library is public reference data; courses are
+    // public once published. Only admins write either.
+    match /curriculumModules/{moduleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /curricula/{curriculumId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Seminars: public when published; admins edit everything except the seat counter,
     // which changes only together with an application (see seminarApplications).
     match /seminars/{seminarId} {

@@ -1,311 +1,94 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  DEFAULT_SIM_PARAMS,
-  initSimNodes,
-  simTick,
-  type SimEdge,
-  type SimNode,
-  type SimParams,
-} from '@archi/ontology';
+import { Component, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ControlsContainer, SigmaContainer, ZoomControl, useRegisterEvents, useSigma } from '@react-sigma/core';
+import { DEFAULT_STYLES } from 'sigma';
+import type { SigmaOptions } from 'sigma/types';
+import ForceAtlas2Worker from 'graphology-layout-forceatlas2/worker';
+import { Pause, Play, Search, Settings2, X } from 'lucide-react';
+import { applyGraphFocus, buildKnowledgeGraph, categoryColor, graphLayoutSettings,
+  type GraphEdgeData, type GraphLayoutParams, type GraphNodeData, type GraphTheme } from './graph-model';
+import '@react-sigma/core/lib/style.css';
+import './GraphView.css';
+export type { GraphEdgeData, GraphNodeData } from './graph-model';
 
-export type GraphNodeData = {
-  id: string;
-  label: string;
-  type: string;
-  status: string;
-};
-
-export type GraphEdgeData = {
-  id: string;
-  sourceNodeId: string;
-  targetNodeId: string;
-  relationType: string;
-  status: string;
-};
-
-const W = DEFAULT_SIM_PARAMS.width;
-const H = DEFAULT_SIM_PARAMS.height;
-
-type Props = {
-  nodes: GraphNodeData[];
-  edges: GraphEdgeData[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  /** 옵시디언 설정 패널의 '힘' 슬라이더 값 */
-  params?: Partial<SimParams>;
-  /** 검색 필터: 일치하지 않는 노드는 흐려진다 */
-  search?: string;
-  /** 라벨 항상 표시 여부 */
-  showLabels?: boolean;
-};
-
-/**
- * 옵시디언 그래프 뷰 스타일 뷰어:
- * 다크 캔버스 + force-directed 레이아웃 + 노드 드래그 + 휠 줌/배경 팬 + 이웃 하이라이트.
- * 노드 크기는 연결 수에 비례한다.
- */
-export function GraphView({
-  nodes,
-  edges,
-  selectedId,
-  onSelect,
-  params,
-  search,
-  showLabels = true,
-}: Props) {
-  const simParams = useMemo<SimParams>(() => ({ ...DEFAULT_SIM_PARAMS, ...params }), [params]);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const simNodesRef = useRef<SimNode[]>([]);
-  const alphaRef = useRef(1);
-  const rafRef = useRef<number | null>(null);
-  const [, setFrame] = useState(0);
-  const [view, setView] = useState({ x: 0, y: 0, k: 1 });
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const dragRef = useRef<
-    | { kind: 'node'; id: string }
-    | { kind: 'pan'; startX: number; startY: number; viewX: number; viewY: number }
-    | null
-  >(null);
-
-  const simEdges = useMemo<SimEdge[]>(
-    () => edges.map((e) => ({ sourceId: e.sourceNodeId, targetId: e.targetNodeId })),
-    [edges],
-  );
-
-  const neighborIds = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const edge of edges) {
-      if (!map.has(edge.sourceNodeId)) map.set(edge.sourceNodeId, new Set());
-      if (!map.has(edge.targetNodeId)) map.set(edge.targetNodeId, new Set());
-      map.get(edge.sourceNodeId)!.add(edge.targetNodeId);
-      map.get(edge.targetNodeId)!.add(edge.sourceNodeId);
-    }
-    return map;
-  }, [edges]);
-
-  // 노드 목록 변경 시 시뮬레이션 초기화 (기존 위치는 유지)
+type Props = { nodes: GraphNodeData[]; edges: GraphEdgeData[]; selectedId: string | null; onSelect: (id: string | null) => void;
+  params?: Partial<GraphLayoutParams>; search?: string; showLabels?: boolean; theme?: GraphTheme; showSettings?: boolean };
+class GraphBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() { return this.state.failed ? <div className="knowledge-graph__error" role="alert">그래프를 불러오지 못했습니다. 새로고침 후에도 계속되면 브라우저의 WebGL 지원을 확인해 주세요.</div> : this.props.children; }
+}
+function GraphController({ selectedId, onSelect, search = '', params }: Pick<Props, 'selectedId' | 'onSelect' | 'search' | 'params'>) {
+  const sigma = useSigma();
+  const registerEvents = useRegisterEvents();
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const workerRef = useRef<ForceAtlas2Worker | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repulsion = params?.repulsion, springLength = params?.springLength, centerStrength = params?.centerStrength;
+  function stop() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    workerRef.current?.stop(); sigma.setSetting('autoRescale', 'once'); setRunning(false);
+  }
+  function start() {
+    sigma.setSetting('autoRescale', true); workerRef.current?.start(); setRunning(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(stop, 1800);
+  }
   useEffect(() => {
-    const existing = new Map(simNodesRef.current.map((n) => [n.id, n]));
-    const fresh = initSimNodes(nodes, simEdges, { width: W, height: H });
-    simNodesRef.current = fresh.map((node) => {
-      const prev = existing.get(node.id);
-      return prev ? { ...node, x: prev.x, y: prev.y } : node;
+    const graph = sigma.getGraph();
+    if (graph.order < 2) return;
+    const worker = new ForceAtlas2Worker(graph, { settings: graphLayoutSettings(graph, { repulsion, springLength, centerStrength }) });
+    workerRef.current = worker;
+    sigma.setSetting('autoRescale', true); worker.start(); setRunning(true);
+    timerRef.current = setTimeout(() => { worker.stop(); sigma.setSetting('autoRescale', 'once'); setRunning(false); }, 1800);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); worker.kill(); workerRef.current = null; };
+  }, [sigma, repulsion, springLength, centerStrength]);
+  useEffect(() => {
+    registerEvents({ clickNode: ({ node }) => onSelect(node), clickStage: () => onSelect(null),
+      enterNode: ({ node }) => setHovered(node), leaveNode: () => setHovered(null),
+      downNode: () => { workerRef.current?.stop(); sigma.setSetting('autoRescale', 'once'); setRunning(false); },
     });
-    alphaRef.current = 1;
-  }, [nodes, simEdges]);
-
-  // 물리 루프: alpha가 식을 때까지 rAF로 진행
-  useEffect(() => {
-    let mounted = true;
-    const loop = () => {
-      if (!mounted) return;
-      if (alphaRef.current > 0.02) {
-        simTick(simNodesRef.current, simEdges, alphaRef.current, simParams);
-        alphaRef.current *= dragRef.current?.kind === 'node' ? 1 : 0.985;
-        setFrame((f) => f + 1);
-      }
-      rafRef.current = requestAnimationFrame(loop);
+  }, [registerEvents, sigma, onSelect]);
+  useEffect(() => { sigma.refresh(); applyGraphFocus(sigma.getGraph(), selectedId, hovered, search); }, [sigma, selectedId, hovered, search]);
+  return <ControlsContainer position="bottom-left"><ZoomControl labels={{ zoomIn: '확대', zoomOut: '축소', reset: '전체 보기' }} /><div className="react-sigma-control"><button title={running ? '배치 일시정지' : '다시 배치'} aria-label={running ? '배치 일시정지' : '다시 배치'} onClick={() => running ? stop() : start()}>{running ? <Pause size={15} /> : <Play size={15} />}</button></div></ControlsContainer>;
+}
+export function GraphView({ nodes, edges, selectedId, onSelect, params, search = '', showLabels = true, theme = 'dark', showSettings = true }: Props) {
+  const listId = useId();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showOrphans, setShowOrphans] = useState(true);
+  const [colorGroups, setColorGroups] = useState(false);
+  const [labels, setLabels] = useState(true);
+  const [listOpen, setListOpen] = useState(false);
+  const [listQuery, setListQuery] = useState('');
+  const [nodeScale, setNodeScale] = useState(1);
+  const [linkScale, setLinkScale] = useState(1);
+  const graph = useMemo(() => buildKnowledgeGraph(nodes, edges, showOrphans), [nodes, edges, showOrphans]);
+  const options = useMemo<SigmaOptions>(() => {
+    const dark = theme === 'dark';
+    return { settings: { enableNodeDrag: true, autoRescale: true, itemSizesReference: 'screen', stagePadding: 80, renderLabels: showLabels && labels, renderEdgeLabels: false,
+      labelDensity: 1.2, labelGridCellSize: 100, labelRenderedSizeThreshold: 2, nodePickingPadding: 8, enableCameraRotation: false,
+      minCameraRatio: 0.06, maxCameraRatio: 4, allowInvalidContainer: true, nodeLabelEvents: 'extend' },
+      styles: { nodes: [DEFAULT_STYLES.nodes, { size: data => Number(data.size) * nodeScale,
+        color: (data, state) => data.active || state.isHovered || state.isDragged ? '#b59cf2' : colorGroups ? categoryColor(String(data.category)) : dark ? '#aaabb4' : '#626674',
+        opacity: data => data.dimmed ? 0.12 : 1, labelColor: data => data.active ? (dark ? '#ede8ff' : '#302450') : dark ? '#a6a6b0' : '#586072',
+        labelSize: 12, labelPosition: 'right', labelFont: 'system-ui, sans-serif',
+        labelVisibility: data => !showLabels || !labels || data.dimmed ? 'hidden' : data.active ? 'visible' : 'auto',
+        backdropVisibility: 'hidden', cursor: 'pointer' }],
+        edges: [DEFAULT_STYLES.edges, { color: data => data.active ? (dark ? '#a18bc6' : '#8870af') : dark ? '#45454e' : '#c7c9d2',
+          opacity: data => data.dimmed ? 0.08 : data.active ? 0.9 : 0.65, size: data => (data.active ? 0.95 : 0.55) * linkScale, labelVisibility: 'hidden' }],
+      },
     };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => {
-      mounted = false;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [simEdges, simParams]);
-
-  // 힘 파라미터가 바뀌면 시뮬레이션을 다시 데운다
-  useEffect(() => {
-    alphaRef.current = Math.max(alphaRef.current, 0.5);
-  }, [simParams]);
-
-  const toGraphCoords = useCallback(
-    (clientX: number, clientY: number) => {
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return { x: 0, y: 0 };
-      const sx = ((clientX - rect.left) / rect.width) * W;
-      const sy = ((clientY - rect.top) / rect.height) * H;
-      return { x: (sx - view.x) / view.k, y: (sy - view.y) / view.k };
-    },
-    [view],
-  );
-
-  function handleWheel(e: React.WheelEvent) {
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    setView((prev) => {
-      const k = Math.min(Math.max(prev.k * factor, 0.25), 4);
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return { ...prev, k };
-      const sx = ((e.clientX - rect.left) / rect.width) * W;
-      const sy = ((e.clientY - rect.top) / rect.height) * H;
-      // 커서 위치 고정 줌
-      return {
-        k,
-        x: sx - ((sx - prev.x) / prev.k) * k,
-        y: sy - ((sy - prev.y) / prev.k) * k,
-      };
-    });
-  }
-
-  function handlePointerDown(e: React.PointerEvent) {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    dragRef.current = {
-      kind: 'pan',
-      startX: e.clientX,
-      startY: e.clientY,
-      viewX: view.x,
-      viewY: view.y,
-    };
-  }
-
-  function handleNodePointerDown(e: React.PointerEvent, nodeId: string) {
-    e.stopPropagation();
-    dragRef.current = { kind: 'node', id: nodeId };
-    alphaRef.current = Math.max(alphaRef.current, 0.3);
-  }
-
-  function handlePointerMove(e: React.PointerEvent) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    if (drag.kind === 'node') {
-      const point = toGraphCoords(e.clientX, e.clientY);
-      const node = simNodesRef.current.find((n) => n.id === drag.id);
-      if (node) {
-        node.fx = point.x;
-        node.fy = point.y;
-        alphaRef.current = Math.max(alphaRef.current, 0.25);
-      }
-    } else {
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const scaleX = W / rect.width;
-      const scaleY = H / rect.height;
-      setView((prev) => ({
-        ...prev,
-        x: drag.viewX + (e.clientX - drag.startX) * scaleX,
-        y: drag.viewY + (e.clientY - drag.startY) * scaleY,
-      }));
-    }
-  }
-
-  function handlePointerUp() {
-    const drag = dragRef.current;
-    if (drag?.kind === 'node') {
-      const node = simNodesRef.current.find((n) => n.id === drag.id);
-      if (node) {
-        node.fx = null;
-        node.fy = null;
-      }
-      alphaRef.current = Math.max(alphaRef.current, 0.15);
-    }
-    dragRef.current = null;
-  }
-
-  const positions = new Map(simNodesRef.current.map((n) => [n.id, n]));
-  const searchQuery = search?.trim().toLowerCase() ?? '';
-  const searchSet = searchQuery
-    ? new Set(nodes.filter((n) => n.label.toLowerCase().includes(searchQuery)).map((n) => n.id))
-    : null;
-  const highlightSet = hoveredId
-    ? new Set([hoveredId, ...(neighborIds.get(hoveredId) ?? [])])
-    : searchSet;
-
-  return (
-    <svg
-      ref={svgRef}
-      viewBox={`0 0 ${W} ${H}`}
-      className="h-full w-full cursor-grab touch-none select-none rounded-xl bg-[#16161f] active:cursor-grabbing"
-      onWheel={handleWheel}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onClick={() => onSelect(null)}
-    >
-      <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-        {edges.map((edge) => {
-          const from = positions.get(edge.sourceNodeId);
-          const to = positions.get(edge.targetNodeId);
-          if (!from || !to) return null;
-          const inHighlight =
-            highlightSet &&
-            (edge.sourceNodeId === hoveredId || edge.targetNodeId === hoveredId);
-          return (
-            <g key={edge.id}>
-              <line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={inHighlight ? '#e4e4e7' : '#3f3f46'}
-                strokeWidth={inHighlight ? 1.6 / view.k : 1 / view.k}
-                strokeOpacity={highlightSet && !inHighlight ? 0.15 : 0.7}
-                strokeDasharray={edge.status === 'APPROVED' ? undefined : '3 3'}
-              />
-              {(inHighlight || view.k > 1.4) && (
-                <text
-                  x={(from.x + to.x) / 2}
-                  y={(from.y + to.y) / 2 - 4 / view.k}
-                  textAnchor="middle"
-                  fontSize={9 / view.k}
-                  fill="#71717a"
-                >
-                  {edge.relationType}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {nodes.map((node) => {
-          const pos = positions.get(node.id);
-          if (!pos) return null;
-          const r = (4 + Math.sqrt(pos.degree + 1) * 3.2) / Math.sqrt(view.k);
-          const isSelected = selectedId === node.id;
-          const isHovered = hoveredId === node.id;
-          const dimmed = highlightSet ? !highlightSet.has(node.id) : false;
-          const fill = node.status === 'APPROVED' ? '#fafafa' : '#8a8a92';
-          return (
-            <g
-              key={node.id}
-              className="cursor-pointer"
-              opacity={dimmed ? 0.25 : 1}
-              onPointerDown={(e) => handleNodePointerDown(e, node.id)}
-              onPointerEnter={() => setHoveredId(node.id)}
-              onPointerLeave={() => setHoveredId(null)}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(node.id);
-              }}
-            >
-              {(isSelected || isHovered) && (
-                <circle cx={pos.x} cy={pos.y} r={r + 5 / view.k} fill="#fafafa" fillOpacity={0.12} />
-              )}
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={r}
-                fill={fill}
-                stroke={isSelected ? '#ffffff' : 'none'}
-                strokeWidth={2 / view.k}
-              />
-              {(showLabels || isHovered || isSelected) && (
-                <text
-                  x={pos.x}
-                  y={pos.y + r + 11 / view.k}
-                  textAnchor="middle"
-                  fontSize={10 / Math.sqrt(view.k)}
-                  fill="#a1a1aa"
-                  opacity={isHovered || isSelected || view.k > 0.8 ? 1 : 0.55}
-                >
-                  {node.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </g>
-    </svg>
-  );
+  }, [theme, showLabels, labels, colorGroups, nodeScale, linkScale]);
+  const listed = useMemo(() => nodes.filter(node => graph.hasNode(node.id) && node.label.toLocaleLowerCase().includes(listQuery.trim().toLocaleLowerCase())).sort((a, b) => a.label.localeCompare(b.label, 'ko')), [nodes, graph, listQuery]);
+  return <div className={'knowledge-graph knowledge-graph--' + theme} data-graph-engine="sigma-graphology-forceatlas2">
+    <GraphBoundary><SigmaContainer className="knowledge-graph__renderer" graph={graph} options={options}>
+      <GraphController selectedId={selectedId} onSelect={onSelect} search={search} params={params} />
+    </SigmaContainer></GraphBoundary>
+    <div className="knowledge-graph__actions"><button aria-label="문서 노드 목록" aria-expanded={listOpen} aria-controls={listId} title="문서 목록" onClick={() => setListOpen(value => !value)}><Search size={17} /></button>{showSettings && <button aria-label="그래프 설정" aria-expanded={settingsOpen} title="그래프 설정" onClick={() => setSettingsOpen(value => !value)}><Settings2 size={17} /></button>}</div>
+    {settingsOpen && <section className="knowledge-graph__settings" aria-label="그래프 표시 설정"><h3>필터</h3><label><input type="checkbox" checked={showOrphans} onChange={event => setShowOrphans(event.target.checked)} />연결 없는 문서 표시</label><h3>그룹</h3><label><input type="checkbox" checked={colorGroups} onChange={event => setColorGroups(event.target.checked)} />분야별 색상</label><h3>표시</h3><label><input type="checkbox" checked={labels} onChange={event => setLabels(event.target.checked)} />문서 이름 표시</label><label>노드 크기<input type="range" aria-label="노드 크기" min="0.5" max="2" step="0.1" value={nodeScale} onChange={event => setNodeScale(Number(event.target.value))} /></label><label>연결선 두께<input type="range" aria-label="연결선 두께" min="0.3" max="2" step="0.1" value={linkScale} onChange={event => setLinkScale(Number(event.target.value))} /></label></section>}
+    {search.trim() && !nodes.some(node => node.label.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) && <p className="knowledge-graph__notice" role="status">일치하는 문서가 없습니다.</p>}
+    {listOpen && <section id={listId} className="knowledge-graph__nodes" aria-label="문서 노드 목록"><header><strong>문서 {graph.order}</strong><button aria-label="문서 목록 닫기" onClick={() => setListOpen(false)}><X size={16} /></button></header><input autoFocus aria-label="문서 노드 검색" placeholder="문서 찾기…" value={listQuery} onChange={event => setListQuery(event.target.value)} /><div>{listed.map(node => <button key={node.id} onClick={() => { onSelect(node.id); setListOpen(false); }}>{node.label}</button>)}</div></section>}
+  </div>;
 }

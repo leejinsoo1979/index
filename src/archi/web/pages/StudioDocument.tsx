@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@archi-web/lib/client/api';
 import { AIChatPanel } from '@archi-web/components/ai/AIChatPanel';
 import { BlockEditor, type EditorBlock } from '@archi-web/components/editor/BlockEditor';
@@ -48,6 +48,13 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
 
 export default function DocumentStudioPage() {
   const { documentId = '' } = useParams<{ documentId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // 홈에서 넘어온 첫 요청(?prompt=)은 한 번만 쓰고 주소에서 지운다 (새로고침 시 재전송 방지).
+  const [initialPrompt] = useState(() => searchParams.get('prompt'));
+  useEffect(() => {
+    if (searchParams.has('prompt')) router.replace(`/studio/${documentId}`);
+  }, [searchParams, router, documentId]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [blocks, setBlocks] = useState<EditorBlock[]>([]);
@@ -106,6 +113,7 @@ export default function DocumentStudioPage() {
           selectedBlockId={selectedBlockId}
           selectedBlockLabel={selectedBlockLabel}
           onDocumentChanged={handleDocumentChanged}
+          initialPrompt={initialPrompt}
         />
         <ResizeHandle side="left" onPointerDown={chatPanel.onPointerDown} />
       </aside>

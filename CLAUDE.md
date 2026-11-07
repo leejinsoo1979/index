@@ -8,7 +8,7 @@ INDEX — 한국실내건축가협회(KIAA) interior-construction info service. 
 
 ## Commands
 
-- `npm run dev` — Vite dev server on :5173. Only the SPA runs; `api/*` functions are **not** served (use `vercel dev` to exercise them). Firebase web config comes from `.env.development`.
+- `npm run dev` — Vite dev server on :5180 (`strictPort`; if it fails with "port in use", a dev server is already running — reuse it instead of starting another). Only the SPA runs; `api/*` functions are **not** served (use `vercel dev` to exercise them). Firebase web config comes from `.env.development`.
 - `npm run build` — `tsc -b && vite build`. This is the only type check; there is no lint script and no test suite. Note `tsconfig.json` includes only `src` and `vite.config.ts`, so `api/*.ts` is not type-checked by this.
 - `npm run archi:schema` — regenerate `src/archi/db/schema.generated.ts` after editing `src/archi/db/schema.prisma`.
 - `firebase deploy --only firestore:rules,storage` — deploy `firestore.rules` / `storage.rules` (needed whenever new Firestore/Storage paths are used).

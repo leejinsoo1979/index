@@ -1,0 +1,132 @@
+.cselect__trigger {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  margin-top: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--modern-border, #dfe5ef);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--modern-text, #2a3547);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cselect__trigger:hover {
+  border-color: #c5cede;
+}
+
+.cselect__trigger:focus-visible,
+.cselect__trigger[data-state="open"] {
+  border-color: var(--modern-primary, #5d87ff);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(93, 135, 255, 0.12);
+}
+
+.cselect__trigger[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cselect__trigger[data-placeholder] {
+  color: var(--modern-muted, #7c8fac);
+}
+
+.cselect__icon {
+  display: flex;
+  color: var(--modern-muted, #7c8fac);
+  transition: transform 0.15s;
+}
+
+.cselect__trigger[data-state="open"] .cselect__icon {
+  transform: rotate(180deg);
+}
+
+.cselect__content {
+  z-index: 200;
+  min-width: var(--radix-select-trigger-width);
+  max-height: min(320px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  border: 1px solid var(--modern-border, #dfe5ef);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: rgb(145 158 171 / 30%) 0 0 2px, rgb(42 53 71 / 16%) 0 12px 24px -4px;
+  animation: cselect-in 0.12s ease-out;
+}
+
+.cselect__viewport {
+  padding: 4px;
+}
+
+.cselect__item {
+  position: relative;
+  display: flex;
+  height: 36px;
+  align-items: center;
+  padding: 0 32px 0 10px;
+  border-radius: 5px;
+  color: var(--modern-text, #2a3547);
+  font-size: 13.5px;
+  cursor: pointer;
+  user-select: none;
+  outline: 0;
+}
+
+.cselect__item[data-highlighted] {
+  background: var(--modern-primary-light, #ecf2ff);
+  color: var(--modern-primary, #5d87ff);
+}
+
+.cselect__item[data-state="checked"] {
+  font-weight: 600;
+}
+
+.cselect__check {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  color: var(--modern-primary, #5d87ff);
+}
+
+@keyframes cselect-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* 표·툴바용 작은 트리거 (상태 배지 색은 .admin-select--* 가 덮어씀) */
+.cselect__trigger.cselect__trigger--compact {
+  width: auto;
+  height: 30px;
+  margin-top: 0;
+  gap: 4px;
+  padding: 0 8px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cselect__trigger.cselect__trigger--toolbar {
+  height: 40px;
+  max-width: 280px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cselect__trigger--compact > span:first-child,
+.cselect__trigger--toolbar > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cselect__trigger.admin-select--접수중 { border-color: #9fd6b8; background: #e7f6ee; color: #1d7a46; }
+.cselect__trigger.admin-select--완료 { background: #eef0f4; color: #8b93a5; }
+.cselect__trigger--compact .cselect__icon { color: inherit; }

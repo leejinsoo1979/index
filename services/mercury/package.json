@@ -1,0 +1,6 @@
+{
+  "name": "index-mercury-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@cosmicstack/mercury-agent": "1.5.1" }
+}

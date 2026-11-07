@@ -1,3 +1,5 @@
+import { captureKnowledge } from '@/lib/knowledgeCapture';
+
 /**
  * In-browser, Prisma-compatible data client for the ported ARCHI Agent Studio.
  *
@@ -132,9 +134,11 @@ class Store {
   save(model: ModelName, rec: Rec) {
     this.table(model).set(rec.id as string, rec);
     this.persistence?.put(model, rec);
+    captureKnowledge(model, String(rec.id), rec);
   }
 
   drop(model: ModelName, id: string) {
+    captureKnowledge(model, id, this.table(model).get(id) || { id }, 'delete');
     this.table(model).delete(id);
     this.persistence?.remove(model, id);
   }

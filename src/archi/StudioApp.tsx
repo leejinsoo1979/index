@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { firebaseDb, firebaseStorage } from '@/lib/firebase';
 import { ADMIN_EMAILS } from '@/lib/adminStore';
@@ -14,6 +14,8 @@ import StudioMessenger from '@archi-web/pages/StudioMessenger';
 import StudioOntology from '@archi-web/pages/StudioOntology';
 import StudioSettings from '@archi-web/pages/StudioSettings';
 import './studio.css';
+
+const StudioWiki = lazy(() => import('@archi-web/pages/StudioWiki'));
 
 /** Identity used when Firebase isn't configured (local demo; data stays in this browser). */
 const LOCAL_IDENTITY = { uid: 'local-admin', email: 'local-admin@index.local', name: '로컬 관리자' };
@@ -86,7 +88,9 @@ export default function StudioApp() {
     <div className="archi-studio" key={boundKey}>
       <Routes>
         <Route index element={<StudioHome />} />
-        <Route path="knowledge" element={<StudioKnowledge />} />
+        <Route path="wiki" element={<Suspense fallback={<StudioGate title="위키 라이브러리를 불러오는 중…" />}><StudioWiki /></Suspense>} />
+        <Route path="knowledge" element={<Navigate to="/agent-studio/wiki" replace />} />
+        <Route path="sources" element={<StudioKnowledge />} />
         <Route path="messenger" element={<StudioMessenger />} />
         <Route path="ontology" element={<StudioOntology />} />
         <Route path="settings" element={<StudioSettings />} />
@@ -108,7 +112,7 @@ function StudioGate({
   retry?: () => void;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 text-zinc-900">
+    <div className="archi-studio flex min-h-screen items-center justify-center bg-zinc-50 px-4 text-zinc-900">
       <div className="max-w-sm text-center">
         <p className="text-lg font-semibold">{title}</p>
         {body && <p className="mt-2 text-sm text-zinc-500">{body}</p>}

@@ -71,9 +71,11 @@ function BackIcon() {
 
 const NAV = [
   { to: "/admin", label: "대시보드", icon: <DashIcon />, end: true },
-  { to: "/agent-studio", label: "Agent Studio", icon: <AgentIcon />, external: true },
+  { to: "/agent-studio/wiki", label: "INDEX LLM Wiki", icon: <BoardIcon />, external: true },
+  { to: "/agent-studio", label: "INDEX Agent Studio", icon: <AgentIcon />, external: true },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
+  { to: "/admin/curriculum", label: "커리큘럼 빌더", icon: <BoardIcon /> },
   { to: "/admin/payments", label: "신청·결제 관리", icon: <PayIcon /> },
   { to: "/admin/members", label: "회원 관리", icon: <MemberIcon /> },
 ];
@@ -142,9 +144,9 @@ export default function AdminLayout() {
 
         <nav className="admin__nav" aria-label="관리자 메뉴">
           <p className="admin__nav-label">HOME</p>
-          {NAV.slice(0, 2).map(renderItem)}
+          {NAV.slice(0, 3).map(renderItem)}
           <p className="admin__nav-label">MANAGEMENT</p>
-          {NAV.slice(2).map(renderItem)}
+          {NAV.slice(3).map(renderItem)}
         </nav>
 
         <div className="admin__side-foot">

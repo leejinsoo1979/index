@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { CustomSelect } from "../../components/ui/custom-select";
 import {
   loadPosts,
   savePosts,
@@ -195,13 +196,11 @@ export default function AdminBoards() {
             </label>
             <label>
               분류
-              <select name="group" defaultValue={editing?.group ?? "방수"}>
-                {GROUPS.filter((g) => g !== "전체").map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                name="group"
+                defaultValue={editing?.group ?? "방수"}
+                options={GROUPS.filter((g) => g !== "전체")}
+              />
             </label>
             <label>
               세부 카테고리

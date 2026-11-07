@@ -57,7 +57,7 @@ export async function uploadKnowledgeSource(
   return updated;
 }
 
-async function extractText(data: Uint8Array, fileKey: string): Promise<string> {
+export async function extractKnowledgeText(data: Uint8Array, fileKey: string): Promise<string> {
   const ext = extname(fileKey).toLowerCase();
   if (ext === '.txt' || ext === '.md') {
     return new TextDecoder('utf-8').decode(data);
@@ -98,7 +98,7 @@ export async function processKnowledgeSource(userId: string, sourceId: string) {
 
   try {
     const data = await readStorageFile(source.fileKey);
-    const text = await extractText(data, source.fileKey);
+    const text = await extractKnowledgeText(data, source.fileKey);
     const chunks = chunkText(text);
     if (chunks.length === 0) {
       throw new Error('문서에서 텍스트를 추출하지 못했습니다.');

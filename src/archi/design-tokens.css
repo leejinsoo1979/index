@@ -1,0 +1,44 @@
+/*
+ * INDEX Agent Studio + Wiki design tokens: the single colour source for both.
+ * Near-black surfaces in small steps, four text levels, one INDEX blue accent and
+ * state colours. Wiki dialogs render into document.body, so the portal roots
+ * (.wk-modal/.wk-overlay/.wk-gate) declare the tokens too.
+ * Rule: no colour bands (thick coloured left/top stripes) anywhere.
+ */
+.archi-studio, .wk-app, .wk-modal, .wk-overlay, .wk-gate {
+  /* surfaces — near-black, lifted in small steps */
+  --wk-bg: #08080a;
+  --wk-bg-2: #0d0d10;
+  --wk-surface: #111114;
+  --wk-surface-2: #18181c;
+  --wk-surface-3: #212127;
+  --wk-line: #222228;
+  --wk-line-strong: #2f2f37;
+  /* text */
+  --wk-text: #f2f2f5;
+  --wk-text-2: #c4c4cc;
+  --wk-text-3: #8d8d98;
+  --wk-text-4: #61616b;
+  /* INDEX blue, tuned for dark */
+  --wk-accent: #9aa6ff;
+  --wk-accent-strong: #5b6cf0;
+  --wk-accent-bg: rgba(91, 108, 240, 0.14);
+  --wk-accent-line: rgba(154, 166, 255, 0.34);
+  /* states */
+  --wk-warn: #f2c46d;
+  --wk-warn-bg: rgba(242, 196, 109, 0.08);
+  --wk-warn-line: rgba(242, 196, 109, 0.28);
+  --wk-ok: #74e0a6;
+  --wk-ok-bg: rgba(116, 224, 166, 0.09);
+  --wk-ok-line: rgba(116, 224, 166, 0.28);
+  --wk-danger: #ff9b9b;
+  --wk-danger-bg: rgba(255, 120, 120, 0.09);
+  --wk-danger-line: rgba(255, 120, 120, 0.3);
+  /* extra neutral steps for the studio's Tailwind ramp */
+  --wk-line-heavy: #3b3b45;
+  --wk-text-2b: #a8a8b2;
+  --wk-text-1b: #dcdce2;
+  --wk-shadow: rgba(0, 0, 0, 0.45);
+  --wk-radius: 12px;
+  --wk-font: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}

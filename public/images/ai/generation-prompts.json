@@ -1,0 +1,55 @@
+{
+  "generator": "built-in image_gen",
+  "purpose": "/ai problems and agent tool card thumbnails",
+  "jobs": [
+    {
+      "key": "structure-crack",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. Close architectural detail of a diagonal stair-step structural crack extending from a window corner across plaster and down toward a cracked concrete floor in an unfurnished apartment being inspected. A small physical crack width gauge rests beside the crack. Realistic fine damage, professional forensic construction photography, not disaster rubble.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-2b080fee-3803-45ef-9b28-e5f834b8f0ca.png",
+      "output": "problem-structure-crack"
+    },
+    {
+      "key": "pipe-leak",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. Professional hidden plumbing leak detection in an unfinished apartment bathroom: exposed copper and blue water pipe at an opened floor channel, small wet patch and tiny droplets at a fitting, an acoustic leak detection probe held by a gloved hand in foreground. Clear focal point on pipe and diagnostic instrument, realistic plumbing.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-f82aa683-438b-4d6f-aa8f-7c4eb7b5a3ce.png",
+      "output": "problem-pipe-leak"
+    },
+    {
+      "key": "agent-chat",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. An interior architect consulting an AI assistant at a refined architecture studio desk, close view of a hand holding a slim tablet next to a small architectural model and material samples. Tablet screen angled away, subtle cool blue reflected light, warm tactile oak and concrete, thoughtful expert consultation scene without readable interface.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-bc304fff-b106-4d75-bf57-93967ebe3fd2.png",
+      "output": "agent-chat"
+    },
+    {
+      "key": "agent-document",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. Overhead editorial photograph of an architect's organized drafting desk: a beautifully bound blank technical report with restrained unreadable linework, several architectural plan sheets, a mechanical pencil, brushed metal ruler, open laptop partly visible at edge with screen out of frame. Content creation and professional construction documentation, clean pale stone desk.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-b2840e07-1939-4bb2-978d-606f1719a193.png",
+      "output": "agent-document"
+    },
+    {
+      "key": "agent-knowledge",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. Premium architectural knowledge archive: precisely organized material sample drawers and upright reference books with blank unlettered spines, a few neatly layered scanned architectural document sheets in foreground and a compact physical building model. Modern library, serene side lighting, tactile paper, wood and stone. Visual metaphor for an enduring interior architecture knowledge library.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-a2e18cf1-8438-4e45-9f9d-7feef18666b8.png",
+      "output": "agent-knowledge"
+    },
+    {
+      "key": "agent-graph",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. High end photorealistic conceptual still life for architectural knowledge connections: small cubes of concrete, oak, ceramic tile and brushed aluminum arranged at different heights on a pale stone plinth, connected by delicate cobalt blue rods into an elegant spatial network. One central blue glass sphere. Physically plausible designed gallery object, sharp editorial macro photography, no floating UI or labels.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-c92a387b-1696-41c3-a64d-aa4aa615930f.png",
+      "output": "agent-graph"
+    },
+    {
+      "key": "agent-messenger",
+      "prompt": "Use case: photorealistic editorial. Asset: landscape 3:2 website card thumbnail for INDEX, a Korean interior architecture AI service. Premium architecture magazine photography, precise real textures, soft natural daylight, restrained slate blue and warm neutral palette, uncluttered single coherent scene, main subject clear at small card size, no text, no logos, no watermarks, no collage, no website screenshot or simulated UI. Architecture team collaboration in a bright Korean design studio: close editorial crop of three professionals' hands around one oak worktable sharing architectural plans, a tablet, neutral material samples and a small building model. Coordinated task discussion, calm competent teamwork, faces out of frame, premium real workplace photography.",
+      "source": "/Users/leejinsoo/.codex/generated_images/01a1b549-06ca-7cc2-a9d3-de86541c52eb/exec-afc6337f-8822-4f42-9005-651f96e392b3.png",
+      "output": "agent-messenger"
+    }
+  ],
+  "reusedGeneratedAssets": {
+    "waterproofing": "../wiki/waterproofing-{480,960}-v1.jpg",
+    "tile-defect": "../wiki/tile-defect-{480,960}-v1.jpg",
+    "condensation": "../wiki/condensation-{480,960}-v1.jpg",
+    "standards": "../wiki/standards-{480,960}-v1.jpg"
+  },
+  "reusedPromptManifest": "../wiki/generation-prompts.json"
+}

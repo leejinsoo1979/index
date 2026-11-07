@@ -1,0 +1,55 @@
+services:
+  knowledge:
+    build:
+      context: ../..
+      dockerfile: deploy/knowledge/Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    env_file: ../../.env.knowledge.local
+    environment:
+      INDEX_KNOWLEDGE_DIR: /data
+      WIKI_HOST: 0.0.0.0
+      WIKI_PORT: 5318
+      WIKI_SERVE_WEB: "1"
+    volumes:
+      - knowledge:/data
+    ports:
+      - "127.0.0.1:5318:5318"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 4m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5318/api/wiki/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  mercury:
+    build:
+      context: ../..
+      dockerfile: deploy/knowledge/Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    command: ["node", "scripts/start-index-mercury.mjs", "start", "--daemon"]
+    env_file: ../../.env.knowledge.local
+    environment:
+      INDEX_KNOWLEDGE_DIR: /data
+      INDEX_WIKI_URL: http://knowledge:5318
+    volumes:
+      - knowledge:/data
+    restart: unless-stopped
+    init: true
+    depends_on:
+      knowledge:
+        condition: service_healthy
+volumes:
+  knowledge:

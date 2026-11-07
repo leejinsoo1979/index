@@ -1,0 +1,28 @@
+.knowledge-graph { --kg-bg: #1e1e1e; --kg-panel: #262626; --kg-line: #3d3d40; --kg-text: #d6d6dc; --kg-muted: #a2a2ac; position: relative; width: 100%; height: 100%; min-height: 260px; min-width: 0; overflow: hidden; isolation: isolate; background: var(--kg-bg); color: var(--kg-text); }
+.knowledge-graph--light { --kg-bg: #f9f9fb; --kg-panel: #fff; --kg-line: #d8d8df; --kg-text: #30313a; --kg-muted: #656675; }
+.knowledge-graph__renderer.react-sigma { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; }
+.knowledge-graph .sigma-container { background: transparent; }
+.knowledge-graph .react-sigma-controls { z-index: 2; gap: 4px; }
+.knowledge-graph .react-sigma-controls.bottom-left { left: 14px; bottom: 14px; }
+.knowledge-graph .react-sigma-control { background: var(--kg-panel); border: 1px solid var(--kg-line); border-radius: 5px; box-shadow: none; }
+.knowledge-graph .react-sigma-control button { display: flex; align-items: center; justify-content: center; padding: 7px; width: 30px; height: 30px; color: var(--kg-muted); background: none; border: 0; border-radius: 4px; cursor: pointer; }
+.knowledge-graph .react-sigma-control button svg { width: 15px; height: 15px; }
+.knowledge-graph .react-sigma-control button img { width: 15px; height: 15px; filter: invert(.65); }
+.knowledge-graph button:hover { color: var(--kg-text); background: #8d7aa522; }
+.knowledge-graph button:focus-visible, .knowledge-graph input:focus-visible { outline: 2px solid #b59cf2; outline-offset: 2px; }
+.knowledge-graph__actions { position: absolute; z-index: 2; display: flex; top: 12px; right: 12px; gap: 4px; }
+.knowledge-graph__actions button, .knowledge-graph__nodes header button { display: grid; place-items: center; width: 30px; height: 30px; padding: 5px; border: 0; border-radius: 4px; background: var(--kg-panel); color: var(--kg-muted); cursor: pointer; }
+.knowledge-graph__settings, .knowledge-graph__nodes { position: absolute; z-index: 3; top: 50px; right: 12px; width: min(250px, calc(100% - 24px)); max-height: calc(100% - 65px); overflow: auto; padding: 16px; border: 1px solid var(--kg-line); border-radius: 6px; background: var(--kg-panel); box-shadow: 0 8px 25px #0003; }
+.knowledge-graph__settings h3 { margin: 16px 0 10px; color: var(--kg-text); font-size: 13px; font-weight: 600; }
+.knowledge-graph__settings h3:first-child { margin-top: 0; }
+.knowledge-graph__settings label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; font-size: 12px; color: var(--kg-muted); }
+.knowledge-graph__settings input[type=checkbox] { accent-color: #a58bd4; order: 2; }
+.knowledge-graph__settings input[type=range] { width: 105px; accent-color: #a58bd4; }
+.knowledge-graph__nodes { padding: 12px; }
+.knowledge-graph__nodes header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.knowledge-graph__nodes strong { font-size: 13px; font-weight: 550; }
+.knowledge-graph__nodes > input { width: 100%; padding: 8px; border: 1px solid var(--kg-line); border-radius: 4px; color: var(--kg-text); background: transparent; font-size: 13px; }
+.knowledge-graph__nodes > div { display: grid; margin-top: 8px; }
+.knowledge-graph__nodes > div > button { border: 0; border-radius: 4px; padding: 8px; color: var(--kg-text); background: none; text-align: left; font-size: 12px; cursor: pointer; }
+.knowledge-graph__error, .knowledge-graph__notice { position: absolute; left: 20px; right: 20px; top: 70px; text-align: center; color: var(--kg-muted); font-size: 13px; line-height: 1.8; }
+main > .knowledge-graph .knowledge-graph__actions { top: auto; bottom: 14px; }

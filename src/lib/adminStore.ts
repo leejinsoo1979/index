@@ -5,6 +5,7 @@
  * helpers for real API calls when a backend lands.
  */
 import { cases } from "../data/cases";
+import { captureKnowledge } from './knowledgeCapture';
 
 export interface AdminPost {
   id: number;
@@ -64,7 +65,12 @@ export function loadPosts(): AdminPost[] {
     })),
   );
 }
-export const savePosts = (rows: AdminPost[]) => save("posts", rows);
+export const savePosts = (rows: AdminPost[]) => {
+  const previous = loadPosts();
+  save("posts", rows);
+  for (const row of rows) if (JSON.stringify(previous.find(p => p.id === row.id)) !== JSON.stringify(row)) captureKnowledge('AdminPost', String(row.id), row);
+  for (const row of previous) if (!rows.some(p => p.id === row.id)) captureKnowledge('AdminPost', String(row.id), row, 'delete');
+};
 
 function today() {
   const d = new Date();

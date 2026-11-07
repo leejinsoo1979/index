@@ -157,7 +157,7 @@ function CheckIcon() {
 
 const askModels = [
   { name: "빠른 답변", description: "일반 질문에 빠른 도움" },
-  { name: "심층 분석", description: "추론이 필요한 하자·사례 분석" },
+  { name: "심층 분석", description: "설계·현장 과제와 사례를 깊이 분석" },
 ] as const;
 
 function SparkIcon() {
@@ -684,7 +684,7 @@ export default function Home() {
                   <div className="home-chat__empty">
                     <span><SparkIcon /></span>
                     <h1>무엇이 궁금하신가요?</h1>
-                    <p>실내건축 현장 사례, 하자 원인, 시공 기준을 질문해 보세요.</p>
+                    <p>주거공간의 설계와 시공, 자재 선택부터 새로운 기술 활용까지 질문해 보세요.</p>
                   </div>
                 )}
               </div>

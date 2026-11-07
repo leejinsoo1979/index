@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { CustomSelect } from "../../components/ui/custom-select";
+
+const ALL_SEMINARS = "__all__";
 import {
   APPLICATION_STATUS_LABEL,
   cancelApplication,
@@ -104,14 +107,16 @@ export default function AdminPayments() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select className="admin-select" value={seminarId} onChange={(e) => setSeminarId(e.target.value)} aria-label="세미나 선택">
-          <option value="">전체 세미나</option>
-          {seminarOptions.map(([id, s]) => (
-            <option key={id} value={id}>
-              {s.date} {s.title}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          className="cselect__trigger--compact cselect__trigger--toolbar"
+          value={seminarId || ALL_SEMINARS}
+          onValueChange={(v) => setSeminarId(v === ALL_SEMINARS ? "" : v)}
+          aria-label="세미나 선택"
+          options={[
+            { value: ALL_SEMINARS, label: "전체 세미나" },
+            ...seminarOptions.map(([id, s]) => ({ value: id, label: `${s.date} ${s.title}` })),
+          ]}
+        />
         <div className="admin-toolbar__tabs" role="tablist">
           {FILTERS.map((item) => (
             <button

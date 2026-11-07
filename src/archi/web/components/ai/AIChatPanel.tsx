@@ -46,6 +46,8 @@ type Props = {
   /** 선택된 블록의 표시 이름 (예: "이미지 · 따뜻한 우드톤 거실") */
   selectedBlockLabel?: string | null;
   onDocumentChanged: () => void;
+  /** 홈 입력창에서 넘어온 첫 요청 — 패널이 열리면 한 번 자동 전송한다. */
+  initialPrompt?: string | null;
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -68,11 +70,12 @@ export function AIChatPanel({
   selectedBlockId,
   selectedBlockLabel,
   onDocumentChanged,
+  initialPrompt,
 }: Props) {
   const [items, setItems] = useState<ChatItem[]>([
     {
       kind: 'assistant',
-      text: '안녕하세요, ARCHI 에이전트입니다. 블로그 초안 작성이나 블록 수정을 도와드릴게요. 블록을 선택한 뒤 "전문가 톤으로 바꿔줘"처럼 요청할 수도 있습니다.',
+      text: '안녕하세요, INDEX 에이전트입니다. 블로그 초안 작성이나 블록 수정을 도와드릴게요. 블록을 선택한 뒤 "전문가 톤으로 바꿔줘"처럼 요청할 수도 있습니다.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -141,6 +144,19 @@ export function AIChatPanel({
     const message = input.trim();
     if (!message || busy) return;
     setInput('');
+    await sendMessage(message);
+  }
+
+  const initialSentRef = useRef(false);
+  useEffect(() => {
+    const message = initialPrompt?.trim();
+    if (!message || initialSentRef.current) return;
+    initialSentRef.current = true;
+    void sendMessage(message);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt]);
+
+  async function sendMessage(message: string) {
     setError(null);
     setBusy(true);
     setItems((prev) => [...prev, { kind: 'user', text: message }]);

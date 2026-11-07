@@ -1,3 +1,4 @@
+import { captureKnowledge } from './knowledgeCapture';
 /**
  * Seminars + applications — shared by the public pages, My Page and the admin screens.
  *
@@ -479,18 +480,22 @@ export async function saveSeminar(input: SeminarInput, id?: string): Promise<str
     const rows = localSeminars();
     if (id) {
       saveLocalSeminars(rows.map((s) => (s.id === id ? { ...s, ...input, id, updatedAt: now } : s)));
+      captureKnowledge('Seminar', id, { ...input, id, updatedAt: now });
       return id;
     }
     const newId = `sem-${now.toString(36)}`;
     saveLocalSeminars([...rows, { ...input, id: newId, enrolled: 0, createdAt: now, updatedAt: now }]);
+    captureKnowledge('Seminar', newId, { ...input, id: newId, updatedAt: now });
     return newId;
   }
   if (id) {
     await updateDoc(doc(firebaseDb!, "seminars", id), clean({ ...input, updatedAt: now }) as Record<string, unknown>);
+    captureKnowledge('Seminar', id, { ...input, id, updatedAt: now });
     return id;
   }
   const ref_ = doc(collection(firebaseDb!, "seminars"));
   await setDoc(ref_, clean({ ...input, enrolled: 0, createdAt: now, updatedAt: now }));
+  captureKnowledge('Seminar', ref_.id, { ...input, id: ref_.id, updatedAt: now });
   return ref_.id;
 }
 
@@ -537,8 +542,16 @@ export async function uploadSeminarImage(file: File, maxSize = 1600): Promise<st
   }
   const path = `seminars/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.jpg`;
   const target = ref(firebaseStorage, path);
-  await uploadBytes(target, blob, { contentType: "image/jpeg" });
-  return getDownloadURL(target);
+  try {
+    await uploadBytes(target, blob, { contentType: "image/jpeg" });
+    return await getDownloadURL(target);
+  } catch (err) {
+    const code = (err as { code?: string }).code ?? "";
+    if (code === "storage/retry-limit-exceeded" || code === "storage/unknown" || code === "storage/bucket-not-found")
+      throw new Error("Firebase Storage에 연결할 수 없습니다. 콘솔에서 Storage가 활성화되어 있는지 확인하세요.");
+    if (code === "storage/unauthorized") throw new Error("업로드 권한이 없습니다. 관리자 계정으로 로그인했는지 확인하세요.");
+    throw err;
+  }
 }
 
 function resizeImage(file: File, maxSize: number): Promise<Blob> {

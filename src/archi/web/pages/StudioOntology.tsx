@@ -174,7 +174,7 @@ export default function OntologyPage() {
                 문서 작성하러 가기
               </button>
               <button
-                onClick={() => router.push('/studio/knowledge')}
+                onClick={() => router.push('/studio/sources')}
                 className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-white"
               >
                 지식베이스 업로드
@@ -190,6 +190,7 @@ export default function OntologyPage() {
             onSelect={setSelectedId}
             search={search}
             showLabels={showLabels}
+            showSettings={false}
             params={{
               centerStrength: centerForce,
               repulsion: repelForce,
@@ -433,7 +434,7 @@ export default function OntologyPage() {
                   {detail.knowledgeSources.map((source) => (
                     <li key={source.id}>
                       <button
-                        onClick={() => router.push('/studio/knowledge')}
+                        onClick={() => router.push('/studio/sources')}
                         className="w-full truncate rounded px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/10 hover:text-white"
                       >
                         📚 {source.title}

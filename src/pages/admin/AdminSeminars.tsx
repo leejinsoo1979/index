@@ -20,6 +20,7 @@ import {
   type SeminarInput,
   type SeminarStatus,
 } from "../../lib/seminars";
+import { CustomSelect } from "../../components/ui/custom-select";
 
 const STATUSES: SeminarStatus[] = ["예정", "접수중", "완료"];
 const MAX_GALLERY = 8;
@@ -304,22 +305,18 @@ export default function AdminSeminars() {
                     })()}
                   </td>
                   <td>
-                    <select
-                      className={`admin-select admin-select--${effectiveStatus(s)}`}
+                    <CustomSelect
+                      className={`cselect__trigger--compact admin-select admin-select--${effectiveStatus(s)}`}
                       value={s.status}
-                      onChange={(e) =>
+                      options={STATUSES}
+                      aria-label="상태 변경"
+                      onValueChange={(v) =>
                         void run(
-                          () => setSeminarFields(s.id, { status: e.target.value as SeminarStatus }),
+                          () => setSeminarFields(s.id, { status: v as SeminarStatus }),
                           "상태 변경에 실패했습니다",
                         )
                       }
-                    >
-                      {STATUSES.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </td>
                   <td className="admin-table__actions">
                     <button
@@ -379,20 +376,11 @@ export default function AdminSeminars() {
             <div className="admin-modal__row">
               <label>
                 구분
-                <select name="level" defaultValue={editing?.level ?? "기초"}>
-                  <option value="기초">기초</option>
-                  <option value="심화">심화</option>
-                </select>
+                <CustomSelect name="level" defaultValue={editing?.level ?? "기초"} options={["기초", "심화"]} />
               </label>
               <label>
                 상태
-                <select name="status" defaultValue={editing?.status ?? "접수중"}>
-                  {STATUSES.map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect name="status" defaultValue={editing?.status ?? "접수중"} options={STATUSES} />
               </label>
               <label>
                 강사

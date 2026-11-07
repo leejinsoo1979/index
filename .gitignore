@@ -7,3 +7,6 @@ dist-ssr
 *.log
 .vercel
 tsconfig.tsbuildinfo
+.index-knowledge/
+.index-runtime/
+services/mercury/node_modules/

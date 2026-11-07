@@ -7,6 +7,7 @@ import { kiaaMembers } from "../data/team";
 import { isAdminEmail } from "../lib/adminStore";
 import { effectiveStatus, formatSeminarDate, useSeminars, type Seminar } from "../lib/seminars";
 import Placeholder from "./Placeholder";
+import AgentShowcase from "../components/AgentShowcase";
 import "./About.css";
 
 function Arrow() {
@@ -22,7 +23,7 @@ const NAV_SECTIONS = [
   { id: "mission", label: "미션" },
   { id: "problems", label: "우리가 푸는 문제" },
   { id: "curriculum", label: "커리큘럼" },
-  { id: "showcase", label: "쇼케이스" },
+  { id: "showcase", label: "에이전트" },
   { id: "people", label: "전문가" },
 ] as const;
 const NAV_PAGES = [
@@ -83,8 +84,8 @@ function AiNav({ notice }: { notice: { text: string; to: string } }) {
             ))}
           </nav>
           <div className="ai-nav__actions">
-            <Link className="ai-nav__mini" to="/seminars">
-              + 세미나 일정
+            <Link className="ai-nav__association" to="/" onClick={() => setOpen(false)}>
+              협회 사이트 <Arrow />
             </Link>
             <Link className="ai-nav__cta" to="/seminars">
               교육 신청
@@ -117,7 +118,6 @@ export default function About() {
   const upcoming = useMemo(() => seminars.filter((s) => effectiveStatus(s) !== "완료"), [seminars]);
   const nextSeminar = upcoming[0] ?? null;
   const latestCase = useMemo(() => [...cases].sort((a, b) => b.date.localeCompare(a.date))[0], []);
-  const showcase = useMemo(() => [...cases].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6), []);
 
   // Seminar matrix: rows = level, columns = topic; each seminar lands in its first matching topic.
   const matrix = useMemo(() => {
@@ -132,7 +132,7 @@ export default function About() {
   // Draft page: admins only for now.
   if (!isAdminEmail(user?.email)) return <Placeholder title="AI" />;
 
-  const { hero, mission, problems, curriculum, showcase: sc, people, cloud, cta } = about;
+  const { hero, mission, problems, curriculum, people, cloud, cta } = about;
   const notice = nextSeminar
     ? { text: `다가오는 세미나 · ${formatSeminarDate(nextSeminar.date)} ${nextSeminar.title}`, to: `/seminars/${nextSeminar.id}` }
     : { text: "INDEX 실무 세미나 · 일정과 신청은 세미나 페이지에서 확인하세요", to: "/seminars" };
@@ -179,7 +179,7 @@ export default function About() {
             <div className="ab-float ab-float--stat">
               <strong>{cases.length}</strong>
               <span>
-                건의 하자 사례
+                건의 현장 사례
                 <br />
                 Case Library
               </span>
@@ -229,15 +229,21 @@ export default function About() {
           <div className="ab-problems">
             {problems.items.map((item, i) => (
               <Link className="ab-problem" to="/cases" key={item.title}>
-                <div className="ab-problem__top">
-                  <span className="ab-problem__no">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="ab-chip">{item.tag}</span>
+                <div className="ab-card-image">
+                  <img src={`${item.image}-960-v1.jpg`} srcSet={`${item.image}-480-v1.jpg 480w, ${item.image}-960-v1.jpg 960w`} sizes="(max-width: 640px) 100vw, (max-width: 980px) 50vw, 33vw" width={960} height={640} alt={item.imageAlt} loading="lazy" decoding="async" />
+                  <span className="ab-card-image__label">AI 대표 이미지</span>
                 </div>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-                <span className="ab-problem__go">
-                  관련 사례 <Arrow />
-                </span>
+                <div className="ab-problem__body">
+                  <div className="ab-problem__top">
+                    <span className="ab-problem__no">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="ab-chip">{item.tag}</span>
+                  </div>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                  <span className="ab-problem__go">
+                    사례 라이브러리 <Arrow />
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
@@ -268,7 +274,7 @@ export default function About() {
               <div className="ab-matrix__row" role="row" key={row.level}>
                 <div role="rowheader" className="ab-matrix__level">
                   <strong>{row.level}</strong>
-                  <span>{row.level === "기초" ? "하자의 원리와 시공 기준" : "진단·보수 판단 실무"}</span>
+                  <span>{row.level === "기초" ? "분야별 개념과 실무의 기초" : "프로젝트와 과제 중심의 탐구"}</span>
                 </div>
                 {row.cells.map((list, i) => (
                   <div role="cell" key={curriculum.topics[i]!.key} className="ab-matrix__cell">
@@ -305,48 +311,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── 5. Showcase (cases) ── */}
-      <section className="ab-section" id="showcase">
-        <div className="ab-wrap">
-          <div className="ab-head">
-            <div>
-              <Eyebrow>{sc.eyebrow}</Eyebrow>
-              <h2 className="ab-title">
-                {sc.title}
-                <br />
-                <span className="ab-accent">{sc.titleAccent}</span>
-              </h2>
-              <p className="ab-lead">{sc.lead}</p>
-            </div>
-            <div className="ab-bignum">
-              <strong>{cases.length}</strong>
-              <span>CASES · 현재 공개 사례</span>
-            </div>
-          </div>
-          <div className="ab-cases">
-            {showcase.map((c) => (
-              <Link className="ab-case" to={`/cases/${c.id}`} key={c.id}>
-                <div className="ab-case__media">
-                  <img src={c.image} alt="" loading="lazy" />
-                  <span className="ab-chip ab-chip--onimg">{c.category}</span>
-                </div>
-                <div className="ab-case__body">
-                  <h3>
-                    {c.title} <Arrow />
-                  </h3>
-                  <p>{c.excerpt}</p>
-                  <small>{c.date}</small>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="ab-center">
-            <Link className="ab-btn ab-btn--line" to="/cases">
-              {sc.more} <Arrow />
-            </Link>
-          </div>
-        </div>
-      </section>
+      <AgentShowcase />
 
       {/* ── 6. People ── */}
       <section className="ab-section ab-section--tint" id="people">
@@ -386,7 +351,7 @@ export default function About() {
             {cloud.title} <span className="ab-accent">{cloud.titleAccent}</span>
           </h2>
           <p className="ab-lead">{cloud.lead}</p>
-          <div className="ab-cloud" aria-label="하자 유형">
+          <div className="ab-cloud" aria-label="주거 실내건축의 교류와 탐구 주제">
             {cloud.words.map(([word, weight], i) => (
               <span key={word} className={`ab-cloud__w w${weight}${i % 3 === 1 ? " is-accent" : ""}`}>
                 {word}
@@ -423,7 +388,7 @@ export default function About() {
             <p className="ai-foot__brand">
               index<span>AI</span>
             </p>
-            <p>한국실내건축가협회 (K-IAA) · INDEX</p>
+            <p>주거인테리어 협회 · INDEX</p>
           </div>
           <nav aria-label="바로가기">
             <Link to="/">index 홈</Link>
@@ -432,7 +397,7 @@ export default function About() {
             <Link to="/mypage">My Page</Link>
           </nav>
         </div>
-        <div className="ab-wrap ai-foot__bottom">© 2025 한국실내건축가협회 (K-IAA). All rights reserved.</div>
+        <div className="ab-wrap ai-foot__bottom">© 2025 주거인테리어 협회. All rights reserved.</div>
       </footer>
     </main>
   );

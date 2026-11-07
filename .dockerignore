@@ -1,0 +1,8 @@
+node_modules
+services/mercury/node_modules
+.git
+.index-knowledge
+.index-runtime
+.env*
+dist
+*.log

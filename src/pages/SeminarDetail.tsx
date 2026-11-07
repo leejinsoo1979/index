@@ -65,7 +65,7 @@ function googleCalendarUrl(seminar: Seminar) {
     dates: `${day}T${start}00/${day}T${end}00`,
     ctz: "Asia/Seoul",
     location: [seminar.venue, seminar.address ?? seminar.location].filter(Boolean).join(" "),
-    details: "한국실내건축가협회 실무 세미나",
+    details: "주거인테리어 협회 실무 세미나",
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
@@ -186,7 +186,7 @@ export default function SeminarDetail() {
 
           <section className="seminar-detail__body">
             <p className="seminar-detail__eyebrow">
-              한국실내건축가협회 실무 세미나 · {seminar.level} 과정 · {status}
+              주거인테리어 협회 실무 세미나 · {seminar.level} 과정 · {status}
             </p>
             <h1 className="seminar-detail__title">{seminar.title}</h1>
             <p className="seminar-detail__date">{formatSeminarDate(seminar.date)}</p>
@@ -240,7 +240,7 @@ export default function SeminarDetail() {
 
             <div className="seminar-detail__section">
               <span className="seminar-detail__label">주최</span>
-              <p>한국실내건축가협회</p>
+              <p>주거인테리어 협회</p>
             </div>
             <div className="seminar-detail__section">
               <span className="seminar-detail__label">주관</span>

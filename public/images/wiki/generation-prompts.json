@@ -1,0 +1,62 @@
+{
+  "generator": "built-in image_gen",
+  "purpose": "Representative AI-generated imagery, not evidence of an actual construction site.",
+  "prompt_set": [
+    {
+      "key": "waterproofing",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 representative thumbnail for a Korean interior construction knowledge library. Subject: bathroom waterproofing at an unfinished modern apartment renovation, close-up of a gloved professional hand using a small roller to apply deep blue waterproof coating onto concrete at the junction of a shower floor and wall; a carefully detailed floor drain visible, no completed ceramic tiles covering the active work area. Composition: clear meaningful action, central subject visible when cropped to a horizontal card, editorial architectural construction photography, natural window light, realistic gritty cement and wet waterproofing texture. Calm neutral gray and muted blue color grade, excellent detail, practical professional scene, no staged business people. No text, no lettering, no graphic labels, no logos, no UI, no watermark. Produce one coherent photograph, not a collage.",
+      "assets": [
+        "waterproofing-480-v1.jpg",
+        "waterproofing-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "tile-defect",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 editorial thumbnail for an interior construction knowledge library. Subject: actual tile debonding inspection in an apartment, a large light stone porcelain floor tile has been lifted at one edge, revealing dried ridges of tile adhesive and a patch of concrete substrate below; one gloved hand and a small inspection tool at the edge. Composition close and clear, rich tactile details of ceramic edge and mortar, muted warm gray stone palette, natural raking side light. Professional architectural construction photograph, realistic physical condition, visual evidence of tile detachment. No text, no logos, no diagrams, no UI, no watermark, no collage.",
+      "assets": [
+        "tile-defect-480-v1.jpg",
+        "tile-defect-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "condensation",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 editorial thumbnail for an interior construction knowledge library. Subject: condensation diagnosis at a modern apartment window, close-up of distinct water droplets and moisture on glass near the window frame and a subtle damp darkened patch at the junction of plaster wall and sill; cold exterior foliage or apartment shapes blurred through glass. Realistic delicate droplets in sharp focus, blue gray winter daylight, neutral plaster textures, restrained professional documentary architectural photograph, nuanced color and high detail. Frame moisture and building junction as central subject. No text, no logos, no thermal overlays, no UI, no watermark, no collage.",
+      "assets": [
+        "condensation-480-v1.jpg",
+        "condensation-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "site-inspection",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 editorial thumbnail for an interior construction knowledge library. Subject: site quality inspection inside an unfinished contemporary apartment; close-up of an inspector's hand holding a compact thermal imaging camera aimed at an interior window corner, the camera display shows a simple heat gradient thermogram with no readable words or numbers; concrete walls, orderly renovation materials softly blurred behind. Professional documentary construction photography, cool neutral colors with subtle amber/red thermogram accent, natural daylight, physical realism, central hand and camera visible at card thumbnail size. No faces, no logos, no text, no graphic overlays, no watermark, no collage.",
+      "assets": [
+        "site-inspection-480-v1.jpg",
+        "site-inspection-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "materials",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 editorial thumbnail for a sophisticated Korean interior construction knowledge library. Subject: beautifully organized real interior construction material samples on an architect's worktable, overlapping pale travertine slab, warm oak veneer, brushed metal, off-white ceramic tile, gray concrete sample and a small edge of insulation board. Materials are substantial physical swatches with visible thickness and tactile textures, no text or labels. Camera: slightly elevated close editorial still-life, tight considered composition, soft directional daylight from upper left, calm warm neutral palette, subtle shadows and high-end architectural publication quality. No artificial icons, no UI, no lettering, no logo, no watermark, no collage.",
+      "assets": [
+        "materials-480-v1.jpg",
+        "materials-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "standards",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 editorial thumbnail for an interior construction standards and detailing knowledge library. Subject: construction detail review on a real architect's desk, physical architectural section drawings with fine black technical linework, an aluminum triangular scale ruler, open unmarked specification binder at one side, and a hand holding a pencil pointing to a wall-floor section junction. No legible lettering or numbers, focus on realistic technical drawings and practical tools. Slightly overhead camera, graphite and warm paper palette, cool soft daylight, professional architectural editorial photography with sharp central details and subtle background falloff. No UI, no logos, no fake graphic overlays, no watermark, no collage.",
+      "assets": [
+        "standards-480-v1.jpg",
+        "standards-960-v1.jpg"
+      ]
+    },
+    {
+      "key": "interior",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape 16:9 representative cover for a Korean interior architecture knowledge library and a wide hero photograph. Subject: a refined newly completed Korean apartment living room, quiet warm oak floor, beautiful off-white limewash walls, precise minimal wall junctions, a large window casting architectural morning shadows, a low stone table and a single understated cream sofa, visible opening toward an adjacent room. Focus on construction craftsmanship, material details and clean spatial composition, not decorative clutter. Professional architectural photography, realistic natural light, subdued warm neutral colors and strong depth, eye-level wide-angle framing with a compelling architectural focal point at the center-right suitable for cropped thumbnail. No people, no text, no lettering, no logos, no watermark, no icons, no diagram, no collage.",
+      "assets": [
+        "interior-480-v1.jpg",
+        "interior-960-v1.jpg"
+      ]
+    }
+  ]
+}

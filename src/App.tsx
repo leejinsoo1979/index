@@ -16,6 +16,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminBoards from "./pages/admin/AdminBoards";
 import AdminSeminars from "./pages/admin/AdminSeminars";
+import AdminCurriculum from "./pages/admin/AdminCurriculum";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminMembers from "./pages/admin/AdminMembers";
 import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="agent" element={<Navigate to="/agent-studio" replace />} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
+          <Route path="curriculum" element={<AdminCurriculum />} />
           <Route path="payments" element={<AdminPayments />} />
           <Route path="members" element={<AdminMembers />} />
         </Route>
