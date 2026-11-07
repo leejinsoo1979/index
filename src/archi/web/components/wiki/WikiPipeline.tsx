@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { knowledgeRequest } from '@/lib/knowledgeServer';
+import { knowledgeOriginal, knowledgeRequest } from '@/lib/knowledgeServer';
 import { knowledgeCaptureError, pendingKnowledgeEvents, flushKnowledgeEvents } from '@/lib/knowledgeCapture';
 import { WikiMarkdown } from './WikiMarkdown';
 import type { WikiPage } from '../../../wiki/types';
@@ -27,13 +27,14 @@ export function WikiPipeline({ onRefresh }: { onRefresh: () => void }) {
   }, [onRefresh]);
   const busy = status?.jobs.filter(j => ['queued', 'running'].includes(j.state)).length || 0;
   const failed = status?.jobs.filter(j => j.state === 'failed') || [];
+  const cancelled = status?.jobs.filter(j => j.state === 'cancelled').length || 0;
   return <section className="wk-pipeline" aria-label="자동 지식 수집 상태" aria-live="polite">
-    <div><strong>{status ? 'INDEX 공용 지식 서버' : '지식 서버 연결 중'}</strong><span>{status ? `원본 ${status.sources} · 활동 기록 ${status.events} · 처리 대기 ${busy}` : '원본과 이력을 서버에 보존합니다.'}{pending ? ` · 전송 대기 ${pending}` : ''}</span><button className="wk-button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>처리 내역{failed.length ? ` (${failed.length}건 실패)` : ''}</button></div>
+    <div><strong>{status ? 'INDEX 공용 지식 서버' : '지식 서버 연결 중'}</strong><span>{status ? `원본 ${status.sources} · 활동 기록 ${status.events} · 처리 대기 ${busy}${cancelled ? ` · 처리 제외 ${cancelled}` : ''}` : '원본과 이력을 서버에 보존합니다.'}{pending ? ` · 전송 대기 ${pending}` : ''}</span><button className="wk-button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>처리 내역{failed.length ? ` (${failed.length}건 실패)` : ''}</button></div>
     {error && <p role="alert">{error}</p>}
     {expanded && <div className="wk-pipeline-details"><p>AI: {status?.model || '연결 확인 필요'} · 새 자료는 위키 초안으로 정리되며, 검수 후 공개 지식으로 사용됩니다.</p>{pending > 0 && <button className="wk-button" onClick={() => void flushKnowledgeEvents()}>활동 기록 다시 전송</button>}{status?.jobs.slice(0, 12).map(job => <div key={job.id}><span>{({ queued: '대기', running: '정리 중', done: '완료', failed: '확인 필요' } as Record<string, string>)[job.state]} · 시도 {job.attempts}회{job.error ? ` · ${job.error}` : ''}</span>{['failed', 'queued'].includes(job.state) && <button className="wk-button" onClick={() => void knowledgeRequest(`jobs/${job.id}/retry`, { method: 'POST', body: '{}' }).then(onRefresh).catch(e => setError(e.message))}>재시도</button>}</div>)}</div>}
   </section>;
 }
-type Citation = { number: number; id: string; title: string; version: number; status: string };
+type Citation = { number: number; id: string | null; sourceId?: string | null; title: string; heading?: string | null; pages?: string | null; trust?: string; version: number | null; status: string };
 type ChatTurn = { id: string; role: 'user' | 'assistant'; text: string; citations?: Citation[]; error?: boolean };
 
 const SUGGESTED_QUESTIONS = [
@@ -98,7 +99,10 @@ export function WikiAssistant({ pages, onNavigate, onClose }: { pages: WikiPage[
         ? <div key={turn.id} className="wk-chat-turn wk-chat-turn--user"><p>{turn.text}</p></div>
         : <div key={turn.id} className={'wk-chat-turn wk-chat-turn--ai' + (turn.error ? ' is-error' : '')}>
             {turn.error ? <p>{turn.text}</p> : <div className="wk-prose"><WikiMarkdown content={turn.text} pages={pages} onNavigate={onNavigate} onCreate={() => {}} /></div>}
-            {turn.citations && turn.citations.length > 0 && <div className="wk-chat-sources"><span>출처</span>{turn.citations.map(c => <button type="button" key={c.id} onClick={() => onNavigate(c.id)} title={c.status !== 'published' ? '검수 전 문서' : undefined}>{c.number}. {c.title}{c.status !== 'published' ? ' · 검수 전' : ''}</button>)}</div>}
+            {turn.citations && turn.citations.length > 0 && <div className="wk-chat-sources"><span>출처</span>{turn.citations.map(c => <button type="button" key={c.number}
+              title={[c.trust, c.status !== 'published' ? '검수 전' : '검수 완료'].filter(Boolean).join(' · ')}
+              onClick={() => { if (c.id) onNavigate(c.id); else if (c.sourceId) void knowledgeOriginal(c.sourceId).then(url => window.open(url, '_blank', 'noopener')).catch(() => {}); }}>
+              {c.number}. {c.title}{c.pages ? ` · ${c.pages}` : ''}{c.status !== 'published' ? ' · 검수 전' : ''}</button>)}</div>}
           </div>)}
       {busy && <div className="wk-chat-turn wk-chat-turn--ai"><span className="wk-chat-typing" aria-label="답변 작성 중"><i /><i /><i /></span></div>}
     </div>

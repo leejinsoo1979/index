@@ -1,0 +1,19 @@
+INDEX adapts the following MIT-licensed Korea100 components by Hoseong Seo:
+https://github.com/hosungseo/korea100
+Upstream revision: 948d43a73002862d02f908772586b55f9f32fdc6
+Retrieved: 2026-11-07
+
+Upstream snapshots are preserved in upstream/. LICENSE contains the complete MIT notice.
+Adapted runtime files: src/archi/web/components/wiki/korea100/
+
+RegistryCatalog: original catalog tree, responsive table/list, filters, comparison tray.
+InstitutionDetailView: title/metric bands, section headings and one-page canvas structure.
+DesktopProcessBoard: original grid, edge routing and node renderer (import and label adapter).
+WikiWarroom: HUD header, document count, field rail, daily board, pipeline and ticker,
+adapted from web/public/warroom/index.html.
+CSS: original layout retained; palette and small text adapted for INDEX's dark theme.
+
+INDEX replaces Next.js routing, static government catalog JSON and telemetry with its
+existing wiki repository, Markdown documents, source IDs, version history and auth.
+No government dataset, source-specific verification badge, site-specific branding,
+or unrelated chris.gomdori.app code or artwork has been imported.

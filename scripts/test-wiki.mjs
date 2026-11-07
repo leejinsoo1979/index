@@ -13,6 +13,7 @@ try {
   const { encyclopediaArticles, indexLetter, wantedArticles, encyclopediaDraft, articleLead } = await server.ssrLoadModule('/src/archi/wiki/encyclopedia.ts');
   const { buildKnowledgeGraph, graphLayoutSettings, applyGraphFocus } = await server.ssrLoadModule('/src/archi/web/components/ontology/graph-model.ts');
   const { default: forceAtlas2 } = await import('graphology-layout-forceatlas2');
+  const { default: randomLayout } = await import('graphology-layout/random.js');
   function storage() { const data = new Map(); return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) }; }
 
   await test('page + immutable revision survive a new repository instance; workspaces remain isolated', async () => {
@@ -105,6 +106,9 @@ try {
       const nodes = Array.from({ length: size }, (_, i) => ({ id: 'node-' + i, label: '주거 지식 항목 ' + i, type: '설계', status: 'APPROVED' }));
       const edges = nodes.slice(1, Math.max(1, size - 2)).map((node, i) => ({ id: 'link-' + i, sourceNodeId: nodes[i].id, targetNodeId: node.id, relationType: '관련 항목', status: 'APPROVED' }));
       const graph = buildKnowledgeGraph(nodes, edges);
+      // Seed only the test fixture; library random initialization otherwise makes the rounded-position assertion flaky.
+      let seed = 42;
+      randomLayout.assign(graph, { scale: 100, rng: () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296) });
       if (graph.order > 1) forceAtlas2.assign(graph, { iterations: 100, settings: graphLayoutSettings(graph) });
       assert.equal(graph.order, nodes.length);
       const positions = graph.mapNodes((_id, data) => data);
@@ -154,4 +158,56 @@ try {
     const outsider = await devLogin({ email: 'wiki-outsider@example.invalid' });
     await assert.rejects(draftFromExisting(outsider.user.id, workspaceId, item), /권한/);
   });
+
+  const { readProcess, writeProcess, parseProcess, withoutProcess, registryRecords, knowledgeConnectionModel, documentSections } = await server.ssrLoadModule('/src/archi/wiki/registry.ts');
+  const processFixture = {
+    lanes: ['설계자', '관리자'], stages: ['G0 검토', 'G1 승인'],
+    nodes: [
+      { id: 'P01', name: '설계 검토', lane: '설계자', stage: 'G0 검토', type: 'task', status: 'current', actor: '설계자', source_ids: ['source-a'] },
+      { id: 'P02', name: '승인', lane: '관리자', stage: 'G1 승인', type: 'gateway', status: 'waiting', actor: '관리자' },
+    ],
+    edges: [{id:'E01',source:'P01',target:'P02',type:'sequence'}],
+  };
+  await test('Korea100 process data survives Markdown save, revisions, reload and removal without losing prose', async () => {
+    const disk = storage();
+    const repo = createLocalWikiRepository('registry-process','편집자',disk);
+    const original = '## 개요\n\n원본 설명입니다.\n\n## 참고\n\n[[관련 지식]]';
+    const content = writeProcess(original, processFixture);
+    assert.equal(withoutProcess(content), original);
+    const first = await repo.save({...emptyWikiDraft('업무 절차'),content}, {expectedVersion:0});
+    const loaded = (await createLocalWikiRepository('registry-process','편집자',disk).list())[0];
+    assert.deepEqual(readProcess(loaded.content).process, parseProcess(processFixture));
+    const removed = await repo.save({...first,content:writeProcess(first.content,null)}, {id:first.id,expectedVersion:1});
+    assert.equal(removed.content, original);
+    assert.equal(readProcess(removed.content).process, null);
+    assert.deepEqual(readProcess((await repo.history(first.id))[1].content).process, parseProcess(processFixture));
+  });
+  await test('process adapter rejects duplicate IDs, orphan edges and unknown lane/stage/status instead of rendering fake valid structure', () => {
+    assert.throws(()=>parseProcess({...processFixture,nodes:[processFixture.nodes[0],processFixture.nodes[0]]}),/중복/);
+    assert.throws(()=>parseProcess({...processFixture,edges:[{...processFixture.edges[0],target:'missing'}]}),/존재하지 않는/);
+    assert.throws(()=>parseProcess({...processFixture,nodes:[{...processFixture.nodes[0],lane:'없는 주체'}]}),/정의되지/);
+    assert.throws(()=>parseProcess({...processFixture,nodes:[{...processFixture.nodes[0],status:'approved'}]}),/상태/);
+    const invalid = writeProcess('원문',processFixture).replace('"target": "P02"','"target": "missing"');
+    assert.equal(readProcess(invalid).process,null);
+    assert.match(readProcess(invalid).error,/존재하지 않는/);
+  });
+  await test('registry counts real links once per neighbor and preserves review state, aliases, original excerpts and canvas content', () => {
+    const base = {workspaceId:'a',version:1,createdAt:'2026-11-01',updatedAt:'2026-11-01',updatedBy:'관리자',aliases:[]};
+    const a = {...emptyWikiDraft('자재 선정'),...base,id:'a',category:'자재',status:'review',content:'## 개요\n\n자재 선정의 근거.\n\n## 주요 내용\n\n[[기준]] [[기준|기준 원문]] [[없는 항목]] [[자재 선정]]',sources:[{id:'s',kind:'document',title:'시험 보고서',excerpt:'원본 인용'}]};
+    const b = {...emptyWikiDraft('선정 기준'),...base,id:'b',category:'법규·기준',aliases:['기준'],content:'[[자재 선정]]'};
+    const archived = {...emptyWikiDraft('보관 항목'),...base,id:'c',status:'archived'};
+    const records=registryRecords([a,b,archived]);
+    assert.equal(records.length,2);
+    assert.deepEqual(records.map(r=>r.relationCount),[1,1]);
+    assert.equal(records.find(r=>r.slug==='a').status,'review');
+    assert.equal(records.find(r=>r.slug==='a').processNodeCount,0);
+    assert.match(records.find(r=>r.slug==='a').searchText,/시험 보고서/);
+    const connections=knowledgeConnectionModel(a,[a,b]);
+    assert.equal(connections.nodes.length,2);
+    assert.deepEqual(connections.edges.map(e=>[e.source,e.target]),[['a','b']]);
+    assert.equal(documentSections(a)[0].content,'자재 선정의 근거.');
+    assert.equal(documentSections({...a,content:'앞부분의 원본 요약.\n\n## 근거\n\n원본 인용.'})[0].content,'앞부분의 원본 요약.');
+    assert.equal(a.sources[0].excerpt,'원본 인용');
+  });
+
 } finally { await server.close(); }

@@ -7,11 +7,13 @@ import { loadEnvironment } from './env.mjs';
 import { WikiStore } from './store.mjs';
 import { compileSource, answerQuestion, modelConfig, complete } from './llm.mjs';
 import { legacyApi } from './legacy-api.mjs';
+import { retrieve, reindex, scheduleReindex } from './retrieval/index.mjs';
 
 loadEnvironment();
 const safeEqual = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.index-knowledge', testAuth, call, worker = true } = {}) {
   const store = new WikiStore(root);
+  if (worker) scheduleReindex(store, 1500);
   let active = false, stopped = false;
   const shutdown = new AbortController();
   const tick = async () => {
@@ -75,7 +77,7 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
       }
       if (req.method === 'GET' && parts[0] === 'pages' && !parts[1]) return json(res, 200, store.pages());
       if (req.method === 'GET' && parts[0] === 'pages' && parts[2] === 'history') return json(res, 200, store.history(parts[1]));
-      if (req.method === 'POST' && parts[0] === 'pages') return json(res, 200, store.savePage(body.draft, body.options || {}, who));
+      if (req.method === 'POST' && parts[0] === 'pages') { const saved = store.savePage(body.draft, body.options || {}, who); scheduleReindex(store); return json(res, 200, saved); }
       if (req.method === 'POST' && parts[0] === 'events') {
         const events = Array.isArray(body.events) ? body.events : [body];
         if (events.length > 100) throw new Error('한 번에 100개까지 기록할 수 있습니다.');
@@ -87,6 +89,7 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
         if (body.base64 && !/\.(pdf|md|txt|json)$/i.test(body.name || '')) throw new Error('PDF, Markdown, TXT, JSON 자료만 업로드할 수 있습니다.');
         if (!body.base64 && typeof body.content !== 'string') throw new Error('원본 자료가 필요합니다.');
         const result = store.addSource({ title: body.title, name: body.name, kind: body.kind || 'file', mime: /\.pdf$/i.test(body.name || '') ? 'application/pdf' : 'text/plain', ...(body.base64 ? { bytes: Buffer.from(body.base64, 'base64') } : { content: body.content }), originalRefs: Array.isArray(body.originalRefs) ? body.originalRefs : [] }, who);
+        scheduleReindex(store);
         store.capture({ model: 'KnowledgeSource', eventId: `upload:${result.source.id}`, entityId: result.source.id, data: { title: result.source.title, sourceId: result.source.id }, operation: 'upload' }, who);
         return json(res, 202, result);
       }
@@ -97,6 +100,12 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
         res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(source.name)}`, 'X-Content-Type-Options': 'nosniff' }); createReadStream(file).pipe(res); return;
       }
       if (req.method === 'POST' && parts[0] === 'jobs' && parts[2] === 'retry') { store.retry(parts[1]); return json(res, 200, { accepted: true }); }
+      // Second-brain retrieval: passages with citations for any agent/channel (see retrieval/index.mjs).
+      if (req.method === 'POST' && parts[0] === 'retrieve') {
+        if (typeof body.query !== 'string' || !body.query.trim() || body.query.length > 2000) throw new Error('검색어는 1~2,000자로 입력해 주세요.');
+        return json(res, 200, await retrieve(store, body.query, { k: Math.min(Math.max(Number(body.k) || 6, 1), 20), includeReview: body.includeReview !== false }));
+      }
+      if (req.method === 'POST' && parts[0] === 'reindex') return json(res, 200, await reindex(store));
       if (req.method === 'POST' && parts[0] === 'query') {
         const result = await answerQuestion(store, body.question, Boolean(body.includeDrafts), call);
         store.capture({ model: 'ChatMessage', entityId: 'wiki-query', data: { title: body.question.slice(0, 200), question: body.question, ...result, aiGenerated: true } }, who);

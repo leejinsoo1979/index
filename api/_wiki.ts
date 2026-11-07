@@ -120,7 +120,50 @@ export function rankWiki(pages: WikiDoc[], query: string, limit = 4): WikiHit[] 
     .map((p) => ({ ...p, excerpt: bestExcerpt(p.content, terms) }));
 }
 
+/**
+ * Second-brain retrieval from the INDEX knowledge server (server/wiki/retrieval): passages from
+ * wiki pages and original PDF pages, ranked with source trust and review status. Public chat
+ * uses 검수 완료 only unless WIKI_INCLUDE_REVIEW=1. Returns null when the server isn't reachable.
+ */
+async function retrieveFromKnowledgeServer(query: string, limit: number): Promise<WikiHit[] | null> {
+  const base = (process.env.INDEX_WIKI_URL || "http://127.0.0.1:5318").replace(/\/$/, "");
+  let token = process.env.WIKI_SERVICE_TOKEN;
+  if (!token) {
+    try {
+      const { readFileSync } = await import("node:fs");
+      token = readFileSync(".index-knowledge/runtime.token", "utf8").trim();
+    } catch {
+      return null;
+    }
+  }
+  try {
+    const res = await fetch(`${base}/api/wiki/retrieve`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, k: limit, includeReview: process.env.WIKI_INCLUDE_REVIEW === "1" }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { chunks?: Array<{ refId: string; title: string; heading?: string | null; pages?: string | null; category: string; trust: string; score: number; text: string }> };
+    return (body.chunks ?? []).map((c) => ({
+      id: c.refId,
+      title: `${c.title}${c.heading ? ` › ${c.heading}` : ""}${c.pages ? ` (${c.pages})` : ""}`,
+      content: c.text,
+      category: `${c.category} · ${c.trust}`,
+      tags: [],
+      aliases: [],
+      updatedAt: "",
+      score: c.score,
+      excerpt: c.text,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 export async function searchWiki(query: string, limit = 4): Promise<WikiHit[]> {
+  const fromServer = await retrieveFromKnowledgeServer(query, limit);
+  if (fromServer) return fromServer;
   return rankWiki(await loadPublishedWiki(), query, limit);
 }
 

@@ -1,0 +1,179 @@
+/* Korea100 CompareTray, MIT (c) 2026 Hoseong Seo; adapted for INDEX wiki data. */
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import type { RegistryRecord as InstitutionSummary } from "../../../../wiki/registry";
+import { WIKI_STATUS } from "../../../../wiki/types";
+import styles from "./RegistryCatalog.module.css";
+
+interface CompareTrayProps {
+  selected: InstitutionSummary[];
+  onRemove: (slug: string) => void;
+}
+
+export default function CompareTray({ selected, onRemove }: CompareTrayProps) {
+  const [open, setOpen] = useState(false);
+  const canCompare = selected.length >= 2;
+
+  if (selected.length === 0) return null;
+
+  return (
+    <>
+      <aside className={styles.compareTray} aria-label="비교 선반">
+        <strong>비교 선반</strong>
+        <div className={styles.compareChips}>
+          {selected.map((institution) => (
+            <span key={institution.slug}>
+              {institution.name}
+              <button
+                type="button"
+                onClick={() => {
+                  if (selected.length <= 2) setOpen(false);
+                  onRemove(institution.slug);
+                }}
+                aria-label={`${institution.name} 비교에서 제외`}
+                title="비교에서 제외"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <p>
+          {canCompare
+            ? `${selected.length}/3 선택됨`
+            : "2개 이상 선택하면 비교할 수 있습니다"}
+        </p>
+        <button
+          type="button"
+          className={styles.compareOpenButton}
+          disabled={!canCompare}
+          onClick={() => setOpen(true)}
+        >
+          같은 기준으로 비교 <span aria-hidden="true">→</span>
+        </button>
+      </aside>
+
+      {open && canCompare && (
+        <CompareDialog selected={selected} onClose={() => setOpen(false)} />
+      )}
+    </>
+  );
+}
+
+function trapFocus(event: KeyboardEvent, container: HTMLElement | null) {
+  if (!container) return;
+  const focusable = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => element.getClientRects().length > 0);
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable.at(-1) ?? first;
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || !container.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !container.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function CompareDialog({
+  selected,
+  onClose,
+}: {
+  selected: InstitutionSummary[];
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key === "Tab") {
+        trapFocus(event, dialogRef.current);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [onClose]);
+
+  const rows: Array<{label: string; render: (item: InstitutionSummary) => React.ReactNode}> = [
+    {label:'분야 · 유형', render:item => `${item.category} · ${item.type}`},
+    {label:'개요', render:item => item.oneLiner || '개요 미작성'},
+    {label:'검수 상태', render:item => WIKI_STATUS[item.status]},
+    {label:'연결된 지식', render:item => `${item.relationCount}개`},
+    {label:'원본 출처', render:item => `${item.sourceCount}개`},
+    {label:'업무구조도', render:item => item.processNodeCount ? `${item.processNodeCount}개 노드` : '미작성'},
+    {label:'태그', render:item => item.page.tags.join(' · ') || '없음'},
+    {label:'최근 수정', render:item => new Date(item.updatedAt).toLocaleDateString('ko-KR')},
+    {label:'버전', render:item => `v${item.version}`},
+  ];
+
+  return (
+    <div className={styles.compareBackdrop + " wk-korea100-scope"} role="presentation" onMouseDown={onClose}>
+      <section
+        ref={dialogRef}
+        className={styles.compareDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compare-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <span>같은 기준으로 비교</span>
+            <h2 id="compare-title">선택한 {selected.length}개 지식 항목</h2>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="비교 닫기">
+            ×
+          </button>
+        </header>
+
+        <div className={styles.compareTableScroll}>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">비교 기준</th>
+                {selected.map((institution) => (
+                  <th scope="col" key={institution.slug}>
+                    <span>{institution.priority.toString().padStart(2, "0")}</span>
+                    <Link to={'?page=' + encodeURIComponent(institution.slug)} onClick={onClose}>
+                      {institution.name}
+                    </Link>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  {selected.map((institution) => (
+                    <td key={institution.slug}>{row.render(institution)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}

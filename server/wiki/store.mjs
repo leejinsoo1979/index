@@ -19,6 +19,9 @@ export function atomicFile(path, bytes) {
   renameSync(temp, path);
 }
 const unpack = row => row ? JSON.parse(row.data) : null;
+/** Activity records that are memory only — compiling them would duplicate existing pages. */
+export const NON_COMPILABLE_ACTIVITY = new Set(['WikiPage']);
+
 export class WikiStore {
   constructor(root) {
     this.root = resolve(root);
@@ -90,7 +93,7 @@ export class WikiStore {
     atomicFile(join(this.root, 'wiki', page.id + '.md'), text);
     atomicFile(join(this.root, 'revisions', page.id, page.version + '.md'), text);
   }
-  addSource({ title, bytes, content, kind = 'file', mime = 'text/plain', name = 'source.txt', originalRefs = [] }, actor) {
+  addSource({ title, bytes, content, kind = 'file', mime = 'text/plain', name = 'source.txt', originalRefs = [], enqueue = true }, actor) {
     if (!Buffer.isBuffer(bytes)) bytes = Buffer.from(content || '');
     if (!bytes.length || bytes.length > 20 * 1024 * 1024) throw new Error('원본 자료는 1byte~20MB여야 합니다.');
     const digest = hash(bytes), id = hash(kind + ':' + title + ':' + digest);
@@ -102,7 +105,8 @@ export class WikiStore {
     const source = { id, title: String(title || name).slice(0, 200), hash: digest, path, kind, mime, name: String(name).replace(/[\\/]/g, '_'), createdAt: new Date().toISOString(), actor, originalRefs };
     this.transaction(() => {
       this.db.prepare('INSERT INTO sources VALUES(?,?,?,?,?,?)').run(id, source.title, digest, path, content || null, JSON.stringify(source));
-      this.db.prepare('INSERT INTO jobs(id,source_id,state,available_at) VALUES(?,?,?,?)').run(randomUUID(), id, 'queued', Date.now() + 2000);
+      // Activity memories (e.g. wiki page saves) are kept but not compiled into new pages.
+      if (enqueue) this.db.prepare('INSERT INTO jobs(id,source_id,state,available_at) VALUES(?,?,?,?)').run(randomUUID(), id, 'queued', Date.now() + 2000);
     });
     return { source, job: this.db.prepare('SELECT * FROM jobs WHERE source_id=?').get(id), duplicated: false };
   }
@@ -115,15 +119,33 @@ export class WikiStore {
     const entityId = String(event.entityId || data.id || id).slice(0, 200);
     const title = String(data.title || data.label || data.name || `${event.model} ${entityId}`).slice(0, 200);
     const meaningful = !['delete', 'upload'].includes(event.operation) && /Document|Block|Source|Chunk|Message|Post|Seminar|WikiPage|OntologyNode/.test(event.model) && text.length > 40;
-    const source = meaningful ? this.addSource({ title, content: JSON.stringify({ recordType: event.model, data }, null, 2), kind: 'activity', name: `${event.model}.json` }, actor).source : null;
+    const source = meaningful ? this.addSource({ title, content: JSON.stringify({ recordType: event.model, data }, null, 2), kind: 'activity', name: `${event.model}.json`, enqueue: !NON_COMPILABLE_ACTIVITY.has(event.model) }, actor).source : null;
     this.db.prepare('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?,?,?)').run(id, new Date().toISOString(), actor, event.model, entityId, source?.id || null, JSON.stringify({ operation: event.operation || 'save', data }));
     return { accepted: true, duplicated: false, sourceId: source?.id };
+  }
+  /** Explicit, non-destructive cancellation: the source, events and revisions stay. */
+  cancel(jobIds, reason) {
+    const result = JSON.stringify({ cancelled: true, reason, at: new Date().toISOString() });
+    const stmt = this.db.prepare("UPDATE jobs SET state='cancelled',lease_until=NULL,result=?,error=NULL WHERE id=? AND state IN ('queued','running','failed')");
+    return this.transaction(() => jobIds.reduce((n, id) => n + Number(stmt.run(result, id).changes), 0));
+  }
+  /** Re-check right before compiling: wiki page saves are activity memory, never compiled. */
+  isCompilable(sourceId) {
+    const row = this.db.prepare('SELECT text, data FROM sources WHERE id=?').get(sourceId);
+    if (!row) return false;
+    const source = JSON.parse(row.data);
+    if (source.kind !== 'activity') return true;
+    try { return !NON_COMPILABLE_ACTIVITY.has(JSON.parse(row.text || '{}').recordType); } catch { return true; }
   }
   claim() {
     return this.transaction(() => {
       const now = Date.now();
       this.db.prepare("UPDATE jobs SET state='queued',lease_until=NULL WHERE state='running' AND lease_until<?").run(now);
-      const job = this.db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY rowid LIMIT 1").get(now);
+      let job = this.db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY rowid LIMIT 1").get(now);
+      while (job && !this.isCompilable(job.source_id)) {
+        this.db.prepare("UPDATE jobs SET state='cancelled',lease_until=NULL,result=? WHERE id=?").run(JSON.stringify({ cancelled: true, reason: 'activity-not-compilable' }), job.id);
+        job = this.db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY rowid LIMIT 1").get(now);
+      }
       if (!job) return null;
       this.db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_until=?,error=NULL WHERE id=?").run(now + 10 * 60 * 1000, job.id);
       return { ...job, state: 'running', attempts: job.attempts + 1 };

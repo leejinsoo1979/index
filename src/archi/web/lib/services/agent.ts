@@ -13,6 +13,7 @@ import {
 import { blockInputSchema } from '@archi/editor';
 import { getLlmProviderForWorkspace } from './llm-config';
 import { getSearchProvider } from '../regulation-search';
+import { knowledgeRequest } from '@/lib/knowledgeServer';
 import { buildSessionMemoryContext, summarizeSessionIfNeeded } from './memory';
 import { sanitizeUntrustedText } from '@archi/security';
 import { AppError, Capabilities, ErrorCodes } from '@archi/shared';
@@ -125,6 +126,27 @@ export async function chat(userId: string, input: z.infer<typeof chatRequestSche
       title: sanitizeUntrustedText(r.title),
       snippet: sanitizeUntrustedText(r.snippet),
     }));
+  }
+
+  // INDEX 위키(제2의 두뇌): 문서·PDF 원문의 근거 문단을 출처와 함께 붙인다 (server/wiki/retrieval).
+  try {
+    const found = await knowledgeRequest<{ chunks: Array<{ id: string; title: string; heading?: string | null; pages?: string | null; trust: string; status: string; text: string }> }>('retrieve', {
+      method: 'POST',
+      body: JSON.stringify({ query: input.message, k: 4, includeReview: true }),
+    });
+    const retrievedAt = new Date().toISOString();
+    const wikiSources: SearchResult[] = found.chunks.map(c => ({
+      id: `wiki_${c.id}`,
+      title: sanitizeUntrustedText(`${c.title}${c.heading ? ` › ${c.heading}` : ''}${c.pages ? ` (${c.pages})` : ''}`),
+      sourceType: 'knowledge_base',
+      publisher: `INDEX 위키 · ${c.trust}${c.status !== 'published' ? ' · 검수 전' : ''}`,
+      url: '',
+      snippet: sanitizeUntrustedText(c.text.slice(0, 600)),
+      retrievedAt,
+    }));
+    if (wikiSources.length) searchResults = [...(searchResults ?? []), ...wikiSources];
+  } catch {
+    // knowledge server unreachable (e.g. deployed site): continue without wiki passages
   }
 
   let plan = planAgentResponse({
