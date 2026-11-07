@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { about } from "../data/about";
@@ -8,19 +8,6 @@ import { isAdminEmail } from "../lib/adminStore";
 import { effectiveStatus, formatSeminarDate, useSeminars, type Seminar } from "../lib/seminars";
 import Placeholder from "./Placeholder";
 import "./About.css";
-
-/** Editorial serif for headlines (loaded only when this page is opened). */
-function useSerifFont() {
-  useEffect(() => {
-    const id = "about-serif-font";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap";
-    document.head.appendChild(link);
-  }, []);
-}
 
 function Arrow() {
   return (
@@ -36,7 +23,6 @@ function Eyebrow({ children }: { children: string }) {
 
 export default function About() {
   const { user, loading } = useAuth();
-  useSerifFont();
   const { data: seminars } = useSeminars();
 
   const upcoming = useMemo(() => seminars.filter((s) => effectiveStatus(s) !== "완료"), [seminars]);
