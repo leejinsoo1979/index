@@ -35,6 +35,7 @@ interface Conversation {
 }
 
 const HISTORY_KEY = "index-ai-conversations";
+const PENDING_QUESTION_KEY = "index-ai-pending-question";
 
 function createId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -207,6 +208,15 @@ export default function Home() {
     const token = await user?.getIdToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
+
+  useEffect(() => {
+    if (!user) return;
+    const pending = window.sessionStorage.getItem(PENDING_QUESTION_KEY);
+    if (!pending) return;
+    window.sessionStorage.removeItem(PENDING_QUESTION_KEY);
+    handleSubmit(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -384,9 +394,11 @@ export default function Home() {
     const question = (value || message).trim();
     if (!question || isResponding) return;
     if (!user) {
-      // Members only — open the chat panel with the login notice instead of sending.
+      // Members only: keep the question, show the login card, and send it after login.
+      window.sessionStorage.setItem(PENDING_QUESTION_KEY, question);
       setLoginPrompt(true);
       setChatOpen(true);
+      setSidebarOpen(false);
       return;
     }
 
@@ -497,7 +509,7 @@ export default function Home() {
         onKeyDown={(event) => {
           if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault();
         }}
-        placeholder="무엇이든 물어보세요"
+        placeholder={user ? "무엇이든 물어보세요" : "로그인 후 질문할 수 있어요"}
         aria-label="INDEX AI에게 질문"
         autoComplete="off"
       />
@@ -656,7 +668,19 @@ export default function Home() {
                   </div>
                 )}
 
-                {!activeConversation && !isResponding && (
+                {!user && (loginPrompt || !activeConversation) && (
+                  <div className="home-chat__login">
+                    <span><SparkIcon /></span>
+                    <h1>INDEX AI는 회원 전용입니다</h1>
+                    <p>로그인하면 바로 답변해 드려요. 입력하신 질문은 로그인 후 자동으로 이어서 보냅니다.</p>
+                    <p className="home-chat__login-limits">일반회원 하루 10회 · 사업자회원 하루 30회</p>
+                    <div className="home-chat__login-actions">
+                      <Link className="home-chat__login-primary" to="/mypage?redirect=/">로그인</Link>
+                      <Link className="home-chat__login-secondary" to="/signup">회원가입</Link>
+                    </div>
+                  </div>
+                )}
+                {user && !activeConversation && !isResponding && (
                   <div className="home-chat__empty">
                     <span><SparkIcon /></span>
                     <h1>무엇이 궁금하신가요?</h1>
@@ -682,7 +706,7 @@ export default function Home() {
                     handleSubmit(message);
                   }
                 }}
-                placeholder="메시지를 입력하세요..."
+                placeholder={user ? "메시지를 입력하세요..." : "로그인 후 질문할 수 있습니다"}
                 rows={1}
                 aria-label="메시지 입력"
               />
@@ -705,11 +729,6 @@ export default function Home() {
                 </div>
               </div>
             </form>
-            {!user && (
-              <p className={`home-chat__notice${loginPrompt ? " is-highlight" : ""}`}>
-                INDEX AI는 회원 전용입니다. <Link to="/mypage">로그인</Link> 또는 <Link to="/signup">회원가입</Link> 후 이용해 주세요.
-              </p>
-            )}
             {user && quota?.limit != null && (
               <p className={`home-chat__notice${quota.remaining === 0 ? " is-highlight" : ""}`}>
                 {quota.remaining === 0
