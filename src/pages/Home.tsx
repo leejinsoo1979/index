@@ -5,6 +5,7 @@ import {
   type AiMode,
   type AiShape,
 } from "../components/AiStateAnimation";
+import { Link } from "react-router-dom";
 import ParticleTitle from "../components/ParticleTitle";
 import { useAuth } from "../auth/AuthContext";
 import "./Home.css";
@@ -34,7 +35,6 @@ interface Conversation {
 }
 
 const HISTORY_KEY = "index-ai-conversations";
-const ANONYMOUS_USER_KEY = "index-ai-anonymous-user";
 
 function createId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -51,14 +51,6 @@ function loadConversations(): Conversation[] {
   } catch {
     return [];
   }
-}
-
-function loadAnonymousUserId() {
-  const saved = window.localStorage.getItem(ANONYMOUS_USER_KEY);
-  if (saved) return saved;
-  const id = `anonymous-${createId()}`;
-  window.localStorage.setItem(ANONYMOUS_USER_KEY, id);
-  return id;
 }
 
 function PanelIcon() {
@@ -196,7 +188,9 @@ export default function Home() {
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [listening, setListening] = useState(false);
-  const [anonymousUserId] = useState(loadAnonymousUserId);
+  /** Today's question quota from the server (null limit = unlimited / not enforced). */
+  const [quota, setQuota] = useState<{ limit: number | null; remaining: number | null } | null>(null);
+  const [loginPrompt, setLoginPrompt] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memories, setMemories] = useState<StoredMemory[]>([]);
   const [memoriesLoading, setMemoriesLoading] = useState(false);
@@ -207,7 +201,34 @@ export default function Home() {
   const [askModel, setAskModel] = useState<(typeof askModels)[number]["name"]>(askModels[0].name);
   const [askModelOpen, setAskModelOpen] = useState(false);
   const askModelRef = useRef<HTMLDivElement>(null);
-  const memoryUserId = user?.uid ?? anonymousUserId;
+
+  /** INDEX AI is members-only: every call carries the Firebase ID token. */
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await user?.getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  useEffect(() => {
+    if (!user) {
+      setQuota(null);
+      return;
+    }
+    setLoginPrompt(false);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/chat-quota", { headers: await authHeaders() });
+        const payload = await response.json() as { limit?: number | null; remaining?: number | null };
+        if (!cancelled && response.ok) setQuota({ limit: payload.limit ?? null, remaining: payload.remaining ?? null });
+      } catch {
+        // quota display is best-effort; the server still enforces the limit
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (!askModelOpen) return;
@@ -271,18 +292,23 @@ export default function Home() {
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({
-          userId: memoryUserId,
           messages: sourceMessages.map(({ role, content }) => ({ role, content })),
         }),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        const payload = await response.json().catch(() => null) as
+          | { error?: string; quota?: { limit: number | null; remaining: number | null } }
+          | null;
+        if (payload?.quota) setQuota({ limit: payload.quota.limit, remaining: payload.quota.remaining });
         throw new Error(payload?.error || "AI 응답을 불러오지 못했습니다.");
       }
+      const remaining = response.headers.get("X-Chat-Remaining");
+      const limit = response.headers.get("X-Chat-Limit");
+      if (remaining !== null && limit !== null) setQuota({ limit: Number(limit), remaining: Number(remaining) });
       if (!response.body) throw new Error("응답 스트림을 열 수 없습니다.");
 
       const reader = response.body.getReader();
@@ -357,6 +383,12 @@ export default function Home() {
   function handleSubmit(value: string) {
     const question = (value || message).trim();
     if (!question || isResponding) return;
+    if (!user) {
+      // Members only — open the chat panel with the login notice instead of sending.
+      setLoginPrompt(true);
+      setChatOpen(true);
+      return;
+    }
 
     const userEntry: ChatEntry = { id: createId(), role: "user", content: question };
     let conversationId = activeId;
@@ -403,7 +435,7 @@ export default function Home() {
     setMemoriesLoading(true);
     setMemoryError("");
     try {
-      const response = await fetch(`/api/memories?userId=${encodeURIComponent(memoryUserId)}`);
+      const response = await fetch("/api/memories", { headers: await authHeaders() });
       const payload = await response.json() as { memories?: StoredMemory[]; error?: string };
       if (!response.ok) throw new Error(payload.error || "기억을 불러오지 못했습니다.");
       setMemories(payload.memories ?? []);
@@ -419,8 +451,8 @@ export default function Home() {
     if (!text || text === memory.memory) return;
     const response = await fetch("/api/memories", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: memoryUserId, memoryId: memory.id, text }),
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ memoryId: memory.id, text }),
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null) as { error?: string } | null;
@@ -437,8 +469,8 @@ export default function Home() {
     if (!window.confirm(label)) return;
     const response = await fetch("/api/memories", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: memoryUserId, memoryId }),
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ memoryId }),
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null) as { error?: string } | null;
@@ -673,6 +705,18 @@ export default function Home() {
                 </div>
               </div>
             </form>
+            {!user && (
+              <p className={`home-chat__notice${loginPrompt ? " is-highlight" : ""}`}>
+                INDEX AI는 회원 전용입니다. <Link to="/mypage">로그인</Link> 또는 <Link to="/signup">회원가입</Link> 후 이용해 주세요.
+              </p>
+            )}
+            {user && quota?.limit != null && (
+              <p className={`home-chat__notice${quota.remaining === 0 ? " is-highlight" : ""}`}>
+                {quota.remaining === 0
+                  ? `오늘 질문 ${quota.limit}회를 모두 사용했습니다. 내일 0시에 다시 이용할 수 있습니다.`
+                  : `오늘 남은 질문 ${quota.remaining}/${quota.limit}회`}
+              </p>
+            )}
             <p className="home-chat__disclaimer">INDEX AI는 실수할 수 있습니다. 중요한 정보는 전문가와 다시 확인하세요.</p>
           </div>
 

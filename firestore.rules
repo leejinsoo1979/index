@@ -92,6 +92,20 @@ service cloud.firestore {
       }
     }
 
+    // Member profile read by the server for INDEX AI question limits (api/_chatQuota.ts).
+    // memberType is set once at signup; only admins can change it afterwards.
+    match /members/{userId} {
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['memberType', 'company', 'createdAt'])
+        && request.resource.data.memberType in ['일반회원', '사업자회원'];
+      allow update, delete: if isAdmin();
+    }
+
+    // chatUsage/{uid} (question counters) and kisconContractors / kisconSync are written
+    // by the server with the Admin SDK only; there is no client access (no rule = denied).
+
     // ARCHI Agent Studio (src/archi): one record per document, per signed-in user.
     match /archiStudio/{userId}/{model}/{recordId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

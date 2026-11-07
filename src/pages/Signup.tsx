@@ -8,6 +8,8 @@ import {
   termsSections,
 } from "./Terms";
 import { registerMember } from "../lib/adminStore";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { firebaseDb } from "../lib/firebase";
 import "./MyPage.css";
 import "./Signup.css";
 
@@ -93,7 +95,16 @@ export default function Signup() {
 
     setSubmitting(true);
     try {
-      await signUpWithEmail(email.trim(), password, name.trim());
+      const created = await signUpWithEmail(email.trim(), password, name.trim());
+      // Server-side member record: the INDEX AI daily question limit depends on memberType
+      // (api/_chatQuota.ts). firestore.rules let a member set it only when creating the doc.
+      if (firebaseDb) {
+        await setDoc(doc(firebaseDb, "members", created.uid), {
+          memberType: isAssociation ? "사업자회원" : "일반회원",
+          ...(isAssociation && company.trim() ? { company: company.trim() } : {}),
+          createdAt: serverTimestamp(),
+        }).catch((error: unknown) => console.error("[signup] member profile save failed", error));
+      }
       // Auth stores email/password/name only — keep the extended profile
       // locally until a member-profile backend (e.g. Firestore) is wired up.
       window.localStorage.setItem(

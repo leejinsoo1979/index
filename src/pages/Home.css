@@ -832,6 +832,24 @@
   text-align: center;
 }
 
+.home-chat__notice {
+  padding: 4px 20px 0;
+  color: rgba(255, 255, 255, .55);
+  font-size: 12px;
+  text-align: center;
+}
+
+.home-chat__notice a {
+  color: var(--accent-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.home-chat__notice.is-highlight {
+  color: #fff;
+  font-weight: 600;
+}
+
 .home-chat__scrim {
   display: none;
 }
@@ -1381,6 +1399,18 @@
 
 :root:not([data-app-theme="dark"]) .home-chat__disclaimer {
   color: rgba(31, 37, 51, 0.4);
+}
+
+:root:not([data-app-theme="dark"]) .home-chat__notice {
+  color: rgba(31, 37, 51, 0.6);
+}
+
+:root:not([data-app-theme="dark"]) .home-chat__notice.is-highlight {
+  color: var(--ink);
+}
+
+:root:not([data-app-theme="dark"]) .home-chat__notice a {
+  color: var(--accent);
 }
 
 /* ── Memory panel ── */

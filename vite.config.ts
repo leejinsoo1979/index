@@ -2,9 +2,10 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { localApi } from "./vite-plugins/local-api";
 
 export default defineConfig(({ command }) => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), localApi()],
   resolve: {
     // Keep hooks bound to the same React instance even when Vite rebuilds its
     // dependency graph after packages are installed while the dev server runs.

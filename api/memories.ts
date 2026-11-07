@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
+import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 
 interface MemoryRequestBody {
   userId?: string;
@@ -7,20 +8,25 @@ interface MemoryRequestBody {
   text?: string;
 }
 
-function queryValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // The member is taken from the verified Firebase ID token; a userId in the request is ignored.
+  let userId: string;
+  try {
+    userId = (await verifyFirebaseUser(req)).uid;
+  } catch (error) {
+    res.status(401).json({ error: error instanceof Error ? error.message : "로그인이 필요합니다." });
+    return;
+  }
+
   try {
     const mem0 = getMem0Client();
+    /** Only memories that belong to this member may be changed. */
+    const ownsMemory = async (memoryId: string) => {
+      const page = await mem0.getAll({ filters: { userId, agentId: MEM0_AGENT_ID }, pageSize: 100, latestOnly: true });
+      return page.results.some((m: { id?: string }) => m.id === memoryId);
+    };
 
     if (req.method === "GET") {
-      const userId = queryValue(req.query.userId)?.trim();
-      if (!userId) {
-        res.status(400).json({ error: "userId is required" });
-        return;
-      }
       const page = await mem0.getAll({
         filters: { userId, agentId: MEM0_AGENT_ID },
         pageSize: 100,
@@ -31,17 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = (req.body ?? {}) as MemoryRequestBody;
-    const userId = body.userId?.trim();
-    if (!userId) {
-      res.status(400).json({ error: "userId is required" });
-      return;
-    }
 
     if (req.method === "PATCH") {
       const memoryId = body.memoryId?.trim();
       const text = body.text?.trim();
       if (!memoryId || !text) {
         res.status(400).json({ error: "memoryId and text are required" });
+        return;
+      }
+      if (!(await ownsMemory(memoryId))) {
+        res.status(404).json({ error: "memory not found" });
         return;
       }
       const updated = await mem0.update(memoryId, { text });
@@ -51,6 +56,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === "DELETE") {
       if (body.memoryId) {
+        if (!(await ownsMemory(body.memoryId))) {
+          res.status(404).json({ error: "memory not found" });
+          return;
+        }
         await mem0.delete(body.memoryId);
       } else {
         await mem0.deleteAll({ userId, agentId: MEM0_AGENT_ID });

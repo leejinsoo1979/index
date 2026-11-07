@@ -1,8 +1,10 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI, openai } from "@ai-sdk/openai";
 import { isStepCount, streamText, type ModelMessage } from "ai";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
 import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_regulationTools.js";
+import { consumeChatQuota, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
+import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 
 // Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
 export const config = { maxDuration: 90 };
@@ -27,6 +29,20 @@ function normalizeMessages(input: ChatRequestBody["messages"]): ModelMessage[] {
     }));
 }
 
+/**
+ * Chat model. CHAT_LLM_BASE_URL points at any OpenAI-compatible server (e.g. a local
+ * Ollama: http://localhost:11434/v1 with CHAT_LLM_MODEL=qwen3.5:27b); otherwise OpenAI.
+ */
+function chatModel(requested?: string) {
+  const baseURL = process.env.CHAT_LLM_BASE_URL?.trim();
+  if (baseURL) {
+    const local = createOpenAI({ baseURL, apiKey: process.env.CHAT_LLM_API_KEY || "local", name: "local" });
+    // Chat Completions: the API most OpenAI-compatible servers implement.
+    return local.chat(process.env.CHAT_LLM_MODEL?.trim() || "qwen3.5:27b");
+  }
+  return openai(requested && ALLOWED_MODELS.has(requested) ? requested : process.env.OPENAI_MODEL || "gpt-5.4-nano");
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -34,31 +50,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Members only: the user comes from a verified Firebase ID token, never from the body.
+  let user: Awaited<ReturnType<typeof verifyFirebaseUser>>;
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    user = await verifyFirebaseUser(req);
+  } catch (error) {
+    res.status(401).json({ error: error instanceof Error ? error.message : "로그인이 필요합니다.", code: "LOGIN_REQUIRED" });
+    return;
+  }
+
+  let quota: ChatQuota | null = null;
+  try {
+    if (!process.env.OPENAI_API_KEY && !process.env.CHAT_LLM_BASE_URL) {
       res.status(503).json({ error: "OPENAI_API_KEY is not configured" });
       return;
     }
 
     const body = (req.body ?? {}) as ChatRequestBody;
-    const userId = body.userId?.trim();
+    const userId = user.uid;
     const messages = normalizeMessages(body.messages);
     const memoryMessages = normalizeMessages(body.memoryMessages);
     const messagesForMemory = memoryMessages.length ? memoryMessages : messages;
     const lastUserMessage = [...messagesForMemory].reverse().find((message) => message.role === "user");
 
-    if (!userId || !lastUserMessage || typeof lastUserMessage.content !== "string") {
-      res.status(400).json({ error: "A userId and at least one user message are required" });
+    if (!lastUserMessage || typeof lastUserMessage.content !== "string") {
+      res.status(400).json({ error: "At least one user message is required" });
       return;
     }
 
-    const mem0 = getMem0Client();
-    const { results } = await mem0.search(lastUserMessage.content, {
-      filters: { userId, agentId: MEM0_AGENT_ID },
-      topK: 10,
-      rerank: true,
-      latestOnly: true,
-    });
+    try {
+      quota = await consumeChatQuota(user);
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        res.status(429).json({ error: error.message, code: "QUOTA_EXCEEDED", quota: error.quota });
+        return;
+      }
+      throw error;
+    }
+    if (quota.limit !== null) {
+      res.setHeader("X-Chat-Limit", String(quota.limit));
+      res.setHeader("X-Chat-Remaining", String(quota.remaining));
+    }
+
+    // Long-term memory is optional (no MEM0_API_KEY → answer without it, e.g. local runs).
+    const mem0 = process.env.MEM0_API_KEY ? getMem0Client() : null;
+    const results: Array<{ memory?: string | null }> = mem0
+      ? (
+          await mem0.search(lastUserMessage.content, {
+            filters: { userId, agentId: MEM0_AGENT_ID },
+            topK: 10,
+            rerank: true,
+            latestOnly: true,
+          })
+        ).results
+      : [];
     const memories = results
       .map((memory) => memory.memory)
       .filter((memory): memory is string => Boolean(memory))
@@ -75,15 +120,23 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
     const tools = regulationTools();
     const hasTools = Object.keys(tools).length > 0;
 
+    let answered = false;
     const result = streamText({
-      model: openai(body.model && ALLOWED_MODELS.has(body.model) ? body.model : process.env.OPENAI_MODEL || "gpt-5.4-nano"),
+      model: chatModel(body.model),
       system: hasTools
         ? `${system}\n\n${INTERIOR_LAW_MAP}\n\n${REGULATION_TOOL_GUIDE}`
         : `${system}\n\n${INTERIOR_LAW_MAP}\n원문 조회 도구가 없으므로 법규 답변에는 관련 법령명을 밝히고, 조문 번호·수치는 국가법령정보센터 원문 확인이 필요하다고 안내한다.`,
       messages,
       ...(hasTools ? { tools, stopWhen: isStepCount(6) } : {}),
+      onError: async () => {
+        // Nothing reached the member: don't charge the question.
+        if (!answered) await refundChatQuota(user).catch(() => undefined);
+      },
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "text-delta") answered = true;
+      },
       onEnd: async ({ text }) => {
-        if (!text.trim()) return;
+        if (!mem0 || !text.trim()) return;
         await mem0.add(
           [...messagesForMemory, { role: "assistant", content: text }],
           { userId, agentId: MEM0_AGENT_ID },
@@ -99,6 +152,7 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Chat request failed";
+    if (quota && !res.headersSent) await refundChatQuota(user).catch(() => undefined);
     if (!res.headersSent) {
       res.status(500).json({ error: message });
     } else {
