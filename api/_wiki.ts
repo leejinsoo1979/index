@@ -176,8 +176,12 @@ const reviewMark = (h: WikiHit) => (h.status && h.status !== "published" ? " · 
 /** System-prompt block with the most relevant wiki excerpts (and their figures) for this question. */
 export function wikiContext(hits: WikiHit[]): string {
   if (hits.length === 0) return "";
+  const shown = new Set<string>();
   const blocks = hits.map((h, i) => {
-    const figures = (h.images ?? []).map((img) => `그림: ![${img.alt}](${img.src})`).join("\n");
+    const figures = (h.images ?? [])
+      .filter((img) => !shown.has(img.src) && shown.add(img.src))
+      .map((img) => `그림: ![${img.alt}](${img.src})`)
+      .join("\n");
     return `[위키 ${i + 1}] ${h.title}${h.category ? ` (${h.category}${reviewMark(h)})` : ""}\n${h.excerpt}${figures ? `\n${figures}` : ""}`;
   });
   const hasFigures = hits.some((h) => h.images?.length);
