@@ -859,8 +859,8 @@ a.admin-stat:hover {
   font-weight: 700;
   letter-spacing: -.03em;
 }
-.admin__logo > svg { width: 32px; height: 32px; flex: 0 0 auto; }
-.admin__logo strong { display: flex; align-items: baseline; gap: 6px; }
+.admin__logo { align-items: baseline; padding-top: 22px; }
+.admin__logo strong { font-family: var(--font-logo); font-size: 28px; font-weight: 600; letter-spacing: -0.4px; line-height: 1; }
 .admin__logo span { margin: 0; color: var(--modern-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .admin__nav { display: block; min-height: 0; flex: 1; overflow-y: auto; padding: 8px; }
 .admin__nav-label { margin: 18px 12px 8px; color: var(--modern-text); font-size: 11px; font-weight: 700; letter-spacing: .11em; }

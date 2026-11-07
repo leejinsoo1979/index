@@ -135,9 +135,9 @@ export default function AdminLayout() {
     <div className={`admin${mobileOpen ? " admin--menu-open" : ""}`}>
       <button type="button" className="admin__side-overlay" aria-label="메뉴 닫기" onClick={() => setMobileOpen(false)} />
       <aside className="admin__side">
-        <Link to="/" className="admin__logo">
-          <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M18 28c2.76 0 5.05-2.26 4.5-4.97a27.2 27.2 0 0 0-1.25-4.21 24 24 0 0 0-4.99-7.79A23.7 23.7 0 0 0 8.8 5.83a23.9 23.9 0 0 0-3.84-1.27C2.27 3.94 0 6.24 0 9v14c0 2.76 2.24 5 5 5h13Z" fill="#5D87FF"/><path d="M14 28c-2.76 0-5.05-2.26-4.5-4.97a27.2 27.2 0 0 1 1.25-4.21 24 24 0 0 1 4.99-7.79 23.7 23.7 0 0 1 7.46-5.2 23.9 23.9 0 0 1 3.84-1.27C29.73 3.94 32 6.24 32 9v14c0 2.76-2.24 5-5 5H14Z" fill="#49BEFF" style={{ mixBlendMode: "multiply" }}/></svg>
-          <strong>index<span>Admin</span></strong>
+        <Link to="/" className="admin__logo" aria-label="index 홈으로">
+          <strong>index</strong>
+          <span>Admin</span>
         </Link>
 
         <nav className="admin__nav" aria-label="관리자 메뉴">
