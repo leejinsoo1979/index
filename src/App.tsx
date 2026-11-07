@@ -24,7 +24,7 @@ import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
 const StudioApp = lazy(() => import("./archi/StudioApp"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
-const implemented = new Set(["/", "/about", "/cases", "/seminars", "/mypage", "/signup", "/terms", "/about/organization"]);
+const implemented = new Set(["/", "/ai", "/cases", "/seminars", "/mypage", "/signup", "/terms", "/about/organization"]);
 
 // Build a label lookup for every remaining routed path.
 const routeLabels = new Map<string, string>();
@@ -54,7 +54,7 @@ export default function App() {
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/about" element={<About />} />
+        <Route path="/ai" element={<About />} />
         <Route path="/about/organization" element={<Team />} />
         <Route
           path="/agent-studio/*"

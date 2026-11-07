@@ -40,8 +40,8 @@ export default function About() {
   }, [seminars]);
 
   if (loading) return null;
-  // Draft page: admins only for now (the footer's "협회 소개" also links here).
-  if (!isAdminEmail(user?.email)) return <Placeholder title="협회 소개" />;
+  // Draft page: admins only for now.
+  if (!isAdminEmail(user?.email)) return <Placeholder title="AI" />;
 
   const { hero, mission, problems, curriculum, showcase: sc, people, cloud, cta } = about;
 
