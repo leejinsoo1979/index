@@ -1,41 +1,41 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { ArrowRightIcon } from "./icons";
+import { useAuth } from "../auth/AuthContext";
 import {
-  loadSeminars,
-  recordSeminarApplication,
-  seminarFee,
-} from "../lib/adminStore";
+  applyToSeminar,
+  effectiveStatus,
+  formatSeminarDate,
+  formatWon,
+  type Seminar,
+} from "../lib/seminars";
 import "./SeminarApplyModal.css";
 
-interface ApplySeminar {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  level: string;
-  status: string;
-  capacity: number;
-  enrolled: number;
-}
-
 interface SeminarApplyModalProps {
-  seminar: ApplySeminar;
+  seminar: Seminar;
+  /** Signed-in member (or the local demo member). */
+  uid: string;
   onClose: () => void;
 }
 
 export default function SeminarApplyModal({
   seminar,
+  uid,
   onClose,
 }: SeminarApplyModalProps) {
+  const { user } = useAuth();
   const [form, setForm] = useState({
-    name: "",
-    email: "",
+    name: user?.displayName ?? "",
+    email: user?.email ?? "",
     phone: "",
     affiliation: "",
     motivation: "",
   });
   const [agreed, setAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -51,25 +51,27 @@ export default function SeminarApplyModal({
   }, [onClose]);
 
   const canSubmit =
-    form.name.trim() !== "" && form.email.trim() !== "" && agreed;
+    form.name.trim() !== "" && form.email.trim() !== "" && agreed && !submitting;
 
   function update(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    // 결제 내역 생성 + 신청 인원 증가 (관리자 화면과 연동)
-    const payment = recordSeminarApplication(seminar.id, {
-      name: form.name.trim(),
-      email: form.email.trim(),
-    });
-    alert(
-      `신청이 완료되었습니다.\n${seminar.title}\n신청자: ${form.name}\n결제 금액: ${payment.amount.toLocaleString("ko-KR")}원 (주문번호 ${payment.orderNo})`,
-    );
-    onClose();
+    setSubmitting(true);
+    setError("");
+    try {
+      // 신청서 저장 + 정원 1석 차감 (관리자 화면에 실시간 반영)
+      await applyToSeminar(seminar.id, uid, form);
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return createPortal(
@@ -99,28 +101,35 @@ export default function SeminarApplyModal({
           <div className="apply-modal__badges">
             <span className="apply-modal__badge">{seminar.level}</span>
             <span className="apply-modal__badge apply-modal__badge--status">
-              {seminar.status}
+              {effectiveStatus(seminar)}
             </span>
           </div>
           <h2>{seminar.title}</h2>
           <p>
-            {seminar.date} · {seminar.location} · 참가 {seminar.enrolled}/
+            {formatSeminarDate(seminar.date)} · {seminar.location} · 참가 {seminar.enrolled}/
             {seminar.capacity}
           </p>
           <p className="apply-modal__fee">
-            수강료{" "}
-            <strong>
-              {(() => {
-                const fee =
-                  loadSeminars().find((s) => s.id === seminar.id)?.price ??
-                  seminarFee(seminar.level === "심화" ? "심화" : "기초");
-                return fee === 0 ? "무료" : `${fee.toLocaleString("ko-KR")}원`;
-              })()}
-            </strong>{" "}
-            — 신청 완료 시 결제됩니다.
+            수강료 <strong>{formatWon(seminar.price)}</strong>
+            {seminar.price > 0 && " — 결제는 접수 후 별도로 안내드립니다."}
           </p>
         </div>
 
+        {done ? (
+          <div className="apply-modal__form apply-modal__done" role="status">
+            <h3>신청이 접수되었습니다</h3>
+            <p>
+              {form.name}님의 신청이 접수되었습니다. 접수 확정 여부와 신청 내역은
+              마이페이지에서 확인할 수 있습니다.
+            </p>
+            <Link className="apply-modal__submit" to="/mypage" onClick={onClose}>
+              신청 내역 보기 <ArrowRightIcon />
+            </Link>
+            <button type="button" className="apply-modal__cancel" onClick={onClose}>
+              닫기
+            </button>
+          </div>
+        ) : (
         <form className="apply-modal__form" onSubmit={handleSubmit}>
           <h3>신청 정보 입력</h3>
 
@@ -199,14 +208,20 @@ export default function SeminarApplyModal({
             </span>
           </label>
 
+          {error && (
+            <p className="apply-modal__error" role="alert">
+              {error}
+            </p>
+          )}
           <button type="submit" className="apply-modal__submit" disabled={!canSubmit}>
-            신청 완료하기 <ArrowRightIcon />
+            {submitting ? "신청 중…" : "신청 완료하기"} <ArrowRightIcon />
           </button>
 
           <button type="button" className="apply-modal__cancel" onClick={onClose}>
             취소하고 돌아가기
           </button>
         </form>
+        )}
       </div>
     </div>,
     document.body,

@@ -1,32 +1,32 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { loadMembers, loadPosts } from "../../lib/adminStore";
 import {
-  loadMembers,
-  loadPayments,
-  loadPosts,
-  loadSeminars,
-} from "../../lib/adminStore";
+  APPLICATION_STATUS_LABEL,
+  effectiveStatus,
+  formatSeminarDate,
+  useSeminarApplications,
+  useSeminars,
+} from "../../lib/seminars";
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
 export default function AdminDashboard() {
   const posts = useMemo(loadPosts, []);
-  const seminars = useMemo(loadSeminars, []);
-  const payments = useMemo(loadPayments, []);
+  const { data: seminars } = useSeminars({ includeUnpublished: true });
+  const { data: applications } = useSeminarApplications({ all: true });
   const members = useMemo(loadMembers, []);
 
-  const revenue = payments
-    .filter((p) => p.status === "결제완료")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const refundRequests = payments.filter((p) => p.status === "환불요청").length;
-  const openSeminars = seminars.filter((s) => s.status === "접수중").length;
-  const recent = payments.slice(0, 5);
+  const active = applications.filter((a) => a.status !== "CANCELED");
+  const waiting = applications.filter((a) => a.status === "APPLIED").length;
+  const openSeminars = seminars.filter((s) => s.published && effectiveStatus(s) === "접수중").length;
+  const recent = applications.slice(0, 5);
 
   const stats = [
     { label: "전체 회원", value: `${fmt(members.length)}명`, to: "/admin/members", note: `정지 ${members.filter((m) => m.status === "정지").length}명` },
     { label: "게시글", value: `${fmt(posts.length)}건`, to: "/admin/boards", note: `비노출 ${posts.filter((p) => !p.visible).length}건` },
     { label: "세미나", value: `${fmt(seminars.length)}개`, to: "/admin/seminars", note: `접수중 ${openSeminars}개` },
-    { label: "결제 금액", value: `${fmt(revenue)}원`, to: "/admin/payments", note: `환불요청 ${refundRequests}건` },
+    { label: "세미나 신청", value: `${fmt(active.length)}건`, to: "/admin/payments", note: `접수 대기 ${waiting}건` },
   ];
 
   return (
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
 
       <section className="admin-card">
         <div className="admin-card__head">
-          <h2>최근 결제</h2>
+          <h2>최근 세미나 신청</h2>
           <Link to="/admin/payments" className="admin-card__more">
             전체 보기
           </Link>
@@ -57,29 +57,37 @@ export default function AdminDashboard() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>회원</th>
-                <th>항목</th>
-                <th>금액</th>
-                <th>일자</th>
+                <th>신청자</th>
+                <th>세미나</th>
+                <th>세미나 일자</th>
+                <th>신청일</th>
                 <th>상태</th>
               </tr>
             </thead>
             <tbody>
-              {recent.map((p) => (
-                <tr key={p.id}>
-                  <td className="admin-table__mono">{p.orderNo}</td>
-                  <td>{p.member}</td>
-                  <td className="admin-table__ellipsis">{p.item}</td>
-                  <td>{fmt(p.amount)}원</td>
-                  <td>{p.date}</td>
+              {recent.map((a) => (
+                <tr key={a.id}>
                   <td>
-                    <span className={`admin-badge admin-badge--${p.status}`}>
-                      {p.status}
+                    {a.applicant.name}
+                    <small className="admin-table__sub">{a.applicant.email}</small>
+                  </td>
+                  <td className="admin-table__ellipsis">{a.seminarTitle}</td>
+                  <td>{formatSeminarDate(a.seminarDate)}</td>
+                  <td>{new Date(a.createdAt).toLocaleDateString("ko-KR")}</td>
+                  <td>
+                    <span className={`admin-badge admin-badge--app-${a.status.toLowerCase()}`}>
+                      {APPLICATION_STATUS_LABEL[a.status]}
                     </span>
                   </td>
                 </tr>
               ))}
+              {recent.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="admin-table__empty">
+                    아직 세미나 신청이 없습니다.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

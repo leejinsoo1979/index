@@ -1,8 +1,83 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeftIcon } from "../components/icons";
 import { useAuth } from "../auth/AuthContext";
+import {
+  APPLICATION_STATUS_LABEL,
+  cancelApplication,
+  formatSeminarDate,
+  formatWon,
+  holdsSeat,
+  todayIso,
+  useSeminarApplications,
+} from "../lib/seminars";
 import "./MyPage.css";
+
+/** The signed-in member's seminar applications, live, with cancel. */
+function MySeminarApplications({ uid }: { uid: string }) {
+  const { data: applications, loading, error } = useSeminarApplications({ uid });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+
+  async function handleCancel(id: string, title: string) {
+    if (!window.confirm(`'${title}' 신청을 취소할까요?`)) return;
+    setBusy(id);
+    setMessage("");
+    try {
+      await cancelApplication(id, "member");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "취소에 실패했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="auth-card my-applications" aria-label="내 세미나 신청">
+      <h2 className="my-applications__title">내 세미나 신청</h2>
+      {loading ? (
+        <p className="my-applications__empty">불러오는 중…</p>
+      ) : error ? (
+        <p className="my-applications__empty">신청 내역을 불러오지 못했습니다. ({error})</p>
+      ) : applications.length === 0 ? (
+        <p className="my-applications__empty">
+          신청한 세미나가 없습니다. <Link to="/seminars">세미나 일정 보기</Link>
+        </p>
+      ) : (
+        <ul className="my-applications__list">
+          {applications.map((a) => {
+            const past = a.seminarDate < todayIso();
+            return (
+              <li key={a.id}>
+                <div>
+                  <Link to={`/seminars/${a.seminarId}`} className="my-applications__name">
+                    {a.seminarTitle}
+                  </Link>
+                  <small>
+                    {formatSeminarDate(a.seminarDate)} · {formatWon(a.amount)}
+                    {a.amount > 0 && " · 결제 안내 예정"}
+                  </small>
+                </div>
+                <div className="my-applications__side">
+                  <span className={`my-applications__status is-${a.status.toLowerCase()}`}>
+                    {APPLICATION_STATUS_LABEL[a.status]}
+                    {a.status === "CANCELED" && a.canceledBy === "admin" ? "(관리자)" : ""}
+                  </span>
+                  {holdsSeat(a.status) && !past && (
+                    <button type="button" disabled={busy === a.id} onClick={() => void handleCancel(a.id, a.seminarTitle)}>
+                      {busy === a.id ? "취소 중…" : "신청 취소"}
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {message && <p className="my-applications__error">{message}</p>}
+    </section>
+  );
+}
 
 /** Official multicolor Google "G" mark. */
 function GoogleLogo() {
@@ -30,6 +105,10 @@ function GoogleLogo() {
 
 export default function MyPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // e.g. /mypage?redirect=/seminars/abc — back to the seminar after signing in
+  const redirect = searchParams.get("redirect");
+  const afterLogin = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/cases";
   const { user, loading, configured, signInWithGoogle, signInWithEmail, logout } =
     useAuth();
   const [email, setEmail] = useState("");
@@ -42,7 +121,7 @@ export default function MyPage() {
     setSubmitting(true);
     try {
       await action();
-      navigate("/cases");
+      navigate(afterLogin);
     } catch (err) {
       setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
     } finally {
@@ -66,6 +145,7 @@ export default function MyPage() {
   if (user) {
     return (
       <div className="auth-page">
+        <div className="mypage-stack">
         <div className="auth-card">
           <Link to="/" className="auth-card__logo">
             index
@@ -88,6 +168,8 @@ export default function MyPage() {
           >
             로그아웃
           </button>
+        </div>
+        <MySeminarApplications uid={user.uid} />
         </div>
       </div>
     );

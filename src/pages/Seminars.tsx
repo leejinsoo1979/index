@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { pastSeminars } from "../data/seminars";
-import { mergedUpcomingSeminars } from "../lib/adminStore";
+import { effectiveStatus, formatSeminarDate, useSeminars } from "../lib/seminars";
 import "./Seminars.css";
 
 type ViewMode = "list" | "calendar";
@@ -17,17 +16,6 @@ const topics = [
   "시공/품질",
 ];
 
-const seminars = [
-  ...mergedUpcomingSeminars().map((seminar) => ({ ...seminar, isPast: false })),
-  ...pastSeminars.map((seminar) => ({
-    ...seminar,
-    status: "완료" as const,
-    capacity: 0,
-    enrolled: 0,
-    isPast: true,
-  })),
-];
-
 function topicFor(title: string) {
   if (/방수|누수/.test(title)) return "방수/누수";
   if (/타일|마감/.test(title)) return "타일/마감";
@@ -41,9 +29,6 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function seminarDateKey(date: string) {
-  return date.match(/\d{4}\.\d{2}\.\d{2}/)?.[0]?.replace(/\./g, "-") ?? "";
-}
 
 function SearchIcon() {
   return (
@@ -83,22 +68,39 @@ function DownloadIcon() {
 }
 
 export default function Seminars() {
+  // Live from Firestore: what an admin publishes appears here immediately.
+  const { data: rows, loading, error } = useSeminars();
+  // Upcoming first (soonest first), then finished ones (most recent first).
+  const seminars = useMemo(() => {
+    const items = rows.map((s) => ({
+      ...s,
+      status: effectiveStatus(s),
+      dateKey: s.date,
+      dateLabel: formatSeminarDate(s.date),
+    }));
+    const upcoming = items.filter((s) => s.status !== "완료");
+    const finished = items.filter((s) => s.status === "완료").reverse();
+    return [...upcoming, ...finished];
+  }, [rows]);
   const [view, setView] = useState<ViewMode>("list");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("전체");
   const [level, setLevel] = useState<"전체" | "기초" | "심화">("전체");
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 7, 1));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const filteredSeminars = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return seminars.filter((seminar) => {
       const searchable = `${seminar.title} ${seminar.location} ${seminar.level} ${seminar.status}`.toLowerCase();
-      const date = seminarDateKey(seminar.date);
+      const date = seminar.dateKey;
       return (
         (!keyword || searchable.includes(keyword)) &&
         (status === "전체" || seminar.status === status) &&
@@ -108,7 +110,7 @@ export default function Seminars() {
         (!endDate || !date || date <= endDate)
       );
     });
-  }, [query, status, level, startDate, endDate, selectedTopics]);
+  }, [seminars, query, status, level, startDate, endDate, selectedTopics]);
 
   const pageSize = 9;
   const totalPages = Math.max(1, Math.ceil(filteredSeminars.length / pageSize));
@@ -129,7 +131,7 @@ export default function Seminars() {
           : date.getMonth() > month || date.getFullYear() > year
             ? "future"
             : "current",
-        events: filteredSeminars.filter((seminar) => seminarDateKey(seminar.date) === key),
+        events: filteredSeminars.filter((seminar) => seminar.dateKey === key),
       };
     });
   }, [calendarMonth, filteredSeminars]);
@@ -144,8 +146,8 @@ export default function Seminars() {
     setQuery("");
     setStatus("전체");
     setLevel("전체");
-    setStartDate("2026-01-01");
-    setEndDate("2026-12-31");
+    setStartDate("");
+    setEndDate("");
     setSelectedTopics([]);
   };
 
@@ -247,14 +249,17 @@ export default function Seminars() {
               총 <strong>{filteredSeminars.length}</strong>개의 세미나가 있습니다. 일정과 장소는 운영 상황에 따라 변경될 수 있습니다.
             </p>
 
-            {filteredSeminars.length === 0 ? (
+            {error && <div className="seminar-results__empty">세미나 정보를 불러오지 못했습니다. ({error})</div>}
+            {loading ? (
+              <div className="seminar-results__empty">세미나 일정을 불러오는 중입니다…</div>
+            ) : filteredSeminars.length === 0 ? (
               <div className="seminar-results__empty">조건에 맞는 세미나가 없습니다.<button type="button" onClick={resetFilters}>검색 조건 초기화</button></div>
             ) : view === "list" ? (
               <div className="seminar-results__grid">
                 {visibleSeminars.map((seminar, index) => {
                   const featured = page === 1 && index === 0;
                   return (
-                    <Link className={`schedule-card${featured ? " schedule-card--featured" : ""}`} to={`/seminars/${seminar.id}`} key={`${seminar.isPast ? "past" : "upcoming"}-${seminar.id}`}>
+                    <Link className={`schedule-card${featured ? " schedule-card--featured" : ""}`} to={`/seminars/${seminar.id}`} key={seminar.id}>
                       {featured && <div className="schedule-card__image"><img src={seminar.image} alt="" /><span>추천</span></div>}
                       <div className="schedule-card__content">
                         <p className={`schedule-card__type schedule-card__type--${seminar.status === "완료" ? "closed" : seminar.level === "심화" ? "advanced" : "basic"}`}>
@@ -262,7 +267,7 @@ export default function Seminars() {
                         </p>
                         <h2>{seminar.title}</h2>
                         <div className="schedule-card__meta">
-                          <time>{seminar.date}</time>
+                          <time dateTime={seminar.dateKey}>{seminar.dateLabel}</time>
                           <span>{seminar.location}</span>
                         </div>
                       </div>

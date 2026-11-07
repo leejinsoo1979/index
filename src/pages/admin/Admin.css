@@ -471,6 +471,32 @@ a.admin-stat:hover {
   color: #c23838;
 }
 
+/* Seminar application states */
+.admin-badge--app-applied {
+  background: #fff4e0;
+  color: #ad6800;
+}
+
+.admin-badge--app-confirmed {
+  background: #e7f6ee;
+  color: #1d7a46;
+}
+
+.admin-badge--app-canceled {
+  background: #eef0f4;
+  color: #5b6472;
+}
+
+.admin-badge--draft {
+  background: #eef0f4;
+  color: #5b6472;
+}
+
+.admin-badge--live {
+  background: #e8edff;
+  color: #3556e8;
+}
+
 /* ── Visibility switch ── */
 .admin-switch {
   position: relative;
@@ -940,4 +966,52 @@ a.admin-stat:hover{border-color:transparent;box-shadow:0 9px 17.5px rgba(0,0,0,.
   .admin__breadcrumb{margin-bottom:16px}.admin-page__head{align-items:flex-start}.admin-page__head h1{font-size:19px}
   .admin-stats,.admin-stats--sub{grid-template-columns:1fr}.admin-stat{min-height:118px}
   .admin-toolbar input[type="search"]{width:100%}.admin-toolbar__tabs{max-width:100%;overflow-x:auto}.admin-toolbar__tabs button{white-space:nowrap}
+}
+
+/* Seminars: applicant count opens the roster */
+.admin-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #3556e8;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.admin-link-btn.admin-full {
+  color: #c23838;
+}
+
+.admin-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+}
+
+.admin-empty p {
+  margin: 0;
+  color: #5b6472;
+  font-size: 13.5px;
+}
+
+.admin-modal__check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.admin-modal__check input {
+  width: auto !important;
+}
+
+.admin-modal__card--roster {
+  width: min(1040px, calc(100vw - 32px));
+  max-width: none;
 }

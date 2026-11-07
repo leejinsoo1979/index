@@ -221,3 +221,26 @@
   font-size: 15px;
   font-weight: 700;
 }
+
+.apply-modal__error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.apply-modal__done h3 {
+  margin: 0 0 10px;
+}
+
+.apply-modal__done p {
+  margin: 0 0 20px;
+  line-height: 1.6;
+  color: #3f3f46;
+}
+
+a.apply-modal__submit {
+  text-decoration: none;
+}

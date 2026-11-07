@@ -1,6 +1,83 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Keep in sync with ADMIN_EMAILS (src/lib/adminStore.ts, api/*).
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['sbbc212@gmail.com'];
+    }
+
+    function seminarDoc(id) {
+      return /databases/$(database)/documents/seminars/$(id);
+    }
+    function applicationDoc(id) {
+      return /databases/$(database)/documents/seminarApplications/$(id);
+    }
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Seminars: public when published; admins edit everything except the seat counter,
+    // which changes only together with an application (see seminarApplications).
+    match /seminars/{seminarId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow create: if isAdmin() && request.resource.data.enrolled == 0;
+      allow delete: if isAdmin();
+      allow update: if
+        (isAdmin() && (request.resource.data.enrolled == resource.data.enrolled || onlyChanged(['enrolled'])))
+        || (request.auth != null && onlyChanged(['enrolled']) && (
+          // member takes a seat: own application becomes APPLIED in the same write, within capacity, while open
+          (request.resource.data.enrolled == resource.data.enrolled + 1
+            && request.resource.data.enrolled <= resource.data.capacity
+            && resource.data.published == true
+            && resource.data.status == '접수중'
+            && getAfter(applicationDoc(seminarId + '__' + request.auth.uid)).data.status == 'APPLIED'
+            && (!exists(applicationDoc(seminarId + '__' + request.auth.uid))
+                || get(applicationDoc(seminarId + '__' + request.auth.uid)).data.status == 'CANCELED'))
+          // member releases a seat: own application becomes CANCELED in the same write
+          || (request.resource.data.enrolled == resource.data.enrolled - 1
+            && getAfter(applicationDoc(seminarId + '__' + request.auth.uid)).data.status == 'CANCELED'
+            && get(applicationDoc(seminarId + '__' + request.auth.uid)).data.status in ['APPLIED', 'CONFIRMED'])
+        ));
+    }
+
+    // Seminar applications: one per member per seminar ({seminarId}__{uid}).
+    match /seminarApplications/{applicationId} {
+      // `get` by id so a member's transaction can read their (possibly not yet existing)
+      // application; ids always end in the owner's uid (enforced on create below).
+      allow get: if isAdmin() || (request.auth != null && applicationId.matches('.*__' + request.auth.uid));
+      allow list: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow delete: if false;
+
+      function validApplication(data) {
+        return data.uid == request.auth.uid
+          && applicationId == data.seminarId + '__' + request.auth.uid
+          && data.status == 'APPLIED'
+          && data.paymentStatus == 'UNPAID'
+          && data.applicant.name is string && data.applicant.name.size() > 0 && data.applicant.name.size() <= 50
+          && data.applicant.email is string && data.applicant.email.size() <= 200
+          && data.amount == get(seminarDoc(data.seminarId)).data.price
+          // the seat must be taken in the same write
+          && getAfter(seminarDoc(data.seminarId)).data.enrolled == get(seminarDoc(data.seminarId)).data.enrolled + 1;
+      }
+
+      allow create: if request.auth != null && validApplication(request.resource.data);
+      allow update: if isAdmin()
+        // member re-applies after cancelling
+        || (request.auth != null && resource.data.uid == request.auth.uid
+            && resource.data.status == 'CANCELED'
+            && request.resource.data.seminarId == resource.data.seminarId
+            && validApplication(request.resource.data))
+        // member cancels own application, releasing the seat in the same write
+        || (request.auth != null && resource.data.uid == request.auth.uid
+            && resource.data.status in ['APPLIED', 'CONFIRMED']
+            && request.resource.data.status == 'CANCELED'
+            && onlyChanged(['status', 'canceledBy', 'cancelReason', 'updatedAt'])
+            && getAfter(seminarDoc(resource.data.seminarId)).data.enrolled
+               == get(seminarDoc(resource.data.seminarId)).data.enrolled - 1);
+    }
+
     match /agentWorkspaces/{userId} {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null

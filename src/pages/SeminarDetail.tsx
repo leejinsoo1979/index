@@ -1,34 +1,21 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { pastSeminars, type SeminarLevel } from "../data/seminars";
-import { mergedUpcomingSeminars } from "../lib/adminStore";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import SeminarApplyModal from "../components/SeminarApplyModal";
+import {
+  applicationId,
+  applyState,
+  effectiveStatus,
+  formatSeminarDate,
+  formatTimeRange,
+  formatWon,
+  holdsSeat,
+  useSeminar,
+  useSeminarApplications,
+  type Seminar,
+} from "../lib/seminars";
 import Placeholder from "./Placeholder";
 import "./SeminarDetail.css";
-
-const SEMINAR_TIME = "14:00 - 17:00";
-
-interface DetailSeminar {
-  id: number;
-  level: SeminarLevel;
-  status: "예정" | "접수중" | "완료";
-  title: string;
-  date: string;
-  location: string;
-  capacity: number;
-  enrolled: number;
-  image: string;
-  isPast: boolean;
-}
-
-function findSeminar(id?: string): DetailSeminar | null {
-  const upcoming = mergedUpcomingSeminars().find((s) => String(s.id) === id);
-  if (upcoming) return { ...upcoming, isPast: false };
-  const past = pastSeminars.find((s) => String(s.id) === id);
-  if (past)
-    return { ...past, status: "완료", capacity: 0, enrolled: 0, isPast: true };
-  return null;
-}
 
 function programFor(title: string): string[] {
   if (/방수|누수/.test(title))
@@ -67,20 +54,17 @@ function programFor(title: string): string[] {
   ];
 }
 
-/** "2026.08.04 (화)" → "20260804" (empty string if unparsable) */
-function compactDate(date: string) {
-  return date.match(/\d{4}\.\d{2}\.\d{2}/)?.[0]?.replace(/\./g, "") ?? "";
-}
-
-function googleCalendarUrl(seminar: DetailSeminar) {
-  const day = compactDate(seminar.date);
-  if (!day) return null;
+function googleCalendarUrl(seminar: Seminar) {
+  const day = seminar.date.replaceAll("-", "");
+  if (!/^\d{8}$/.test(day)) return null;
+  const start = (seminar.timeStart ?? "14:00").replace(":", "");
+  const end = (seminar.timeEnd ?? seminar.timeStart ?? "17:00").replace(":", "");
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: seminar.title,
-    dates: `${day}T140000/${day}T170000`,
+    dates: `${day}T${start}00/${day}T${end}00`,
     ctz: "Asia/Seoul",
-    location: seminar.location,
+    location: [seminar.venue, seminar.address ?? seminar.location].filter(Boolean).join(" "),
     details: "한국실내건축가협회 실무 세미나",
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -117,17 +101,31 @@ function PrintIcon() {
 
 export default function SeminarDetail() {
   const { id } = useParams();
-  const seminar = findSeminar(id);
+  const location = useLocation();
+  const { data: seminar, loading } = useSeminar(id);
+  const { user, configured } = useAuth();
+  // Without Firebase (local demo) a fixed member id stands in for the signed-in user.
+  const uid = user?.uid ?? (configured ? null : "local-user");
+  const { data: myApplications } = useSeminarApplications({ uid });
   const [applyOpen, setApplyOpen] = useState(false);
 
+  if (loading) return <Placeholder title="세미나 정보를 불러오는 중입니다" />;
   if (!seminar) return <Placeholder title="세미나를 찾을 수 없습니다" />;
+
+  const status = effectiveStatus(seminar);
+  const isPast = status === "완료";
+  const timeLabel = formatTimeRange(seminar);
+  const myApplication = myApplications.find((a) => a.id === applicationId(seminar.id, uid ?? ""));
+  const alreadyApplied = Boolean(myApplication && holdsSeat(myApplication.status));
+  const apply = applyState(seminar);
+  const remaining = Math.max(0, seminar.capacity - seminar.enrolled);
 
   const calendarUrl = googleCalendarUrl(seminar);
 
   const handleShare = async () => {
     const shareData = {
       title: seminar.title,
-      text: `${seminar.title} — ${seminar.date} · ${seminar.location}`,
+      text: `${seminar.title} — ${formatSeminarDate(seminar.date)} · ${seminar.location}`,
       url: window.location.href,
     };
     if (navigator.share) {
@@ -175,7 +173,7 @@ export default function SeminarDetail() {
 
         <div className="seminar-detail__layout">
           <aside className="seminar-detail__poster">
-            <img src={seminar.image} alt={`${seminar.title} 포스터`} />
+            {seminar.image && <img src={seminar.image} alt={`${seminar.title} 포스터`} />}
             <a
               className="seminar-detail__homepage"
               href="https://www.kiaa.or.kr"
@@ -188,37 +186,56 @@ export default function SeminarDetail() {
 
           <section className="seminar-detail__body">
             <p className="seminar-detail__eyebrow">
-              한국실내건축가협회 실무 세미나 · {seminar.level} 과정
+              한국실내건축가협회 실무 세미나 · {seminar.level} 과정 · {status}
             </p>
             <h1 className="seminar-detail__title">{seminar.title}</h1>
-            <p className="seminar-detail__date">{seminar.date}</p>
+            <p className="seminar-detail__date">{formatSeminarDate(seminar.date)}</p>
 
             <div className="seminar-detail__info">
               <div className="seminar-detail__info-block">
                 <span className="seminar-detail__label">교육 시간</span>
                 <div className="seminar-detail__info-row">
-                  <strong>{seminar.date}</strong>
-                  <strong>{SEMINAR_TIME}</strong>
+                  <strong>{formatSeminarDate(seminar.date)}</strong>
+                  {timeLabel && <strong>{timeLabel}</strong>}
                 </div>
               </div>
               <div className="seminar-detail__info-block">
                 <span className="seminar-detail__label">교육 장소</span>
                 <div className="seminar-detail__info-row">
-                  <strong>{seminar.location}</strong>
+                  <strong>{seminar.venue ? `${seminar.location} · ${seminar.venue}` : seminar.location}</strong>
                 </div>
-                <a className="seminar-detail__sub-link" href="#directions">
-                  오시는 길 <span aria-hidden="true">›</span>
-                </a>
+                {seminar.address && (
+                  <a className="seminar-detail__sub-link" href="#directions">
+                    오시는 길 <span aria-hidden="true">›</span>
+                  </a>
+                )}
               </div>
             </div>
 
+            {seminar.description ? (
+              <div className="seminar-detail__section">
+                <span className="seminar-detail__label">세미나 소개</span>
+                <p className="seminar-detail__description">{seminar.description}</p>
+              </div>
+            ) : (
+              <div className="seminar-detail__section">
+                <span className="seminar-detail__label">주요 프로그램</span>
+                <ul>
+                  {programFor(seminar.title).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {seminar.instructor && (
+              <div className="seminar-detail__section">
+                <span className="seminar-detail__label">강사</span>
+                <p>{seminar.instructor}</p>
+              </div>
+            )}
             <div className="seminar-detail__section">
-              <span className="seminar-detail__label">주요 프로그램</span>
-              <ul>
-                {programFor(seminar.title).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
+              <span className="seminar-detail__label">수강료</span>
+              <p>{formatWon(seminar.price)}</p>
             </div>
 
             <div className="seminar-detail__section">
@@ -232,19 +249,59 @@ export default function SeminarDetail() {
             <div className="seminar-detail__section">
               <span className="seminar-detail__label">모집 현황</span>
               <p>
-                {seminar.isPast
+                {isPast
                   ? "종료된 세미나입니다."
-                  : `정원 ${seminar.capacity}명 중 ${seminar.enrolled}명 신청`}
+                  : `정원 ${seminar.capacity}명 중 ${seminar.enrolled}명 신청 · 잔여 ${remaining}석`}
+                {seminar.applyDeadline && !isPast && ` · 접수 마감 ${formatSeminarDate(seminar.applyDeadline)}`}
               </p>
             </div>
           </section>
         </div>
 
+        {seminar.gallery.length > 0 && (
+          <section className="seminar-detail__gallery" aria-label="세미나 관련 이미지">
+            {seminar.gallery.map((src, i) => (
+              <img key={`${i}-${src.slice(-12)}`} src={src} alt={`${seminar.title} 관련 이미지 ${i + 1}`} loading="lazy" />
+            ))}
+          </section>
+        )}
+
+        {seminar.address && (
+          <section className="seminar-detail__directions" id="directions" aria-label="오시는 길">
+            <span className="seminar-detail__label">오시는 길</span>
+            <p>
+              {seminar.address}
+              {seminar.venue ? ` · ${seminar.venue}` : ""}
+            </p>
+            <iframe
+              title="세미나 장소 지도"
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(seminar.address)}&z=16&hl=ko&output=embed`}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </section>
+        )}
+
         <div className="seminar-detail__footer">
           <Link className="seminar-detail__list-button" to="/seminars">
             목록보기
           </Link>
-          {!seminar.isPast && (
+          {alreadyApplied ? (
+            <Link className="seminar-detail__apply-button" to="/mypage">
+              신청 내역 보기
+            </Link>
+          ) : !apply.open ? (
+            <span className="seminar-detail__apply-button is-disabled" aria-disabled="true">
+              {apply.reason}
+            </span>
+          ) : !uid ? (
+            <Link
+              className="seminar-detail__apply-button"
+              to={`/mypage?redirect=${encodeURIComponent(location.pathname)}`}
+            >
+              로그인 후 신청하기
+            </Link>
+          ) : (
             <button
               type="button"
               className="seminar-detail__apply-button"
@@ -256,8 +313,8 @@ export default function SeminarDetail() {
         </div>
       </div>
 
-      {applyOpen && (
-        <SeminarApplyModal seminar={seminar} onClose={() => setApplyOpen(false)} />
+      {applyOpen && uid && (
+        <SeminarApplyModal seminar={seminar} uid={uid} onClose={() => setApplyOpen(false)} />
       )}
     </main>
   );

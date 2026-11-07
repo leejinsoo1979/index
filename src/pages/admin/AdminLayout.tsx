@@ -74,7 +74,7 @@ const NAV = [
   { to: "/agent-studio", label: "Agent Studio", icon: <AgentIcon />, external: true },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
-  { to: "/admin/payments", label: "결제 관리", icon: <PayIcon /> },
+  { to: "/admin/payments", label: "신청·결제 관리", icon: <PayIcon /> },
   { to: "/admin/members", label: "회원 관리", icon: <MemberIcon /> },
 ];
 

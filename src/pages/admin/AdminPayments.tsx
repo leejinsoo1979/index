@@ -1,94 +1,117 @@
 import { useMemo, useState } from "react";
 import {
-  loadPayments,
-  savePayments,
-  type AdminPayment,
-  type PaymentStatus,
-} from "../../lib/adminStore";
+  APPLICATION_STATUS_LABEL,
+  cancelApplication,
+  formatSeminarDate,
+  formatWon,
+  holdsSeat,
+  setApplicationConfirmed,
+  useSeminarApplications,
+  type ApplicationStatus,
+} from "../../lib/seminars";
 
-const FILTERS: ("전체" | PaymentStatus)[] = [
-  "전체",
-  "결제완료",
-  "환불요청",
-  "환불완료",
-  "취소",
-];
+const FILTERS: ("ALL" | ApplicationStatus)[] = ["ALL", "APPLIED", "CONFIRMED", "CANCELED"];
+const FILTER_LABEL = { ALL: "전체", ...APPLICATION_STATUS_LABEL };
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
+/**
+ * 신청·결제 관리 — all seminar applications across seminars, live.
+ * Payment isn't attached yet: amounts are the price at application time, shown as unpaid.
+ */
 export default function AdminPayments() {
-  const [payments, setPayments] = useState<AdminPayment[]>(loadPayments);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("전체");
+  const { data: applications, loading, error } = useSeminarApplications({ all: true });
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
+  const [seminarId, setSeminarId] = useState("");
   const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
 
-  function update(next: AdminPayment[]) {
-    setPayments(next);
-    savePayments(next);
-  }
+  const seminarOptions = useMemo(() => {
+    const map = new Map<string, { title: string; date: string }>();
+    for (const a of applications) map.set(a.seminarId, { title: a.seminarTitle, date: a.seminarDate });
+    return [...map.entries()].sort((a, b) => b[1].date.localeCompare(a[1].date));
+  }, [applications]);
 
-  const filtered = useMemo(
-    () =>
-      payments.filter(
-        (p) =>
-          (filter === "전체" || p.status === filter) &&
-          (!query.trim() ||
-            p.member.includes(query.trim()) ||
-            p.orderNo.toLowerCase().includes(query.trim().toLowerCase()) ||
-            p.item.includes(query.trim())),
-      ),
-    [payments, filter, query],
-  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return applications.filter(
+      (a) =>
+        (filter === "ALL" || a.status === filter) &&
+        (!seminarId || a.seminarId === seminarId) &&
+        (!q ||
+          a.applicant.name.toLowerCase().includes(q) ||
+          a.applicant.email.toLowerCase().includes(q) ||
+          (a.applicant.phone ?? "").includes(q) ||
+          a.seminarTitle.toLowerCase().includes(q)),
+    );
+  }, [applications, filter, seminarId, query]);
 
   const totals = useMemo(() => {
-    const paid = payments.filter((p) => p.status === "결제완료");
-    const refunded = payments.filter((p) => p.status === "환불완료");
+    const active = applications.filter((a) => holdsSeat(a.status));
     return {
-      revenue: paid.reduce((sum, p) => sum + p.amount, 0),
-      count: paid.length,
-      refunded: refunded.reduce((sum, p) => sum + p.amount, 0),
-      pending: payments.filter((p) => p.status === "환불요청").length,
+      active: active.length,
+      waiting: applications.filter((a) => a.status === "APPLIED").length,
+      confirmed: applications.filter((a) => a.status === "CONFIRMED").length,
+      expected: active.reduce((sum, a) => sum + a.amount, 0),
     };
-  }, [payments]);
+  }, [applications]);
 
-  function setStatus(id: number, status: PaymentStatus) {
-    update(payments.map((p) => (p.id === id ? { ...p, status } : p)));
-  }
-
-  function approveRefund(p: AdminPayment) {
-    if (!window.confirm(`${p.member}님의 ${fmt(p.amount)}원을 환불 처리할까요?`)) return;
-    setStatus(p.id, "환불완료");
+  async function act(id: string, action: () => Promise<unknown>) {
+    setBusy(id);
+    setNotice("");
+    try {
+      await action();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
     <div className="admin-page">
       <header className="admin-page__head">
-        <h1>결제 관리</h1>
-        <p>세미나 신청·회원권 결제 내역을 관리합니다.</p>
+        <h1>신청·결제 관리</h1>
+        <p>회원의 세미나 신청을 접수·확정·취소합니다. 결제 기능은 연동 예정이며, 금액은 신청 시점의 수강료입니다.</p>
       </header>
 
       <div className="admin-stats admin-stats--sub">
         <div className="admin-stat">
-          <span className="admin-stat__label">결제 금액</span>
-          <strong className="admin-stat__value">{fmt(totals.revenue)}원</strong>
-          <span className="admin-stat__note">{totals.count}건</span>
+          <span className="admin-stat__label">유효 신청</span>
+          <strong className="admin-stat__value">{fmt(totals.active)}건</strong>
+          <span className="admin-stat__note">취소 제외</span>
         </div>
         <div className="admin-stat">
-          <span className="admin-stat__label">환불 완료</span>
-          <strong className="admin-stat__value">{fmt(totals.refunded)}원</strong>
+          <span className="admin-stat__label">접수 대기</span>
+          <strong className="admin-stat__value">{fmt(totals.waiting)}건</strong>
         </div>
         <div className="admin-stat">
-          <span className="admin-stat__label">환불 대기</span>
-          <strong className="admin-stat__value">{totals.pending}건</strong>
+          <span className="admin-stat__label">접수 확정</span>
+          <strong className="admin-stat__value">{fmt(totals.confirmed)}건</strong>
+        </div>
+        <div className="admin-stat">
+          <span className="admin-stat__label">예상 수강료</span>
+          <strong className="admin-stat__value">{fmt(totals.expected)}원</strong>
+          <span className="admin-stat__note">결제 연동 전</span>
         </div>
       </div>
 
       <div className="admin-toolbar">
         <input
           type="search"
-          placeholder="회원명·주문번호·항목 검색"
+          placeholder="이름·이메일·전화번호·세미나 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <select className="admin-select" value={seminarId} onChange={(e) => setSeminarId(e.target.value)} aria-label="세미나 선택">
+          <option value="">전체 세미나</option>
+          {seminarOptions.map(([id, s]) => (
+            <option key={id} value={id}>
+              {s.date} {s.title}
+            </option>
+          ))}
+        </select>
         <div className="admin-toolbar__tabs" role="tablist">
           {FILTERS.map((item) => (
             <button
@@ -97,73 +120,95 @@ export default function AdminPayments() {
               className={filter === item ? "is-active" : ""}
               onClick={() => setFilter(item)}
             >
-              {item}
+              {FILTER_LABEL[item]}
             </button>
           ))}
         </div>
       </div>
+
+      {(error || notice) && <p className="admin-modal__error">{error ?? notice}</p>}
 
       <section className="admin-card">
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>주문번호</th>
-                <th>회원</th>
-                <th>항목</th>
+                <th>신청자</th>
+                <th>세미나</th>
                 <th>금액</th>
-                <th>수단</th>
-                <th>일자</th>
+                <th>결제</th>
+                <th>신청일</th>
                 <th>상태</th>
                 <th>관리</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id}>
-                  <td className="admin-table__mono">{p.orderNo}</td>
+              {filtered.map((a) => (
+                <tr key={a.id}>
                   <td>
-                    {p.member}
-                    <small className="admin-table__sub">{p.email}</small>
+                    {a.applicant.name}
+                    <small className="admin-table__sub">
+                      {a.applicant.email}
+                      {a.applicant.phone ? ` · ${a.applicant.phone}` : ""}
+                    </small>
                   </td>
-                  <td className="admin-table__ellipsis">{p.item}</td>
-                  <td>{fmt(p.amount)}원</td>
-                  <td>{p.method}</td>
-                  <td>{p.date}</td>
+                  <td className="admin-table__ellipsis">
+                    {a.seminarTitle}
+                    <small className="admin-table__sub">{formatSeminarDate(a.seminarDate)}</small>
+                  </td>
+                  <td>{formatWon(a.amount)}</td>
+                  <td>{a.amount === 0 ? "-" : <span className="admin-table__sub">미결제 (연동 예정)</span>}</td>
+                  <td>{new Date(a.createdAt).toLocaleDateString("ko-KR")}</td>
                   <td>
-                    <span className={`admin-badge admin-badge--${p.status}`}>
-                      {p.status}
+                    <span className={`admin-badge admin-badge--app-${a.status.toLowerCase()}`}>
+                      {APPLICATION_STATUS_LABEL[a.status]}
                     </span>
                   </td>
                   <td className="admin-table__actions">
-                    {p.status === "환불요청" && (
+                    {a.status === "APPLIED" && (
                       <button
                         type="button"
                         className="admin-btn admin-btn--primary"
-                        onClick={() => approveRefund(p)}
+                        disabled={busy === a.id}
+                        onClick={() => void act(a.id, () => setApplicationConfirmed(a.id, true))}
                       >
-                        환불 승인
+                        접수 확정
                       </button>
                     )}
-                    {p.status === "결제완료" && (
+                    {a.status === "CONFIRMED" && (
                       <button
                         type="button"
                         className="admin-btn"
-                        onClick={() => setStatus(p.id, "취소")}
+                        disabled={busy === a.id}
+                        onClick={() => void act(a.id, () => setApplicationConfirmed(a.id, false))}
                       >
-                        결제 취소
+                        확정 해제
                       </button>
                     )}
-                    {(p.status === "환불완료" || p.status === "취소") && (
-                      <span className="admin-table__done">처리 완료</span>
+                    {holdsSeat(a.status) && (
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--danger"
+                        disabled={busy === a.id}
+                        onClick={() => {
+                          if (window.confirm(`${a.applicant.name}님의 신청을 취소할까요? 정원이 1석 반환됩니다.`)) {
+                            void act(a.id, () => cancelApplication(a.id, "admin"));
+                          }
+                        }}
+                      >
+                        신청 취소
+                      </button>
+                    )}
+                    {a.status === "CANCELED" && (
+                      <span className="admin-table__done">{a.canceledBy === "admin" ? "관리자 취소" : "본인 취소"}</span>
                     )}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="admin-table__empty">
-                    조건에 맞는 결제 내역이 없습니다.
+                  <td colSpan={7} className="admin-table__empty">
+                    {loading ? "불러오는 중…" : "조건에 맞는 신청 내역이 없습니다."}
                   </td>
                 </tr>
               )}
