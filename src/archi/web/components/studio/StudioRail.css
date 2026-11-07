@@ -1,0 +1,173 @@
+/* Shared Agent Studio / wiki icon rail.
+ * Base rules use the wiki's .wk-rail class names with the same values as StudioWiki.css so the
+ * rail looks identical on every screen (korea100/index-adapter.css also targets .wk-rail).
+ * Shared extras live under .st-rail so screens still on the old inline rail are unaffected. */
+@import "../../../design-tokens.css";
+
+.wk-rail {
+  z-index: 32;
+  display: flex;
+  flex: 0 0 60px;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 13px;
+  background: var(--wk-bg, #08080a);
+  border-right: 1px solid transparent;
+}
+
+.wk-brand {
+  display: flex;
+  justify-content: center;
+  width: 34px;
+  height: 37px;
+  margin-bottom: 32px;
+  color: white;
+  font: 600 34px/1 'Geist Variable', sans-serif;
+  letter-spacing: -4px;
+  text-decoration: none;
+}
+
+.wk-brand span {
+  color: var(--wk-accent, #9aa6ff);
+}
+
+.wk-rail-links,
+.wk-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.wk-rail-links > button,
+.wk-rail-links > a,
+.wk-rail-bottom > a {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  justify-content: center;
+  align-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--wk-text-3, #8d8d98);
+}
+
+.wk-rail-links > button:hover,
+.wk-rail-links > a:hover,
+.wk-rail-bottom > a:hover {
+  background: transparent;
+  color: var(--wk-accent, #9aa6ff);
+}
+
+.wk-rail-links > button.is-active {
+  color: var(--wk-accent, #9aa6ff);
+  background: var(--wk-accent-strong, #5b6cf0);
+  box-shadow: inset 0 0 0 1px var(--wk-shadow, rgba(0, 0, 0, 0.45));
+}
+
+.wk-rail-bottom {
+  margin-top: auto;
+  gap: 7px;
+}
+
+.wk-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 10px;
+  border: 1px solid var(--wk-line-strong, #2f2f37);
+  border-radius: 50%;
+  background: var(--wk-surface-3, #212127);
+  color: var(--wk-text-2, #c4c4cc);
+  font-size: 11px;
+}
+
+/* ── shared extras (.st-rail) ── */
+.wk-rail.st-rail {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow: visible;
+  border-right-color: var(--wk-line, #222228);
+}
+
+/* readable active state for links and buttons alike */
+.st-rail .wk-rail-links > .is-active,
+.st-rail .wk-rail-bottom > .is-active {
+  color: #fff;
+  background: var(--wk-accent-strong, #5b6cf0);
+  box-shadow: inset 0 0 0 1px var(--wk-shadow, rgba(0, 0, 0, 0.45));
+}
+
+.st-rail .wk-rail-links > .is-active:hover,
+.st-rail .wk-rail-bottom > .is-active:hover {
+  color: #fff;
+}
+
+.st-rail__sep {
+  display: block;
+  width: 22px;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--wk-line-strong, #2f2f37);
+}
+
+/* hover / focus label to the right of the icon */
+.st-rail [data-label] {
+  position: relative;
+}
+
+.st-rail [data-label]::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  z-index: 60;
+  padding: 5px 9px;
+  border: 1px solid var(--wk-line-strong, #2f2f37);
+  border-radius: 7px;
+  background: var(--wk-surface-2, #18181c);
+  color: var(--wk-text, #f2f2f5);
+  font: 500 12px/1.2 var(--wk-font, 'Pretendard', sans-serif);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-4px, -50%);
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.st-rail [data-label]:hover::after,
+.st-rail [data-label]:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.st-rail a:focus-visible,
+.st-rail button:focus-visible {
+  outline: 2px solid var(--wk-accent, #9aa6ff);
+  outline-offset: 2px;
+}
+
+@media (max-width: 680px) {
+  .wk-rail.st-rail {
+    flex-basis: 49px;
+    padding-top: 16px;
+  }
+
+  .st-rail .wk-rail-links > a,
+  .st-rail .wk-rail-links > button {
+    width: 33px;
+  }
+
+  .st-rail .wk-brand {
+    margin-bottom: 25px;
+  }
+
+  .st-rail [data-label]::after {
+    display: none;
+  }
+}

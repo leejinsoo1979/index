@@ -14,6 +14,7 @@ type ChatModelInfo = {
     authType: string;
   }[];
   isMock: boolean;
+  serverDefault?: { provider: string; providerLabel: string; model: string | null } | null;
 };
 
 type ActionPreview = {
@@ -131,7 +132,9 @@ export function AIChatPanel({
     ? 'mock (미연결)'
     : modelInfo?.active
       ? `${modelInfo.options.find((o) => o.configId === modelInfo.active!.configId)?.providerLabel ?? ''} · ${modelInfo.active.model ?? '기본'}`
-      : '모델 미설정';
+      : modelInfo?.serverDefault
+        ? `${modelInfo.serverDefault.providerLabel} · ${modelInfo.serverDefault.model ?? '기본'}`
+        : '모델 미설정';
 
   /** 어시스턴트 응답을 표시 (전체 텍스트를 한 번에 — 타자기 효과의 잔여 글자 버그 제거) */
   function streamAssistantText(text: string, agentLabel?: string): Promise<void> {
@@ -225,10 +228,10 @@ export function AIChatPanel({
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#1c1c2a] text-zinc-100">
-      <header className="border-b border-white/10 px-4 pb-2.5 pt-3">
+    <div className="sd-chat flex h-full flex-col bg-[#1c1c2a] text-zinc-100">
+      <header className="sd-pane-head sd-chat__head border-b border-white/10 px-4 pb-2.5 pt-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-xs font-bold text-zinc-900">
+          <span className="sd-chat__badge flex h-7 w-7 items-center justify-center rounded-lg bg-white text-xs font-bold text-zinc-900">
             AI
           </span>
           <div className="min-w-0">
@@ -244,7 +247,7 @@ export function AIChatPanel({
           <div className="relative ml-auto">
             <button
               onClick={() => setModelMenuOpen((v) => !v)}
-              className="flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/40"
+              className="sd-model flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/40"
               title="모델 선택"
             >
               {activeLabel}
@@ -301,13 +304,13 @@ export function AIChatPanel({
             )}
           </div>
         </div>
-        <div className="mt-2.5 flex flex-wrap gap-1">
+        <div className="sd-chat__teams mt-2.5 flex flex-wrap gap-1">
           {['콘텐츠팀', '법규팀', '시공디테일팀', '이미지팀', '지식관리팀', 'PM'].map((team) => (
             <span
               key={team}
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              className={`sd-chip rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                 activeTeam?.startsWith(team)
-                  ? 'bg-white text-zinc-900'
+                  ? 'is-on bg-white text-zinc-900'
                   : 'bg-white/10 text-zinc-400'
               }`}
             >
@@ -317,20 +320,20 @@ export function AIChatPanel({
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="sd-chat__list flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {items.map((item, i) => {
           if (item.kind === 'user') {
             return (
-              <div key={i} className="ml-8 rounded-2xl rounded-tr-sm bg-white px-3.5 py-2.5 text-sm text-zinc-900">
+              <div key={i} className="sd-msg sd-msg--user ml-8 rounded-2xl rounded-tr-sm bg-white px-3.5 py-2.5 text-sm text-zinc-900">
                 {item.text}
               </div>
             );
           }
           if (item.kind === 'assistant') {
             return (
-              <div key={i} className="mr-6 rounded-2xl rounded-tl-sm bg-white/5 px-3.5 py-2.5 text-sm leading-6">
+              <div key={i} className="sd-msg sd-msg--ai mr-6 rounded-2xl rounded-tl-sm bg-white/5 px-3.5 py-2.5 text-sm leading-6">
                 {item.agentLabel && (
-                  <span className="mb-1 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
+                  <span className="sd-msg__agent mb-1 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
                     {item.agentLabel}
                   </span>
                 )}
@@ -350,7 +353,7 @@ export function AIChatPanel({
                     href={source.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="block rounded-xl border border-white/10 bg-white/5 p-3 hover:border-white/40"
+                    className="sd-src block rounded-xl border border-white/10 bg-white/5 p-3 hover:border-white/40"
                   >
                     <div className="mb-1 flex items-center gap-2">
                       <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">
@@ -376,7 +379,7 @@ export function AIChatPanel({
           return (
             <div key={i} className="mr-4 space-y-2">
               {item.actions.map((action) => (
-                <div key={action.id} className="rounded-xl border border-white/20 bg-white/5 p-3">
+                <div key={action.id} className="sd-action rounded-xl border border-white/20 bg-white/5 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-zinc-300">
                       {ACTION_LABELS[action.type] ?? action.type}
@@ -390,13 +393,13 @@ export function AIChatPanel({
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => handleAction(action.id, 'approve')}
-                        className="flex-1 rounded-lg bg-white py-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
+                        className="sd-btn sd-btn--primary flex-1 rounded-lg bg-white py-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
                       >
                         승인하고 적용
                       </button>
                       <button
                         onClick={() => handleAction(action.id, 'reject')}
-                        className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10"
+                        className="sd-btn rounded-lg border border-white/20 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10"
                       >
                         거절
                       </button>
@@ -411,26 +414,32 @@ export function AIChatPanel({
             </div>
           );
         })}
-        {busy && <p className="text-xs text-zinc-500">에이전트가 작업 중...</p>}
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {busy && (
+          <p className="sd-typing" role="status" aria-label="에이전트가 작업 중">
+            <i />
+            <i />
+            <i />
+          </p>
+        )}
+        {error && <p className="sd-chat__error text-xs text-red-400">{error}</p>}
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto px-3 pb-1">
+      <div className="sd-chat__presets flex gap-1.5 overflow-x-auto px-3 pb-1">
         {['블로그 초안 작성해줘', '방화문 법규 알려줘', '공정별 비용 차트 만들어줘'].map(
           (preset) => (
             <button
               key={preset}
               type="button"
               onClick={() => setInput(preset)}
-              className="shrink-0 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-zinc-400 hover:border-white/40 hover:text-zinc-200"
+              className="sd-suggest shrink-0 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-zinc-400 hover:border-white/40 hover:text-zinc-200"
             >
               {preset}
             </button>
           ),
         )}
       </div>
-      <form onSubmit={handleSend} className="border-t border-white/10 p-3">
-        <div className="flex items-end gap-2 rounded-xl bg-white/5 p-2">
+      <form onSubmit={handleSend} className="sd-chat__form border-t border-white/10 p-3">
+        <div className="sd-composer flex items-end gap-2 rounded-xl bg-white/5 p-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -443,14 +452,15 @@ export function AIChatPanel({
             }}
             rows={2}
             placeholder="AI에게 요청하기... (예: 블로그 초안 작성해줘)"
-            className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-zinc-500"
+            className="sd-composer__input flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-zinc-500"
           />
           <button
             type="submit"
             disabled={busy || !input.trim()}
-            className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-40"
+            className="sd-send rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-40"
+            aria-label="전송"
           >
-            전송
+            ↑
           </button>
         </div>
       </form>

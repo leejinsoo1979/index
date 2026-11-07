@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   AiStateAnimation,
   modeColor,
@@ -176,6 +178,29 @@ function MemoryIcon() {
     </svg>
   );
 }
+
+/**
+ * Answers are markdown. Images are shown only from the INDEX wiki's own figures
+ * (/wiki-assets/…); any other image URL the model writes is shown as its caption.
+ */
+const ANSWER_COMPONENTS: Components = {
+  img: ({ src, alt }) =>
+    typeof src === "string" && src.startsWith("/wiki-assets/") ? (
+      <figure className="home-chat__figure">
+        <a href={src} target="_blank" rel="noreferrer">
+          <img src={src} alt={alt ?? ""} loading="lazy" />
+        </a>
+        {alt && <figcaption>{alt}</figcaption>}
+      </figure>
+    ) : (
+      <span>{alt ? `(그림: ${alt})` : ""}</span>
+    ),
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 export default function Home() {
   const { user } = useAuth();
@@ -390,6 +415,27 @@ export default function Home() {
     setListening(true);
   }
 
+  /**
+   * Enter sends once. During Hangul composition some browsers consume the Enter to commit the
+   * last syllable and never fire a second keydown, so send after the commit instead of dropping
+   * it; browsers that do fire a second keydown are de-duplicated.
+   */
+  const lastSubmitRef = useRef({ text: "", at: 0 });
+  function submitOnEnter(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    const field = event.currentTarget;
+    const send = () => {
+      const text = field.value.trim();
+      const now = Date.now();
+      if (!text || (lastSubmitRef.current.text === text && now - lastSubmitRef.current.at < 800)) return;
+      lastSubmitRef.current = { text, at: now };
+      handleSubmit(text);
+    };
+    if (event.nativeEvent.isComposing || event.keyCode === 229) window.setTimeout(send, 0);
+    else send();
+  }
+
   function handleSubmit(value: string) {
     const question = (value || message).trim();
     if (!question || isResponding) return;
@@ -506,9 +552,7 @@ export default function Home() {
       <input
         value={message}
         onChange={(event) => setMessage(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault();
-        }}
+        onKeyDown={submitOnEnter}
         placeholder={user ? "무엇이든 물어보세요" : "로그인 후 질문할 수 있어요"}
         aria-label="INDEX AI에게 질문"
         autoComplete="off"
@@ -651,7 +695,11 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="home-chat__msg home-chat__msg--assistant" key={entry.id}>
-                      <p>{entry.content}</p>
+                      <div className="home-chat__md">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={ANSWER_COMPONENTS}>
+                          {entry.content}
+                        </ReactMarkdown>
+                      </div>
                       <div className="home-chat__msg-actions">
                         <button type="button" aria-label="복사" onClick={() => copyMessage(entry.content)}><CopyIcon /></button>
                         <button type="button" aria-label="다시 생성" onClick={regenerateReply}><RefreshIcon /></button>
@@ -700,12 +748,7 @@ export default function Home() {
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    handleSubmit(message);
-                  }
-                }}
+                onKeyDown={submitOnEnter}
                 placeholder={user ? "메시지를 입력하세요..." : "로그인 후 질문할 수 있습니다"}
                 rows={1}
                 aria-label="메시지 입력"

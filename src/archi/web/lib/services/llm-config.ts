@@ -9,7 +9,8 @@ import { FALLBACK_MODELS } from '../llm-models';
 import { ProxyLlmProvider, type ProxyTarget } from '../proxy-providers';
 import { callArchiServer, getServerStatus } from '../server-proxy';
 
-const PROXY_PROVIDERS = ['openai', 'anthropic', 'google', 'grok'] as const;
+// DeepSeek first: the same server key the home INDEX AI uses (CHAT_AI_PROVIDER=deepseek).
+const PROXY_PROVIDERS = ['deepseek', 'openai', 'anthropic', 'google', 'grok'] as const;
 const isProxyProvider = (p: string): p is ProxyTarget['provider'] =>
   (PROXY_PROVIDERS as readonly string[]).includes(p);
 
@@ -18,6 +19,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   google: 'Gemini',
   grok: 'Grok',
   anthropic: 'Claude',
+  deepseek: 'DeepSeek',
 };
 
 /**
@@ -35,6 +37,7 @@ export async function getChatModelOptions(userId: string, documentId: string) {
     orderBy: { createdAt: 'desc' },
   });
   const active = configs.find((c) => c.isActive) ?? configs[0] ?? null;
+  const serverDefault = configs.length === 0 ? await serverDefaultTarget() : null;
   return {
     workspaceId,
     active: active
@@ -47,8 +50,12 @@ export async function getChatModelOptions(userId: string, documentId: string) {
       model: c.model,
       authType: c.authType,
     })),
+    /** 등록된 LLM이 없을 때 쓰는 서버 기본 모델 (홈 INDEX AI와 같은 키) */
+    serverDefault: serverDefault
+      ? { provider: serverDefault.provider, providerLabel: PROVIDER_LABELS[serverDefault.provider] ?? serverDefault.provider, model: serverDefault.model ?? null }
+      : null,
     /** 등록된 LLM도, 서버 기본 키도 없으면 mock 안내용 */
-    isMock: configs.length === 0 && !(await serverDefaultTarget()),
+    isMock: configs.length === 0 && !serverDefault,
   };
 }
 

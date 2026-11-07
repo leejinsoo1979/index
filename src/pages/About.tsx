@@ -7,6 +7,7 @@ import { kiaaMembers } from "../data/team";
 import { isAdminEmail } from "../lib/adminStore";
 import { effectiveStatus, formatSeminarDate, useSeminars, type Seminar } from "../lib/seminars";
 import Placeholder from "./Placeholder";
+import RepresentativeChatWidget from "../components/RepresentativeChatWidget";
 import AgentShowcase from "../components/AgentShowcase";
 import "./About.css";
 
@@ -399,6 +400,7 @@ export default function About() {
         </div>
         <div className="ab-wrap ai-foot__bottom">© 2025 주거인테리어 협회. All rights reserved.</div>
       </footer>
+      <RepresentativeChatWidget/>
     </main>
   );
 }

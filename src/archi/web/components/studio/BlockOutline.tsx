@@ -135,7 +135,7 @@ export function BlockOutline({
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-zinc-200 bg-white">
-      <div className="border-b border-zinc-200 px-4 py-3">
+      <div className="sd-pane-head sd-outline__head border-b border-zinc-200 px-4 py-3">
         <h2 className="text-xs font-bold text-zinc-700">문서 구조</h2>
       </div>
       <div className="flex-1 overflow-y-auto p-2">

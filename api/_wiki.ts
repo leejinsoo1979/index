@@ -21,7 +21,8 @@ export type WikiDoc = {
   updatedAt: string;
 };
 
-export type WikiHit = WikiDoc & { score: number; excerpt: string };
+export type WikiImage = { alt: string; src: string };
+export type WikiHit = WikiDoc & { score: number; excerpt: string; status?: string; images?: WikiImage[] };
 
 let cache: { at: number; pages: WikiDoc[] } | null = null;
 const CACHE_MS = 5 * 60_000;
@@ -123,7 +124,8 @@ export function rankWiki(pages: WikiDoc[], query: string, limit = 4): WikiHit[] 
 /**
  * Second-brain retrieval from the INDEX knowledge server (server/wiki/retrieval): passages from
  * wiki pages and original PDF pages, ranked with source trust and review status. Public chat
- * uses 검수 완료 only unless WIKI_INCLUDE_REVIEW=1. Returns null when the server isn't reachable.
+ * includes 검수 대기 pages (marked "검수 전") unless WIKI_INCLUDE_REVIEW=0. Returns null when the
+ * server isn't reachable.
  */
 async function retrieveFromKnowledgeServer(query: string, limit: number): Promise<WikiHit[] | null> {
   const base = (process.env.INDEX_WIKI_URL || "http://127.0.0.1:5318").replace(/\/$/, "");
@@ -140,11 +142,11 @@ async function retrieveFromKnowledgeServer(query: string, limit: number): Promis
     const res = await fetch(`${base}/api/wiki/retrieve`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query, k: limit, includeReview: process.env.WIKI_INCLUDE_REVIEW === "1" }),
+      body: JSON.stringify({ query, k: limit, includeReview: process.env.WIKI_INCLUDE_REVIEW !== "0" }),
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { chunks?: Array<{ refId: string; title: string; heading?: string | null; pages?: string | null; category: string; trust: string; score: number; text: string }> };
+    const body = (await res.json()) as { chunks?: Array<{ refId: string; title: string; heading?: string | null; pages?: string | null; category: string; trust: string; status: string; score: number; text: string; images?: WikiImage[] }> };
     return (body.chunks ?? []).map((c) => ({
       id: c.refId,
       title: `${c.title}${c.heading ? ` › ${c.heading}` : ""}${c.pages ? ` (${c.pages})` : ""}`,
@@ -155,26 +157,39 @@ async function retrieveFromKnowledgeServer(query: string, limit: number): Promis
       updatedAt: "",
       score: c.score,
       excerpt: c.text,
+      status: c.status,
+      images: (c.images ?? []).filter((img) => img.src.startsWith("/wiki-assets/")),
     }));
   } catch {
     return null;
   }
 }
 
-export async function searchWiki(query: string, limit = 4): Promise<WikiHit[]> {
+export async function searchWiki(query: string, limit = 6): Promise<WikiHit[]> {
   const fromServer = await retrieveFromKnowledgeServer(query, limit);
   if (fromServer) return fromServer;
   return rankWiki(await loadPublishedWiki(), query, limit);
 }
 
-/** System-prompt block with the most relevant 검수 완료 wiki excerpts for this question. */
+const reviewMark = (h: WikiHit) => (h.status && h.status !== "published" ? " · 검수 전" : "");
+
+/** System-prompt block with the most relevant wiki excerpts (and their figures) for this question. */
 export function wikiContext(hits: WikiHit[]): string {
   if (hits.length === 0) return "";
-  const blocks = hits.map((h, i) => `[위키 ${i + 1}] ${h.title}${h.category ? ` (${h.category})` : ""}\n${h.excerpt}`);
-  return `INDEX 위키(검수 완료 문서)에서 찾은 관련 내용:
+  const blocks = hits.map((h, i) => {
+    const figures = (h.images ?? []).map((img) => `그림: ![${img.alt}](${img.src})`).join("\n");
+    return `[위키 ${i + 1}] ${h.title}${h.category ? ` (${h.category}${reviewMark(h)})` : ""}\n${h.excerpt}${figures ? `\n${figures}` : ""}`;
+  });
+  const hasFigures = hits.some((h) => h.images?.length);
+  return `INDEX 위키에서 찾은 관련 내용:
 ${blocks.join("\n\n")}
 
-위키 내용이 질문에 답하면 이를 우선 근거로 삼고 "(INDEX 위키: 문서 제목)"으로 출처를 밝힌다. 위키에 없는 내용은 지어내지 말고, 법령 조문·수치는 법령 원문 도구로 확인한다. 위키와 법령 원문이 다르면 법령 원문을 따른다.`;
+위키 내용이 질문에 답하면 이를 우선 근거로 삼고 "(INDEX 위키: 문서 제목)"으로 출처를 밝힌다. "검수 전" 문서를 근거로 쓰면 출처 뒤에 "검수 전"을 붙인다. 위키에 없는 내용은 지어내지 말고, 법령 조문·수치는 법령 원문 도구로 확인한다. 위키와 법령 원문이 다르면 법령 원문을 따른다.${
+    hasFigures
+      ? `
+답을 이해하는 데 도움이 되는 그림이 위에 있으면 1~2장을 위 "그림:" 줄에서 ![설명](주소) 마크다운 부분만 그대로(주소를 바꾸지 말고, "그림:" 글자는 빼고) 답 본문의 관련 문단 바로 뒤 별도 줄에 넣는다. 위 목록에 없는 그림 주소는 만들지 않는다. "이미지는 제공할 수 없다"고 말하지 않는다.`
+      : ""
+  }`;
 }
 
 export function wikiSources(hits: WikiHit[]): RegulationSource[] {
@@ -183,7 +198,7 @@ export function wikiSources(hits: WikiHit[]): RegulationSource[] {
     id: `wiki_${h.id}`,
     title: h.title,
     sourceType: "knowledge_base",
-    publisher: "INDEX 위키 (검수 완료)",
+    publisher: `INDEX 위키${h.status && h.status !== "published" ? " (검수 전)" : " (검수 완료)"}`,
     url: "",
     snippet: h.excerpt.slice(0, 300),
     retrievedAt,

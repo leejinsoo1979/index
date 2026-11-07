@@ -15,7 +15,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const RETRIEVAL_VERSION = 'index-retrieval-v4';
+export const RETRIEVAL_VERSION = 'index-retrieval-v5';
+// Wiki figures served by the site (public/wiki-assets). Kept as markdown in stored chunks so
+// answers can show them; stripped to "(그림: …)" for indexing and for the passage text.
+const SITE_IMAGE = /!\[([^\]]*)\]\((\/wiki-assets\/[^)\s]+)\)/g;
+const withoutImages = (text) => text.replace(SITE_IMAGE, '(그림: $1)');
 const CHUNK_MAX = 900;
 const CHUNK_MIN = 220;
 const EMBED_MODEL = 'text-embedding-3-small';
@@ -98,7 +102,7 @@ function pack(paragraphs) {
 export function chunkMarkdown(content) {
   const clean = content
     .replace(/```index-process[\s\S]*?```/g, '')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '(그림: $1)')
+    .replace(/!\[([^\]]*)\]\(([^)\s]*)\)/g, (m, alt, url) => (url.startsWith('/wiki-assets/') ? `\n\n![${alt}](${url})\n\n` : `(그림: ${alt})`))
     .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1');
   const sections = [];
@@ -184,9 +188,9 @@ function writeDoc(db, doc, chunks) {
   chunks.forEach((c, i) => {
     const id = `${doc.doc_key}#${i}`;
     db.prepare('INSERT INTO rt_chunks VALUES(?,?,?,?,?,?,?)').run(id, doc.doc_key, i, c.heading ?? null, c.page ?? null, c.page ?? null, c.text);
-    db.prepare('INSERT INTO rt_fts VALUES(?,?,?)').run(id, titleTerms, terms((c.heading || '') + ' ' + c.text).join(' '));
+    db.prepare('INSERT INTO rt_fts VALUES(?,?,?)').run(id, titleTerms, terms((c.heading || '') + ' ' + withoutImages(c.text)).join(' '));
   });
-  return chunks.map((c, i) => ({ id: `${doc.doc_key}#${i}`, text: `${doc.title}\n${c.heading || ''}\n${c.text}` }));
+  return chunks.map((c, i) => ({ id: `${doc.doc_key}#${i}`, text: `${doc.title}\n${c.heading || ''}\n${withoutImages(c.text)}` }));
 }
 
 function removeDoc(db, docKey) {
@@ -268,6 +272,17 @@ export async function ensureFresh(store) {
   lastSignature.set(store, sig);
 }
 
+/** Figures in this passage, else the first figure elsewhere in the same document. */
+function figuresFor(db, r) {
+  const own = [...r.text.matchAll(new RegExp(SITE_IMAGE))];
+  const found = own.length ? own : (() => {
+    const docKey = r.chunk_id.slice(0, r.chunk_id.lastIndexOf('#'));
+    const row = db.prepare("SELECT text FROM rt_chunks WHERE doc_key=? AND text LIKE '%](/wiki-assets/%' ORDER BY ord LIMIT 1").get(docKey);
+    return row ? [...row.text.matchAll(new RegExp(SITE_IMAGE))].slice(0, 1) : [];
+  })();
+  return found.map(m => ({ alt: m[1] || r.heading || r.title, src: m[2] }));
+}
+
 export async function retrieve(store, query, { k = 6, includeReview = true } = {}) {
   const db = store.db;
   ensureRetrievalSchema(db);
@@ -326,7 +341,8 @@ export async function retrieve(store, query, { k = 6, includeReview = true } = {
       trust: r.trustLabel,
       category: r.category,
       score: Number(r.score.toFixed(4)),
-      text: r.text,
+      text: withoutImages(r.text),
+      images: figuresFor(db, r),
     })),
   };
 }

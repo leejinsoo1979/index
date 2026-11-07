@@ -77,6 +77,7 @@ const NAV = [
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/curriculum", label: "커리큘럼 빌더", icon: <BoardIcon /> },
   { to: "/admin/payments", label: "신청·결제 관리", icon: <PayIcon /> },
+  { to: "/admin/expert-spaces", label: "개인 AI 공간 배정", icon: <MemberIcon /> },
   { to: "/admin/members", label: "회원 관리", icon: <MemberIcon /> },
 ];
 

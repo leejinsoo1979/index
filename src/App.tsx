@@ -23,6 +23,10 @@ import AdminMembers from "./pages/admin/AdminMembers";
 import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
 
 // ARCHI Agent Studio (ported from inshow_agent): large, so it is code-split.
+const Experts = lazy(() => import('./pages/Experts'));
+const ExpertChat = lazy(() => import('./pages/ExpertChat'));
+const ExpertSettings = lazy(() => import('./pages/ExpertSettings'));
+const ExpertWiki = lazy(() => import('./pages/ExpertWiki'));
 const StudioApp = lazy(() => import("./archi/StudioApp"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
@@ -59,6 +63,10 @@ export default function App() {
         <Route path="/ai" element={<About />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/tools/:id" element={<Tools />} />
+        <Route path="/experts" element={<Suspense fallback={null}><Experts/></Suspense>} />
+        <Route path="/experts/:personId" element={<Suspense fallback={null}><ExpertChat/></Suspense>} />
+        <Route path="/experts/:personId/settings" element={<Suspense fallback={null}><ExpertSettings/></Suspense>} />
+        <Route path="/experts/:personId/wiki" element={<Suspense fallback={null}><ExpertWiki/></Suspense>} />
         <Route path="/about/organization" element={<Team />} />
         <Route
           path="/agent-studio/*"
@@ -75,6 +83,7 @@ export default function App() {
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="curriculum" element={<AdminCurriculum />} />
           <Route path="payments" element={<AdminPayments />} />
+          <Route path="expert-spaces" element={<Navigate to="/experts/interior-show/settings" replace/>} />
           <Route path="members" element={<AdminMembers />} />
         </Route>
         {[...routeLabels]

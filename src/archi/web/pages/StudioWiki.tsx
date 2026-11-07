@@ -24,7 +24,7 @@ const WikiWarroom = lazy(() => import('../components/wiki/korea100/WikiWarroom')
 
 type Filter = 'all' | 'recent' | 'pinned' | 'review' | 'archived';
 type Modal = 'import' | 'backup' | 'assistant' | null;
-type LibraryProps = { repository: WikiRepository; workspaceId: string; actor: string; loadImports?: () => Promise<ImportItem[]>; importItem?: (item: ImportItem) => Promise<WikiDraft> };
+type LibraryProps = { repository: WikiRepository; workspaceId: string; actor: string; loadImports?: () => Promise<ImportItem[]>; importItem?: (item: ImportItem) => Promise<WikiDraft>; importFile?: (file: File) => Promise<WikiDraft>; openPersonalSource?: (source: WikiSource) => Promise<void>; contextLink?: {to:string;label:string} };
 type Me = { user: { id: string; name: string | null; email: string }; organizations: { workspaces: { id: string; name: string }[] }[] };
 const NO_IMPORTS = async () => [];
 
@@ -75,7 +75,7 @@ export default function StudioWiki() {
 }
 
 /** Presentational shell is exported for isolated browser verification without bypassing app authentication. */
-export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_IMPORTS, importItem }: LibraryProps) {
+export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_IMPORTS, importItem, importFile, openPersonalSource, contextLink }: LibraryProps) {
   const [params, setParams] = useSearchParams();
   const [pages, setPages] = useState<WikiPage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,7 +235,7 @@ export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_I
       if (repository.mode === 'server') {
         await ingestWikiFile(file); setModal(null); setNotice('원본을 서버에 보존하고 위키 자동 정리를 예약했습니다. 처리 내역에서 진행 상황을 확인하세요.'); refreshLibrary(); return;
       }
-      const value = await draftFromFile(file, workspaceId, repository.mode);
+      const value = importFile ? await importFile(file) : await draftFromFile(file, workspaceId, repository.mode);
       setDraft(value); setEditId(undefined); setEditVersion(0); setBaseline(''); setParams({}); setModal(null); setRestoreReason('');
       setNotice('원본 파일을 보존했습니다. 내용을 검토한 뒤 문서를 저장해 주세요.');
     } catch (reason) { setImportError(reason instanceof Error ? reason.message : '파일을 가져오지 못했습니다.'); }
@@ -257,6 +257,7 @@ export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_I
   }
 
   async function openSource(source: WikiSource) {
+    if (openPersonalSource) {try {await openPersonalSource(source);} catch(e){setError(e instanceof Error?e.message:'원본을 열지 못했습니다.');} return;}
     try {
       const url = source.fileKey ? await originalFileUrl(source) : safeUrlOrEmpty(source.href);
       if (!url) throw new Error('열 수 있는 원본 링크가 없습니다.');
@@ -311,7 +312,7 @@ export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_I
 
   return <div className={'wk-app' + (graphMode ? ' wk-app--galaxy' : '') + (warroomMode ? ' wk-app--warroom' : '') + (encyclopediaMode && !draft && !graphMode ? ' wk-app--registry' : '') + (selected && inspectorOpen && inspectorTab === 'history' && encyclopediaMode ? ' wk-registry-history' : '') + (sidebarOpen ? ' wk-sidebar-open' : '') + (inspectorOpen ? ' wk-inspector-open' : '')}>
     <nav className="wk-rail" aria-label="스튜디오 바로가기">
-      <Link to="/ai" className="wk-brand" aria-label="INDEX AI">i<span>.</span></Link>
+      <Link to={contextLink?.to ?? "/ai"} className="wk-brand" aria-label={contextLink?.label ?? "INDEX AI"}>i<span>.</span></Link>
       <div className="wk-rail-links"><button className={warroomMode ? 'is-active' : ''} onClick={openWarroom} title="지식 현황판" aria-label="지식 현황판"><Activity size={21}/></button><button className={encyclopediaMode && !selected && !draft ? 'is-active' : ''} onClick={openEncyclopedia} title="백과사전" aria-label="백과사전"><BookOpen size={21} /></button><button className={!encyclopediaMode && !graphMode && !warroomMode ? 'is-active' : ''} onClick={() => home()} title="지식 라이브러리" aria-label="지식 라이브러리"><Library size={21} /></button><button className={graphMode ? 'is-active' : ''} onClick={() => { if (!busy && allowLeave()) { setDraft(null); setParams({ view: 'graph' }); setSidebarOpen(false); } }} title="문서 그래프" aria-label="문서 그래프"><Network size={21} /></button><Link to="/agent-studio/sources" title="원본 자료 관리" aria-label="원본 자료 관리"><Files size={20} /></Link><Link to="/agent-studio" title="Agent Studio" aria-label="Agent Studio"><Sparkles size={20} /></Link></div>
       <div className="wk-rail-bottom"><Link to="/agent-studio/settings" aria-label="스튜디오 설정" title="스튜디오 설정"><Settings2 size={19} /></Link><Link to="/admin" aria-label="관리자 대시보드" title="관리자 대시보드"><ArrowLeft size={19} /></Link><span className="wk-avatar" title={actor}>{actor.slice(0, 1).toUpperCase()}</span></div>
     </nav>

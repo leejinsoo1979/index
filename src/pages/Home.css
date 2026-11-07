@@ -1613,3 +1613,90 @@
 :root:not([data-app-theme="dark"]) .app:has(.home--chat) .site-header__link.is-active {
   color: #0d0d0d;
 }
+
+/* Assistant answers rendered as markdown (wiki figures included) */
+.home-chat__md {
+  color: #e9e9e9;
+  font-size: 15px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.home-chat__md > * + * {
+  margin-top: 10px;
+}
+
+.home-chat__md ul,
+.home-chat__md ol {
+  padding-left: 20px;
+}
+
+.home-chat__md ul {
+  list-style: disc;
+}
+
+.home-chat__md ol {
+  list-style: decimal;
+}
+
+.home-chat__md li + li {
+  margin-top: 4px;
+}
+
+.home-chat__md strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.home-chat__md a {
+  color: #9db4ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.home-chat__md h1,
+.home-chat__md h2,
+.home-chat__md h3 {
+  margin-top: 16px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.home-chat__md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.home-chat__md th,
+.home-chat__md td {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: left;
+}
+
+.home-chat__md code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.home-chat__figure {
+  display: block;
+  margin: 14px 0;
+}
+
+.home-chat__figure img {
+  display: block;
+  max-width: min(100%, 520px);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.home-chat__figure figcaption {
+  margin-top: 6px;
+  color: #9a9a9a;
+  font-size: 12.5px;
+}

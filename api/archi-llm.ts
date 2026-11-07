@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAgentAdmin } from "./_firebaseAdmin.js";
 // Original ARCHI Agent Studio provider adapters (src/archi/packages), run server-side.
+import { generateText as aiGenerateText } from "ai";
 import { OpenAIProvider } from "../src/archi/packages/ai/openai.js";
 import { AnthropicProvider } from "../src/archi/packages/ai/anthropic.js";
 import { GeminiProvider } from "../src/archi/packages/ai/gemini.js";
@@ -10,6 +11,7 @@ import { OpenAIImageProvider } from "../src/archi/packages/image/openai-image.js
 import { fetchProviderModels } from "../src/archi/web/lib/llm-models.js";
 import { anyRegulationSource, regulationStatus } from "./_regulations.js";
 import { searchRegulationSources } from "./_regulationTools.js";
+import { deepseekModel } from "./_deepseek.js";
 
 /**
  * Server side of the ported Agent Studio (everything else runs in the browser).
@@ -19,10 +21,11 @@ import { searchRegulationSources } from "./_regulationTools.js";
  */
 export const config = { maxDuration: 120 };
 
-type Provider = "openai" | "anthropic" | "google" | "grok";
+type Provider = "openai" | "anthropic" | "google" | "grok" | "deepseek";
 type Target = { provider?: string; model?: string; baseUrl?: string; encryptedApiKey?: string };
 
-const PROVIDERS: Provider[] = ["openai", "anthropic", "google", "grok"];
+const PROVIDERS: Provider[] = ["openai", "anthropic", "google", "grok", "deepseek"];
+const DEEPSEEK_MODELS = ["deepseek-flash", "deepseek-v4-pro"];
 const MAX_PROMPT_CHARS = 400_000;
 const MAX_IMAGE_BYTES = 8_000_000;
 
@@ -67,6 +70,8 @@ const ENV_KEYS: Record<Provider, { key: string[]; model: string[]; defaultModel:
   anthropic: { key: ["ANTHROPIC_API_KEY"], model: ["ARCHI_ANTHROPIC_MODEL"], defaultModel: "claude-sonnet-5-5" },
   google: { key: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], model: ["ARCHI_GEMINI_MODEL"], defaultModel: "gemini-2.5-flash" },
   grok: { key: ["XAI_API_KEY", "GROK_API_KEY"], model: ["ARCHI_GROK_MODEL"], defaultModel: "grok-4" },
+  // Same DeepSeek account as the home INDEX AI (api/_deepseek.ts); server key only.
+  deepseek: { key: ["DEEPSEEK_API_KEY"], model: ["DEEPSEEK_MODEL"], defaultModel: "deepseek-flash" },
 };
 const firstEnv = (names: string[]) => names.map((n) => process.env[n]).find((v) => v && v.trim());
 
@@ -106,6 +111,31 @@ function llm(t: ReturnType<typeof resolveTarget>) {
       return new GeminiProvider(opts);
     case "grok":
       return new GrokProvider(opts);
+    case "deepseek":
+      return new DeepSeekLlm(t.model);
+  }
+}
+
+/** Studio adapter over the shared DeepSeek helper (thinking off, max_tokens mapping live there). */
+class DeepSeekLlm {
+  readonly name = "deepseek";
+  constructor(private readonly model?: string) {}
+
+  async generateText(input: { system?: string; prompt: string; maxTokens?: number; temperature?: number }) {
+    const result = await aiGenerateText({
+      model: deepseekModel(this.model),
+      ...(input.system ? { system: input.system } : {}),
+      prompt: input.prompt,
+      maxOutputTokens: input.maxTokens ?? 2048,
+      ...(input.temperature != null ? { temperature: input.temperature } : {}),
+    });
+    return { text: result.text, model: result.response?.modelId ?? this.model ?? "deepseek-flash", provider: "deepseek" };
+  }
+
+  async *streamText(input: { system?: string; prompt: string; maxTokens?: number; temperature?: number }) {
+    const result = await this.generateText(input);
+    yield { type: "text_delta" as const, text: result.text };
+    yield { type: "done" as const };
   }
 }
 
@@ -193,6 +223,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case "models": {
         const t = resolveTarget(body.target);
+        if (t.provider === "deepseek") {
+          res.status(200).json({ models: DEEPSEEK_MODELS });
+          return;
+        }
         res.status(200).json({ models: await fetchProviderModels(t.provider, t.apiKey, t.baseUrl) });
         return;
       }

@@ -9,7 +9,7 @@ import { setSessionIdentity } from '@archi-web/lib/auth';
 import { setStorageBackend } from '@archi-web/lib/storage';
 import StudioHome from '@archi-web/pages/StudioHome';
 import StudioDocument from '@archi-web/pages/StudioDocument';
-import StudioKnowledge from '@archi-web/pages/StudioKnowledge';
+import StudioSources from '@archi-web/pages/StudioSources';
 import StudioMessenger from '@archi-web/pages/StudioMessenger';
 import StudioOntology from '@archi-web/pages/StudioOntology';
 import StudioSettings from '@archi-web/pages/StudioSettings';
@@ -90,7 +90,7 @@ export default function StudioApp() {
         <Route index element={<StudioHome />} />
         <Route path="wiki" element={<Suspense fallback={<StudioGate title="위키 라이브러리를 불러오는 중…" />}><StudioWiki /></Suspense>} />
         <Route path="knowledge" element={<Navigate to="/agent-studio/wiki" replace />} />
-        <Route path="sources" element={<StudioKnowledge />} />
+        <Route path="sources" element={<StudioSources />} />
         <Route path="messenger" element={<StudioMessenger />} />
         <Route path="ontology" element={<StudioOntology />} />
         <Route path="settings" element={<StudioSettings />} />

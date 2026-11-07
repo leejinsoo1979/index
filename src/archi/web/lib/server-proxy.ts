@@ -8,7 +8,7 @@ import { firebaseAuth } from '@/lib/firebase';
 export type ServerStatus = {
   available: boolean;
   /** Providers usable with the server's own environment keys, with default model. */
-  serverProviders: Partial<Record<'openai' | 'anthropic' | 'google' | 'grok', string>>;
+  serverProviders: Partial<Record<'openai' | 'anthropic' | 'google' | 'grok' | 'deepseek', string>>;
   canEncrypt: boolean;
   /** Real law/KDS/building search is available (api/_regulations.ts keys + OPENAI_API_KEY). */
   regulationSearch?: boolean;

@@ -10,6 +10,7 @@ export interface NavLink {
 
 export const primaryNav: NavLink[] = [
   { label: "AI", englishLabel: "AI", to: "/ai", adminOnly: true, newTab: true },
+  { label: "전문가와 대화", englishLabel: "People", to: "/experts" },
   { label: "케이스 라이브러리", englishLabel: "Case Library", to: "/cases" },
   { label: "세미나", englishLabel: "Seminars", to: "/seminars" },
   { label: "마이페이지", englishLabel: "My Page", to: "/mypage" },

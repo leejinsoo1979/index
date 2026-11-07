@@ -5,6 +5,7 @@ import { resolve, join, extname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadEnvironment } from './env.mjs';
 import { WikiStore } from './store.mjs';
+import { PersonaStore } from './persona-store.mjs';
 import { compileSource, answerQuestion, modelConfig, complete } from './llm.mjs';
 import { legacyApi } from './legacy-api.mjs';
 import { retrieve, reindex, scheduleReindex } from './retrieval/index.mjs';
@@ -13,6 +14,7 @@ loadEnvironment();
 const safeEqual = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.index-knowledge', testAuth, call, worker = true } = {}) {
   const store = new WikiStore(root);
+  const personas = new PersonaStore(store);
   if (worker) scheduleReindex(store, 1500);
   let active = false, stopped = false;
   const shutdown = new AbortController();
@@ -25,7 +27,12 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
       if (job) {
         const heartbeat = setInterval(() => store.db.prepare("UPDATE jobs SET lease_until=? WHERE id=? AND state='running'").run(Date.now() + 10 * 60 * 1000, job.id), 30000);
         try { store.finish(job.id, await compileSource(store, store.source(job.source_id), call || ((messages, json) => complete(messages, json, shutdown.signal)))); }
-        catch (error) { store.fail(job, error); }
+        catch (error) {
+          // A deploy/restart is not a failed source compilation and must not consume
+          // one of the source's three retries. Resume this exact job on next boot.
+          if(shutdown.signal.aborted)store.db.prepare("UPDATE jobs SET state='queued',attempts=MAX(0,attempts-1),available_at=0,lease_until=NULL,error=NULL WHERE id=? AND state='running'").run(job.id);
+          else store.fail(job,error);
+        }
         finally { clearInterval(heartbeat); }
       }
     } finally { active = false; }
@@ -71,6 +78,10 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
       }
       const parts = url.pathname.slice('/api/wiki/'.length).split('/').filter(Boolean);
       const who = actor.email || actor.uid;
+      if (req.method === 'POST' && parts[0] === 'personas') {
+        if (actor.uid !== 'index-service') return json(res, 403, { error: '개인 공간 API를 통해 접근해 주세요.' });
+        return json(res, 200, await personas.dispatch(body));
+      }
       if (req.method === 'GET' && parts[0] === 'status') {
         let model; try { model = modelConfig().model; } catch { model = null; }
         return json(res, 200, { ...store.status(), model, worker: active ? 'running' : 'idle' });
@@ -83,7 +94,7 @@ export function createWikiServer({ root = process.env.INDEX_KNOWLEDGE_DIR || '.i
         if (events.length > 100) throw new Error('한 번에 100개까지 기록할 수 있습니다.');
         return json(res, 200, { results: events.map(event => store.capture(event, who)) });
       }
-      if (req.method === 'GET' && parts[0] === 'sources') return json(res, 200, store.sources());
+      if (req.method === 'GET' && parts[0] === 'sources') return json(res, 200, store.sources({ originals: url.searchParams.get('kind') === 'originals' }));
       if (req.method === 'GET' && parts[0] === 'search') return json(res, 200, store.search((url.searchParams.get('q') || '').slice(0, 2000), true));
       if (req.method === 'POST' && parts[0] === 'sources') {
         if (body.base64 && !/\.(pdf|md|txt|json)$/i.test(body.name || '')) throw new Error('PDF, Markdown, TXT, JSON 자료만 업로드할 수 있습니다.');

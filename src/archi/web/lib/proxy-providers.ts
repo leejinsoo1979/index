@@ -10,7 +10,7 @@ import { callArchiServer } from './server-proxy';
 
 /** Which provider/key the server should use. No key → the server's own env key. */
 export type ProxyTarget = {
-  provider: 'openai' | 'anthropic' | 'google' | 'grok';
+  provider: 'openai' | 'anthropic' | 'google' | 'grok' | 'deepseek';
   model?: string;
   baseUrl?: string;
   encryptedApiKey?: string;

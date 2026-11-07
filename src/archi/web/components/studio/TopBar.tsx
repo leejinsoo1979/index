@@ -111,7 +111,7 @@ export function TopBar({ documentId, title, status, saveState }: Props) {
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4">
+    <header className="sd-pane-head sd-topbar flex h-12 shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4">
       <Link href="/studio" className="text-xs text-zinc-400 hover:text-zinc-900">
         ← 문서
       </Link>

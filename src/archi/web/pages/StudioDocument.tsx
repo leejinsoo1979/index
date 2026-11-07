@@ -10,6 +10,7 @@ import { BlockOutline } from '@archi-web/components/studio/BlockOutline';
 import { NavRail } from '@archi-web/components/studio/NavRail';
 import { ResizeHandle, useResizable } from '@archi-web/components/studio/Resizable';
 import { TopBar } from '@archi-web/components/studio/TopBar';
+import './StudioDocument.css';
 
 type DocMeta = { id: string; projectId: string; title: string; status: string };
 
@@ -103,11 +104,11 @@ export default function DocumentStudioPage() {
   }, [blocks, selectedBlockId]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-100">
+    <div className="sd-doc flex h-screen overflow-hidden bg-zinc-100">
       <NavRail />
 
       {/* 좌측 AI 에이전트 패널 (드래그로 너비 조절) */}
-      <aside style={{ width: chatPanel.width }} className="relative shrink-0 overflow-hidden">
+      <aside style={{ width: chatPanel.width }} className="sd-pane sd-pane--chat relative shrink-0 overflow-hidden">
         <AIChatPanel
           documentId={documentId}
           selectedBlockId={selectedBlockId}
@@ -119,7 +120,7 @@ export default function DocumentStudioPage() {
       </aside>
 
       {/* 중앙: 상단 바 + 문서 캔버스 */}
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="sd-main flex min-w-0 flex-1 flex-col">
         <TopBar
           documentId={documentId}
           title={docMeta?.title ?? ''}
@@ -128,7 +129,7 @@ export default function DocumentStudioPage() {
         />
 
         {/* 보기 전환: 문서(세로 흐름) ↔ 캔버스(자유 배치) */}
-        <div className="flex items-center gap-1 border-b border-zinc-200 bg-white px-4 py-1.5">
+        <div className="sd-tabs flex items-center gap-1 border-b border-zinc-200 bg-white px-4 py-1.5">
           {(
             [
               ['doc', '문서'],
@@ -138,9 +139,9 @@ export default function DocumentStudioPage() {
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              className={`sd-tab rounded-md px-3 py-1 text-xs font-semibold transition ${
                 viewMode === mode
-                  ? 'bg-zinc-900 text-white'
+                  ? 'is-on bg-zinc-900 text-white'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
               }`}
             >
@@ -148,7 +149,7 @@ export default function DocumentStudioPage() {
             </button>
           ))}
           {viewMode === 'canvas' && (
-            <span className="ml-2 text-[11px] text-zinc-400">
+            <span className="sd-tabs__hint ml-2 text-[11px] text-zinc-400">
               클릭=선택 · 드래그=이동 · 핸들=크기 · 더블클릭=편집 · Del=삭제 · ⌘/Ctrl+C·V=복사·붙여넣기
             </span>
           )}
@@ -156,8 +157,8 @@ export default function DocumentStudioPage() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {viewMode === 'doc' ? (
-            <div className="h-full p-4">
-              <div className="mx-auto h-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="sd-stage h-full p-4">
+              <div className="sd-paper mx-auto h-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
                 <BlockEditor
                   documentId={documentId}
                   selectedBlockId={selectedBlockId}
@@ -186,7 +187,7 @@ export default function DocumentStudioPage() {
       </main>
 
       {/* 우측 블록 패널 (드래그로 너비 조절) */}
-      <aside style={{ width: outlinePanel.width }} className="relative shrink-0 overflow-hidden">
+      <aside style={{ width: outlinePanel.width }} className="sd-pane sd-pane--outline relative shrink-0 overflow-hidden">
         <ResizeHandle side="right" onPointerDown={outlinePanel.onPointerDown} />
         <BlockOutline
           blocks={blocks}

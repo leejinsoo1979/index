@@ -52,7 +52,12 @@ export class WikiStore {
   page(id) { return unpack(this.db.prepare('SELECT data FROM pages WHERE id=?').get(id)); }
   history(id) { return this.db.prepare('SELECT data FROM revisions WHERE page_id=? ORDER BY version DESC').all(id).map(unpack); }
   source(id) { const row = this.db.prepare('SELECT * FROM sources WHERE id=?').get(id); return row ? { ...JSON.parse(row.data), content: row.text } : null; }
-  sources() { return this.db.prepare('SELECT data FROM sources ORDER BY rowid DESC LIMIT 100').all().map(unpack); }
+  /** All source rows (newest 100) by default. `{ originals: true }` lists uploaded files/documents only —
+   *  activity snapshots share this table and otherwise bury every PDF beyond the 100-row window. */
+  sources({ originals = false } = {}) {
+    if (!originals) return this.db.prepare('SELECT data FROM sources ORDER BY rowid DESC LIMIT 100').all().map(unpack);
+    return this.db.prepare("SELECT data FROM sources WHERE COALESCE(json_extract(data, '$.kind'), '') <> 'activity' ORDER BY rowid DESC LIMIT 500").all().map(unpack);
+  }
   savePage(input, options, actor, capture = true) {
     const title = String(input.title || '').trim();
     if (!title || title.length > 200 || typeof input.content !== 'string' || input.content.length > 120000) throw new Error('문서 제목 또는 본문 길이가 올바르지 않습니다.');
