@@ -1,0 +1,40 @@
+/* ARCHI Agent Studio host styles. The studio itself is styled with Tailwind utilities. */
+.archi-studio {
+  min-height: 100dvh;
+  background: #fafafa;
+  color: #18181b;
+  font-family: "Pretendard", "Geist Variable", system-ui, sans-serif;
+}
+
+/* `next/font/google` Black_Han_Sans stand-in (font is loaded by src/styles/global.css). */
+.archi-font-display {
+  font-family: "Black Han Sans", sans-serif;
+  font-weight: 400;
+}
+
+/*
+ * index's Astryx theme gives h1–h6, p, small and code fixed fonts/sizes/colors via
+ * :where(). The studio was built on plain Tailwind preflight where these inherit from
+ * their container, so restore inheritance here. In the `components` layer: after
+ * `astryx-theme` (so these win) and before `utilities` (so Tailwind classes still win).
+ */
+@layer components {
+  :where(.archi-studio) :where(h1, h2, h3, h4, h5, h6, p) {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+
+  :where(.archi-studio) :where(small) {
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+
+  :where(.archi-studio) :where(code, pre) {
+    font-size: 1em;
+    line-height: inherit;
+  }
+}

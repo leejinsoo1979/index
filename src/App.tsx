@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
@@ -13,12 +13,14 @@ import Team from "./pages/Team";
 import Placeholder from "./pages/Placeholder";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AgentStandalone from "./pages/AgentStandalone";
 import AdminBoards from "./pages/admin/AdminBoards";
 import AdminSeminars from "./pages/admin/AdminSeminars";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminMembers from "./pages/admin/AdminMembers";
 import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
+
+// ARCHI Agent Studio (ported from inshow_agent): large, so it is code-split.
+const StudioApp = lazy(() => import("./archi/StudioApp"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
 const implemented = new Set(["/", "/cases", "/seminars", "/mypage", "/signup", "/terms", "/about/organization"]);
@@ -52,7 +54,14 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/about/organization" element={<Team />} />
-        <Route path="/agent-studio" element={<AgentStandalone />} />
+        <Route
+          path="/agent-studio/*"
+          element={
+            <Suspense fallback={null}>
+              <StudioApp />
+            </Suspense>
+          }
+        />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="agent" element={<Navigate to="/agent-studio" replace />} />

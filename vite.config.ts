@@ -10,6 +10,19 @@ export default defineConfig(({ command }) => ({
     // dependency graph after packages are installed while the dev server runs.
     dedupe: ["react", "react-dom"],
     alias: {
+      // Ported ARCHI Agent Studio (src/archi): original package names + Next.js shims.
+      "@archi-web": path.resolve(__dirname, "src/archi/web"),
+      "@archi/db": path.resolve(__dirname, "src/archi/db/index.ts"),
+      ...Object.fromEntries(
+        ["shared", "editor", "ai", "knowledge", "ontology", "security", "export", "image"].map((pkg) => [
+          `@archi/${pkg}`,
+          path.resolve(__dirname, `src/archi/packages/${pkg}/index.ts`),
+        ]),
+      ),
+      "next/server": path.resolve(__dirname, "src/archi/shims/next-server.ts"),
+      "next/link": path.resolve(__dirname, "src/archi/shims/next-link.tsx"),
+      "next/navigation": path.resolve(__dirname, "src/archi/shims/next-navigation.ts"),
+      "next/font/google": path.resolve(__dirname, "src/archi/shims/next-font-google.ts"),
       "@": path.resolve(__dirname, "src"),
       // @astryxdesign/core dist is compiled with the DEV jsx transform;
       // React's production jsx-dev-runtime exports jsxDEV=undefined, which

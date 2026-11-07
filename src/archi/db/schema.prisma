@@ -1,0 +1,491 @@
+// ARCHI Agent Studio - Prisma schema
+// DATA_MODEL.md 기준. MVP에 필요한 모델부터 단계적으로 추가한다.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  createdAt    DateTime      @default(now())
+  memberships  Membership[]
+  chatMessages ChatMessage[]
+  auditLogs    AuditLog[]
+}
+
+model Organization {
+  id         String       @id @default(cuid())
+  name       String
+  createdAt  DateTime     @default(now())
+  workspaces Workspace[]
+  members    Membership[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([userId, organizationId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+  KNOWLEDGE_REVIEWER
+}
+
+model Workspace {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  projects       Project[]
+  knowledgeSources KnowledgeSource[]
+}
+
+model Project {
+  id          String     @id @default(cuid())
+  workspaceId String
+  name        String
+  clientName  String?
+  location    String?
+  createdAt   DateTime   @default(now())
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+  documents   Document[]
+  images      ImageAsset[]
+}
+
+model Document {
+  id           String         @id @default(cuid())
+  projectId    String
+  title        String
+  type         DocumentType   @default(BLOG_POST)
+  status       DocumentStatus @default(DRAFT)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  project      Project        @relation(fields: [projectId], references: [id])
+  blocks       DocumentBlock[]
+  chatSessions ChatSession[]
+  exports      ExportJob[]
+}
+
+enum DocumentType {
+  BLOG_POST
+  PROPOSAL
+  REPORT
+  SNS_CAPTION
+  KNOWLEDGE_NOTE
+}
+
+enum DocumentStatus {
+  DRAFT
+  NEEDS_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+model DocumentBlock {
+  id         String   @id @default(cuid())
+  documentId String
+  parentId   String?
+  type       String
+  sortOrder  Int
+  content    Json
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  parent     DocumentBlock?  @relation("BlockChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   DocumentBlock[] @relation("BlockChildren")
+  citations  Citation[]
+
+  @@index([documentId, sortOrder])
+  @@index([parentId])
+}
+
+model Citation {
+  id          String         @id @default(cuid())
+  blockId     String?
+  url         String?
+  title       String
+  publisher   String?
+  quote       String?
+  sourceType  String?
+  retrievedAt DateTime?
+  createdAt   DateTime       @default(now())
+  block       DocumentBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+
+  @@index([blockId])
+}
+
+model ChatSession {
+  id         String        @id @default(cuid())
+  documentId String?
+  projectId  String?
+  title      String?
+  /** 세션 간 회상을 위한 LLM 요약 (Hermes식 cross-session memory) */
+  summary    String?
+  summaryAt  DateTime?
+  createdAt  DateTime      @default(now())
+  document   Document?     @relation(fields: [documentId], references: [id])
+  messages   ChatMessage[]
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  chatSessionId String
+  userId        String?
+  role          MessageRole
+  content       Json
+  createdAt     DateTime    @default(now())
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id])
+
+  @@index([chatSessionId, createdAt])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+model AgentAction {
+  id            String            @id @default(cuid())
+  chatSessionId String?
+  documentId    String?
+  type          String
+  payload       Json
+  riskLevel     String            @default("low")
+  requiresApproval Boolean        @default(true)
+  status        AgentActionStatus @default(PROPOSED)
+  createdAt     DateTime          @default(now())
+  executedAt    DateTime?
+
+  @@index([chatSessionId, status])
+}
+
+enum AgentActionStatus {
+  PROPOSED
+  APPROVED
+  EXECUTED
+  REJECTED
+  FAILED
+}
+
+model KnowledgeSource {
+  id          String              @id @default(cuid())
+  workspaceId String
+  title       String
+  sourceType  KnowledgeSourceType @default(FILE)
+  uri         String?
+  fileKey     String?
+  status      KnowledgeStatus     @default(PENDING_PROCESSING)
+  trustLevel  TrustLevel          @default(INTERNAL_UNVERIFIED)
+  error       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id])
+  chunks      KnowledgeChunk[]
+
+  @@index([workspaceId, status, sourceType])
+}
+
+enum KnowledgeSourceType {
+  FILE
+  URL
+  OFFICIAL_LAW
+  KCSC
+  MANUFACTURER
+  INTERNAL_MANUAL
+  WEB
+}
+
+enum KnowledgeStatus {
+  PENDING_PROCESSING
+  PROCESSING
+  PENDING_REVIEW
+  APPROVED
+  ARCHIVED
+  FAILED
+}
+
+enum TrustLevel {
+  OFFICIAL
+  MANUFACTURER
+  INTERNAL_APPROVED
+  INTERNAL_UNVERIFIED
+  WEB_UNVERIFIED
+}
+
+model KnowledgeChunk {
+  id         String          @id @default(cuid())
+  sourceId   String
+  text       String
+  chunkIndex Int
+  page       Int?
+  section    String?
+  tokenCount Int?
+  embedding  Json?
+  metadata   Json?
+  source     KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, chunkIndex])
+}
+
+model OntologyNode {
+  id          String         @id @default(cuid())
+  workspaceId String
+  label       String
+  type        String
+  description String?
+  status      OntologyStatus @default(CANDIDATE)
+  confidence  Float?
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  outgoing    OntologyEdge[] @relation("EdgeSource")
+  incoming    OntologyEdge[] @relation("EdgeTarget")
+
+  @@index([workspaceId, type, status])
+}
+
+model OntologyEdge {
+  id           String         @id @default(cuid())
+  workspaceId  String
+  sourceNodeId String
+  targetNodeId String
+  relationType String
+  status       OntologyStatus @default(CANDIDATE)
+  confidence   Float?
+  evidence     Json?
+  createdAt    DateTime       @default(now())
+  sourceNode   OntologyNode   @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode   OntologyNode   @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, sourceNodeId, targetNodeId, relationType])
+}
+
+enum OntologyStatus {
+  CANDIDATE
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+model ImageAsset {
+  id          String         @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  title       String?
+  source      ImageSource
+  createdAt   DateTime       @default(now())
+  project     Project?       @relation(fields: [projectId], references: [id])
+  versions    ImageVersion[]
+
+  @@index([workspaceId, createdAt])
+}
+
+enum ImageSource {
+  UPLOADED
+  GENERATED
+  INPAINTED
+}
+
+model ImageVersion {
+  id           String     @id @default(cuid())
+  imageAssetId String
+  fileKey      String
+  mimeType     String?
+  prompt       String?
+  maskFileKey  String?
+  provider     String?
+  model        String?
+  width        Int?
+  height       Int?
+  createdAt    DateTime   @default(now())
+  imageAsset   ImageAsset @relation(fields: [imageAssetId], references: [id], onDelete: Cascade)
+
+  @@index([imageAssetId, createdAt])
+}
+
+model ExportJob {
+  id          String       @id @default(cuid())
+  documentId  String
+  format      ExportFormat
+  status      ExportStatus @default(QUEUED)
+  fileKey     String?
+  filename    String?
+  mimeType    String?
+  error       String?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+  document    Document     @relation(fields: [documentId], references: [id])
+
+  @@index([documentId, status])
+}
+
+enum ExportFormat {
+  TXT
+  MARKDOWN
+  PDF
+  DOCX
+  HTML
+  JSON
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+model Channel {
+  id          String           @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime         @default(now())
+  messages    ChannelMessage[]
+
+  @@index([workspaceId])
+}
+
+model ChannelMessage {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String?
+  authorType String  @default("user") // user | system | agent
+  text      String
+  createdAt DateTime @default(now())
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+}
+
+model Task {
+  id               String      @id @default(cuid())
+  workspaceId      String
+  projectId        String?
+  channelMessageId String?
+  title            String
+  description      String?
+  assigneeAgent    String?
+  status           TaskStatus  @default(QUEUED)
+  output           Json?
+  outputDocumentId String?
+  requiresReview   Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  events           TaskEvent[]
+
+  @@index([workspaceId, status, updatedAt])
+}
+
+enum TaskStatus {
+  QUEUED
+  RUNNING
+  BLOCKED
+  NEEDS_REVIEW
+  DONE
+  FAILED
+  CANCELED
+}
+
+model TaskEvent {
+  id        String   @id @default(cuid())
+  taskId    String
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model LlmProviderConfig {
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  provider              String // anthropic | openai | custom
+  authType              String    @default("api_key") // api_key | oauth
+  model                 String?
+  baseUrl               String?
+  encryptedApiKey       String?
+  /// 목록 표시용 마스킹 힌트(끝 4자리). 키 원문은 브라우저에 남기지 않는다.
+  apiKeyHint            String?
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([workspaceId, isActive])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String?
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id])
+
+  @@index([targetType, targetId])
+}
+
+// 로컬 컴패니언 워커 (Codex/Claude CLI를 사용자 머신에서 구동, 헤르메스식 사이드카)
+model CompanionDevice {
+  id          String         @id @default(cuid())
+  workspaceId String
+  name        String
+  /** sha256(deviceToken) — 평문 토큰은 저장하지 않음 */
+  tokenHash   String?
+  /** 단기 페어링 코드 (등록 후 제거) */
+  pairCode    String?
+  pairExpires DateTime?
+  status      String         @default("PENDING") // PENDING | ACTIVE
+  lastSeenAt  DateTime?
+  createdAt   DateTime       @default(now())
+  jobs        CompanionJob[]
+
+  @@index([workspaceId])
+  @@index([pairCode])
+  @@index([tokenHash])
+}
+
+model CompanionJob {
+  id          String           @id @default(cuid())
+  workspaceId String
+  deviceId    String?
+  documentId  String?
+  tool        String           @default("codex") // codex | claude
+  prompt      String
+  status      String           @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  result      String?
+  error       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  device      CompanionDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+}

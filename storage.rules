@@ -4,5 +4,9 @@ service firebase.storage {
     match /agent-studio/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    // ARCHI Agent Studio files (images, knowledge uploads, exports).
+    match /archi-studio/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }

@@ -18,7 +18,14 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@archi-web/*": ["./src/archi/web/*"],
+      "@archi/db": ["./src/archi/db/index.ts"],
+      "@archi/*": ["./src/archi/packages/*/index.ts"],
+      "next/server": ["./src/archi/shims/next-server.ts"],
+      "next/link": ["./src/archi/shims/next-link.tsx"],
+      "next/navigation": ["./src/archi/shims/next-navigation.ts"],
+      "next/font/google": ["./src/archi/shims/next-font-google.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]
