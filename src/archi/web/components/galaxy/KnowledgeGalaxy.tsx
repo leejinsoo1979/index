@@ -113,6 +113,14 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
           <div className="rcrumb" id="gx-r-crumb" />
           <button className="rx" id="gx-r-close" title="닫기 (Esc)" aria-label="문서 닫기">&times;</button>
         </div>
+        <div className="rmedia" id="gx-media" hidden>
+          <div className="rmedia-bar">
+            <span id="gx-media-title" />
+            <a id="gx-media-out" href="#" target="_blank" rel="noopener">새 창 &#8599;</a>
+            <button type="button" id="gx-media-close" aria-label="자료 닫기">&times;</button>
+          </div>
+          <div className="rmedia-frame" id="gx-media-frame" />
+        </div>
         <div className="rscroll" id="gx-r-scroll"><article className="prose" id="gx-r-body" /></div>
       </aside>
 

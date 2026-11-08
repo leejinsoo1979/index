@@ -763,6 +763,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
   const rBody = $('#gx-r-body'), rScroll = $('#gx-r-scroll'), rCrumb = $('#gx-r-crumb'), reader = $('#gx-reader');
   let pendingAnchor = null;
   function renderReader(n) {
+    closeMedia();
     const P = PAGES[n.id], sec = byId.get(n.sec);
     const i = FLAT.indexOf(n.id), prev = FLAT[i - 1], next = FLAT[i + 1];
     rCrumb.innerHTML = `<b style="color:${cssDot(n)}">${esc(sec.badge)}</b><button data-go="${esc(sec.id)}">${esc(sec.label)}</button> · ${n.of}개 중 ${n.pos}번째`;
@@ -777,7 +778,74 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     if (pendingAnchor) { const el = rBody.querySelector('#' + CSS.escape(pendingAnchor)); if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 450); pendingAnchor = null; }
     rScroll.style.scrollBehavior = '';
   }
+  // ---- in-reader media: sources open beside the text instead of in a new tab
+  const media = $('#gx-media'), mediaFrame = $('#gx-media-frame'), mediaTitle = $('#gx-media-title'), mediaOut = $('#gx-media-out');
+  const secs = v => {
+    if (!v) return 0;
+    if (/^\d+$/.test(v)) return +v;
+    const m = v.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);
+    return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0;
+  };
+  const clockSecs = v => v.split(':').reduce((a, x) => a * 60 + +x, 0);
+  function youtube(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\.|^m\./, '');
+      let id = '';
+      if (host === 'youtu.be') id = u.pathname.slice(1);
+      else if (host.endsWith('youtube.com')) id = u.searchParams.get('v') || (u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/) || [])[1] || '';
+      if (!/^[\w-]{6,20}$/.test(id)) return null;
+      return { id, start: secs(u.searchParams.get('t') || u.searchParams.get('start') || '') };
+    } catch { return null; }
+  }
+  function closeMedia() {
+    if (media.hidden) return false;
+    media.hidden = true;
+    mediaFrame.innerHTML = '';
+    rootEl.classList.remove('has-media');
+    return true;
+  }
+  function openMedia(a) {
+    const href = a.getAttribute('href');
+    if (!href) return;
+    const yt = youtube(href);
+    // a range written right after the link ("· 03:08~03:38") becomes the clip's end
+    const after = (a.nextSibling?.textContent || '').match(/(\d{1,2}:\d{2}(?::\d{2})?)\s*[~–-]\s*(\d{1,2}:\d{2}(?::\d{2})?)/);
+    let src, kind;
+    if (yt) {
+      const start = after ? clockSecs(after[1]) : yt.start;
+      const end = after ? clockSecs(after[2]) : 0;
+      src = `https://www.youtube-nocookie.com/embed/${yt.id}?autoplay=1&rel=0&start=${start}${end > start ? `&end=${end}` : ''}`;
+      kind = 'video';
+    } else {
+      src = href;
+      kind = 'page';
+    }
+    mediaTitle.textContent = a.textContent.replace(/\s*↗$/, '').trim() || href;
+    mediaOut.href = href;
+    mediaFrame.className = 'rmedia-frame is-' + kind;
+    mediaFrame.innerHTML = '';
+    const f = document.createElement('iframe');
+    f.src = src;
+    f.title = mediaTitle.textContent;
+    f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    f.referrerPolicy = 'strict-origin-when-cross-origin';
+    if (kind === 'page') f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    mediaFrame.appendChild(f);
+    if (kind === 'page') {
+      const note = document.createElement('p');
+      note.className = 'rmedia-note';
+      note.textContent = '화면이 비어 있으면 그 사이트가 미리보기를 막은 것입니다. 오른쪽 위 ‘새 창’으로 열어 주세요.';
+      mediaFrame.appendChild(note);
+    }
+    media.hidden = false;
+    rootEl.classList.add('has-media');
+  }
+  $('#gx-media-close').onclick = () => closeMedia();
+
   reader.addEventListener('click', e => {
+    const ext = e.target.closest('#gx-r-body a.ext, #gx-r-body a[href^="/wiki-assets/"]');
+    if (ext && !(e.metaKey || e.ctrlKey || e.shiftKey)) { e.preventDefault(); return openMedia(ext); }
     const o = e.target.closest('[data-open]');
     if (o) { e.preventDefault(); return host.openPage(o.dataset.open); }
     const g = e.target.closest('[data-go]');
@@ -914,6 +982,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     if (e.key === '/') { e.preventDefault(); q.focus(); return; }
     if (e.key === 'Escape') {
       if (rootEl.classList.contains('c-open')) return closeContents();
+      if (S.mode === 'read' && closeMedia()) return;
       if (S.mode === 'read') return go(S.sel.id);
       if (S.mode === 'focus') return go('root');
     }

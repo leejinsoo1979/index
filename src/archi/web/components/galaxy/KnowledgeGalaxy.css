@@ -340,3 +340,17 @@
 .sbos .brand .logo,.sbos #gx-boot .logo{font:600 21px/1 "Chillax",var(--serif);letter-spacing:-.4px;color:var(--ink)}
 .sbos .brand em{font-style:normal;color:var(--ink)}
 .sbos .brand span{color:var(--accent)}
+
+/* sources open inside the reader: video/page pinned above the text */
+.sbos .rmedia{flex:none;border-bottom:var(--edge);background:var(--paper)}
+.sbos .rmedia[hidden]{display:none}
+.sbos .rmedia-bar{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 24px;font:12px/1.4 var(--mono);color:var(--faint)}
+.sbos .rmedia-bar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--soft)}
+.sbos .rmedia-bar a{color:var(--accent);white-space:nowrap}
+.sbos .rmedia-bar button{width:28px;height:28px;border-radius:6px;font-size:19px;line-height:1;color:var(--faint)}
+.sbos .rmedia-bar button:hover{background:var(--accent-bg);color:var(--ink)}
+.sbos .rmedia-frame iframe{display:block;width:100%;border:0;background:#000}
+.sbos .rmedia-frame.is-video iframe{aspect-ratio:16/9;max-height:52vh}
+.sbos .rmedia-frame.is-page iframe{height:56vh;background:#fff}
+.sbos .rmedia-note{padding:8px 24px 10px;font:11.5px/1.5 var(--mono);color:var(--faint)}
+.sbos .prose a.ext{cursor:pointer}
