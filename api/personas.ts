@@ -39,7 +39,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   const action=String(body.action||'directory');
   if(req.method==='GET'&&!['directory','profile'].includes(action)){res.status(405).json({error:'이 요청에는 POST를 사용해 주세요.'});return;}
   let actor:{uid:string;email?:string;name?:string;admin:boolean}|null=null;
-  try{if(!['directory','profile'].includes(action)||req.headers.authorization){const user=await verifyFirebaseUser(req);actor={uid:user.uid,email:user.email,name:typeof user.name==='string'?user.name:undefined,admin:isAdminEmail(user.email)};}}catch{res.status(401).json({error:'회원 로그인 후 개인 대화를 시작할 수 있습니다.',code:'LOGIN_REQUIRED'});return;}
+  try{if(!['directory','profile'].includes(action)||req.headers.authorization){const user=await verifyFirebaseUser(req);actor={uid:user.uid,email:user.email,name:typeof (user as {name?:unknown}).name==='string'?(user as {name?:string}).name:undefined,admin:isAdminEmail(user.email)};}}catch{res.status(401).json({error:'회원 로그인 후 개인 대화를 시작할 수 있습니다.',code:'LOGIN_REQUIRED'});return;}
   try{
     // The browser never supplies actor/roles, prompts, evidence, prior messages, or completion records.
     if(action==='chat'){

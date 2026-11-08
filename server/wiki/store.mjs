@@ -20,7 +20,10 @@ export function atomicFile(path, bytes) {
 }
 const unpack = row => row ? JSON.parse(row.data) : null;
 /** Activity records that are memory only — compiling them would duplicate existing pages. */
-export const NON_COMPILABLE_ACTIVITY = new Set(['WikiPage']);
+// Studio activity (document blocks, AI chats, wiki edits, ontology records…) is kept as raw
+// evidence but never compiled into wiki pages: compiling it turned drafts and system records
+// into pages like "34평형 아파트" or "온톨로지 노드". Only uploaded/imported sources compile.
+export const NON_COMPILABLE_ACTIVITY = { has: () => true };
 
 export class WikiStore {
   constructor(root) {
@@ -139,8 +142,7 @@ export class WikiStore {
     const row = this.db.prepare('SELECT text, data FROM sources WHERE id=?').get(sourceId);
     if (!row) return false;
     const source = JSON.parse(row.data);
-    if (source.kind !== 'activity') return true;
-    try { return !NON_COMPILABLE_ACTIVITY.has(JSON.parse(row.text || '{}').recordType); } catch { return true; }
+    return source.kind !== 'activity';
   }
   claim() {
     return this.transaction(() => {
