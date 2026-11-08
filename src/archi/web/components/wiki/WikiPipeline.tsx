@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { knowledgeOriginal, knowledgeRequest } from '@/lib/knowledgeServer';
 import { knowledgeCaptureError, pendingKnowledgeEvents, flushKnowledgeEvents } from '@/lib/knowledgeCapture';
 import { WikiMarkdown } from './WikiMarkdown';
+import { ThinkingOrbLabel } from '@/components/orbs/ThinkingOrb';
 import type { WikiPage } from '../../../wiki/types';
 
 type Job = { id: string; state: string; attempts: number; error: string | null };
@@ -104,7 +105,7 @@ export function WikiAssistant({ pages, onNavigate, onClose }: { pages: WikiPage[
               onClick={() => { if (c.id) onNavigate(c.id); else if (c.sourceId) void knowledgeOriginal(c.sourceId).then(url => window.open(url, '_blank', 'noopener')).catch(() => {}); }}>
               {c.number}. {c.title}{c.pages ? ` · ${c.pages}` : ''}{c.status !== 'published' ? ' · 검수 전' : ''}</button>)}</div>}
           </div>)}
-      {busy && <div className="wk-chat-turn wk-chat-turn--ai"><span className="wk-chat-typing" aria-label="답변 작성 중"><i /><i /><i /></span></div>}
+      {busy && <div className="wk-chat-turn wk-chat-turn--ai"><ThinkingOrbLabel design="searching">위키에서 근거를 찾는 중…</ThinkingOrbLabel></div>}
     </div>
     <form className="wk-chat-composer" onSubmit={event => { event.preventDefault(); void ask(input); }}>
       <textarea ref={inputRef} value={input} rows={1} maxLength={1800} placeholder="INDEX AI에게 질문하기" aria-label="질문 입력"

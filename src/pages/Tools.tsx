@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { CustomSelect } from "@/components/ui/custom-select";
+import ThinkingOrb from "@/components/orbs/ThinkingOrb";
+import type { OrbDesign } from "@/components/orbs/orbEngine";
 import { AUDIENCES, LIFECYCLE_STAGES, audienceLabel, stageLabel } from "@/data/lifecycle";
 import "./Tools.css";
 
@@ -43,6 +45,24 @@ type Source = { id: string; title: string; publisher?: string; url?: string; sni
 type RunResult = { ok: true; sources: Source[]; data: unknown } | { ok: false; error: string };
 
 const ALL = "all";
+
+/** Loading orb per tool: AI judgement → solving, rule engines → working, lookups → searching. */
+const RUNNING_ORB: Record<string, OrbDesign> = {
+  "quote-review": "solving",
+  "defect-diagnosis": "solving",
+  "work-permit": "working",
+  "defect-period": "working",
+  "company-check": "connecting",
+  "wiki-evidence": "searching",
+};
+const RUNNING_TEXT: Record<string, string> = {
+  "quote-review": "견적서를 검토하는 중입니다…",
+  "defect-diagnosis": "증상과 협회 자료를 맞춰 보는 중입니다…",
+  "work-permit": "법령 기준과 맞춰 보는 중입니다…",
+  "defect-period": "책임기간을 계산하는 중입니다…",
+  "company-check": "국세청과 키스콘을 함께 조회하는 중입니다…",
+  "wiki-evidence": "협회 자료에서 근거를 찾는 중입니다…",
+};
 
 function useTools() {
   const [tools, setTools] = useState<Tool[] | null>(null);
@@ -344,7 +364,12 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
 
         <section className="tool-result" aria-live="polite">
           {!result && !running && <p className="tool-result__idle">입력하고 실행하면 결과와 근거가 여기에 나옵니다.</p>}
-          {running && <p className="tool-result__idle">확인하는 중입니다…</p>}
+          {running && (
+            <div className="tool-result__running">
+              <ThinkingOrb design={RUNNING_ORB[tool.id] ?? "searching"} />
+              <p>{RUNNING_TEXT[tool.id] ?? "공공 원천에서 확인하는 중입니다…"}</p>
+            </div>
+          )}
           {result && !result.ok && <p className="tool-result__error">{result.error}</p>}
           {result && result.ok && (
             <>

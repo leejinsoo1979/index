@@ -1,0 +1,3 @@
+INDEX ports the ThinkingOrbs geometry engine (Sources/ThinkingOrbs/Engine, MIT) by Haplo LLC,
+itself a port of Jakub Antalik's thinking-orbs web engine (MIT), to TypeScript in
+src/components/orbs/orbEngine.ts. Upstream: https://github.com/haplollc/ThinkingOrbs

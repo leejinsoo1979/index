@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { expertRequest } from "../lib/personas";
 import type { ExpertProfile } from "../types/personas";
 import ParticleTitle from "../components/ParticleTitle";
+import { ThinkingOrbLabel } from "../components/orbs/ThinkingOrb";
 import { useAuth } from "../auth/AuthContext";
 import "./Home.css";
 
@@ -781,7 +782,9 @@ export default function Home() {
 
                 {isResponding && activeConversation?.messages.at(-1)?.role !== "assistant" && (
                   <div className="home-chat__msg home-chat__msg--assistant">
-                    <span className="home-chat__typing"><i /><i /><i /></span>
+                    <ThinkingOrbLabel design={askModel === "심층 분석" ? "solving" : "composing"}>
+                      {askModel === "심층 분석" ? "깊이 분석하는 중…" : "답변을 준비하는 중…"}
+                    </ThinkingOrbLabel>
                   </div>
                 )}
 
