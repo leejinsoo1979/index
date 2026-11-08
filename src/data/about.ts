@@ -9,8 +9,8 @@ export const about = {
     title: "전문가의 연결로,",
     titleAccent: "더 나은 주거공간을 만듭니다.",
     lead: "INDEX는 주거 실내건축 분야의 전문가들이 모여\n정보와 경험을 나누고, 공간의 혁신과 인테리어의 다양한 문제 해결을 함께 추구하는 집단입니다.",
-    primary: { label: "경험과 사례 둘러보기", to: "/cases" },
-    secondary: { label: "세미나 일정 보기", to: "/seminars" },
+    primary: { label: "INDEX AI에게 질문하기", to: "/" },
+    secondary: { label: "에이전트 둘러보기", to: "#showcase" },
   },
 
   mission: {
@@ -93,7 +93,7 @@ export const about = {
     title: "경험을 나누고,",
     titleAccent: "함께 주거의 다음을 만듭니다.",
     body: "질문과 경험, 새로운 아이디어를 연결합니다.\n주거 실내건축의 더 나은 해법을 INDEX에서 함께 찾아보세요.",
-    primary: { label: "경험과 사례 둘러보기", to: "/cases" },
+    primary: { label: "INDEX AI에게 질문하기", to: "/" },
     secondary: { label: "세미나 신청하기", to: "/seminars" },
   },
 };

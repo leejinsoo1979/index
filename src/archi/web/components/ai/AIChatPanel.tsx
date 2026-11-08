@@ -1,7 +1,17 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AssistantRuntimeProvider,
+  useAssistantRuntime,
+  useAssistantToolUI,
+  useLocalRuntime,
+  type ChatModelAdapter,
+  type ThreadAssistantMessagePart,
+} from '@assistant-ui/react';
+import { Thread } from '@/components/assistant-ui/thread';
 import { apiFetch } from '@archi-web/lib/client/api';
+import './AIChatPanel.css';
 
 type ChatModelInfo = {
   workspaceId: string;
@@ -35,11 +45,13 @@ type SourceCard = {
   sourceType: string;
 };
 
-type ChatItem =
-  | { kind: 'user'; text: string }
-  | { kind: 'assistant'; text: string; streaming?: boolean; agentLabel?: string }
-  | { kind: 'sources'; sources: SourceCard[] }
-  | { kind: 'actions'; actions: ActionPreview[] };
+type ChatResult = {
+  chatSessionId: string;
+  reply: { text: string };
+  agentRole?: { key: string; label: string };
+  sources: SourceCard[];
+  actions: ActionPreview[];
+};
 
 type Props = {
   documentId: string;
@@ -65,34 +77,31 @@ const ACTION_LABELS: Record<string, string> = {
   generate_image: '이미지 생성',
 };
 
-export function AIChatPanel({
-  documentId,
-  selectedBlockId,
-  selectedBlockLabel,
-  onDocumentChanged,
-  initialPrompt,
-}: Props) {
-  const [items, setItems] = useState<ChatItem[]>([
-    {
-      kind: 'assistant',
-      text: '안녕하세요, INDEX 에이전트입니다. 블로그 초안 작성이나 블록 수정을 도와드릴게요. 블록을 선택한 뒤 "전문가 톤으로 바꿔줘"처럼 요청할 수도 있습니다.',
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [sessionId, setSessionId] = useState<string | undefined>();
-  const [busy, setBusy] = useState(false);
+/** Per-panel state the in-thread cards need (approval status, decide handler, block selection). */
+type PanelContextValue = {
+  statuses: Record<string, { status: 'EXECUTED' | 'REJECTED'; warnings?: string[] }>;
+  decide: (actionId: string, decision: 'approve' | 'reject') => Promise<void>;
+  selectedBlockId: string | null;
+};
+const PanelContext = createContext<PanelContextValue>({ statuses: {}, decide: async () => {}, selectedBlockId: null });
+
+/**
+ * 문서 작성기 AI 패널 — assistant-ui의 Thread(ChatGPT식 대화 UI)를 쓰고,
+ * 응답은 기존 /api/ai/chat(문서 에이전트)에서 받는다. 문서 수정 제안은 대화 안의 승인 카드로,
+ * 근거는 접힌 한 줄로 보인다.
+ */
+export function AIChatPanel({ documentId, selectedBlockId, selectedBlockLabel, onDocumentChanged, initialPrompt }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [activeTeam, setActiveTeam] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [statuses, setStatuses] = useState<PanelContextValue['statuses']>({});
+  const sessionRef = useRef<string | undefined>(undefined);
+  const ctxRef = useRef({ documentId, selectedBlockId });
+  ctxRef.current = { documentId, selectedBlockId };
 
   // 커서 스타일 모델 셀렉터
   const [modelInfo, setModelInfo] = useState<ChatModelInfo | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [items]);
 
   const loadModelInfo = useCallback(() => {
     apiFetch<ChatModelInfo>(`/api/ai/model?documentId=${documentId}`)
@@ -134,324 +143,294 @@ export function AIChatPanel({
       : modelInfo?.serverDefault
         ? `${modelInfo.serverDefault.providerLabel} · ${modelInfo.serverDefault.model ?? '기본'}`
         : '모델 미설정';
+  const modelShort = modelInfo?.isMock ? '미연결' : (modelInfo?.active?.model ?? modelInfo?.serverDefault?.model ?? '모델 선택');
 
-  /** 어시스턴트 응답을 표시 (전체 텍스트를 한 번에 — 타자기 효과의 잔여 글자 버그 제거) */
-  function streamAssistantText(text: string, agentLabel?: string): Promise<void> {
-    setItems((prev) => [...prev, { kind: 'assistant', text, streaming: false, agentLabel }]);
-    return Promise.resolve();
-  }
+  /** assistant-ui runtime adapter → existing document agent endpoint. */
+  const adapter = useMemo<ChatModelAdapter>(
+    () => ({
+      async run({ messages }) {
+        const last = [...messages].reverse().find((m) => m.role === 'user');
+        const text = last
+          ? last.content
+              .map((part) => (part.type === 'text' ? part.text : ''))
+              .join('\n')
+              .trim()
+          : '';
+        if (!text) return { content: [{ type: 'text', text: '' }] };
+        setError(null);
+        const { documentId: docId, selectedBlockId: blockId } = ctxRef.current;
+        const result = await apiFetch<ChatResult>('/api/ai/chat', {
+          method: 'POST',
+          body: JSON.stringify({
+            chatSessionId: sessionRef.current,
+            documentId: docId,
+            selectedBlockIds: blockId ? [blockId] : [],
+            message: text,
+          }),
+        });
+        sessionRef.current = result.chatSessionId;
+        if (result.agentRole) setActiveTeam(result.agentRole.label);
+        const content: ThreadAssistantMessagePart[] = [{ type: 'text', text: result.reply.text }];
+        if (result.sources.length > 0) {
+          const args = { sources: result.sources.map((s) => ({ id: s.id, title: s.title, url: s.url })) };
+          content.push({
+            type: 'tool-call',
+            toolCallId: `evidence-${result.sources[0]!.id}-${Date.now()}`,
+            toolName: 'document_evidence',
+            args,
+            argsText: JSON.stringify(args),
+            result: { ok: true },
+          });
+        }
+        if (result.actions.length > 0) {
+          const args = { actions: JSON.parse(JSON.stringify(result.actions)) };
+          content.push({
+            type: 'tool-call',
+            toolCallId: `actions-${result.actions[0]!.id}`,
+            toolName: 'document_actions',
+            args,
+            argsText: JSON.stringify(args),
+            result: { proposed: true },
+          });
+        }
+        return { content };
+      },
+    }),
+    [],
+  );
+  const runtime = useLocalRuntime(adapter);
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    const message = input.trim();
-    if (!message || busy) return;
-    setInput('');
-    await sendMessage(message);
-  }
-
+  // 홈에서 넘어온 첫 요청은 한 번만 보낸다.
   const initialSentRef = useRef(false);
   useEffect(() => {
     const message = initialPrompt?.trim();
     if (!message || initialSentRef.current) return;
     initialSentRef.current = true;
-    void sendMessage(message);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPrompt]);
+    runtime.thread.append({ role: 'user', content: [{ type: 'text', text: message }] });
+  }, [initialPrompt, runtime]);
 
-  async function sendMessage(message: string) {
-    setError(null);
-    setBusy(true);
-    setItems((prev) => [...prev, { kind: 'user', text: message }]);
-    try {
-      const result = await apiFetch<{
-        chatSessionId: string;
-        reply: { text: string };
-        agentRole?: { key: string; label: string };
-        sources: SourceCard[];
-        actions: ActionPreview[];
-      }>('/api/ai/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          chatSessionId: sessionId,
-          documentId,
-          selectedBlockIds: selectedBlockId ? [selectedBlockId] : [],
-          message,
-        }),
-      });
-      setSessionId(result.chatSessionId);
-      if (result.agentRole) setActiveTeam(result.agentRole.label);
-      await streamAssistantText(result.reply.text, result.agentRole?.label);
-      if (result.sources.length > 0) {
-        setItems((prev) => [...prev, { kind: 'sources', sources: result.sources }]);
+  const decide = useCallback(
+    async (actionId: string, decision: 'approve' | 'reject') => {
+      setError(null);
+      try {
+        const res = await apiFetch<{ result?: { warnings?: string[] } }>(`/api/ai/actions/${actionId}/${decision}`, {
+          method: 'POST',
+        });
+        const warnings = Array.isArray(res?.result?.warnings) ? res.result!.warnings : undefined;
+        setStatuses((prev) => ({
+          ...prev,
+          [actionId]: { status: decision === 'approve' ? 'EXECUTED' : 'REJECTED', warnings },
+        }));
+        if (decision === 'approve') onDocumentChanged();
+      } catch (err) {
+        setError((err as Error).message);
       }
-      if (result.actions.length > 0) {
-        setItems((prev) => [...prev, { kind: 'actions', actions: result.actions }]);
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [onDocumentChanged],
+  );
 
-  async function handleAction(actionId: string, decision: 'approve' | 'reject') {
-    setError(null);
-    try {
-      const res = await apiFetch<{ result?: { warnings?: string[] } }>(
-        `/api/ai/actions/${actionId}/${decision}`,
-        { method: 'POST' },
-      );
-      // 액션 실행 중 발생한 경고(예: 이미지 provider 미설정)를 채팅에 노출한다.
-      const warnings = res?.result?.warnings;
-      if (decision === 'approve' && Array.isArray(warnings) && warnings.length > 0) {
-        await streamAssistantText(`⚠️ ${warnings.join('\n')}`);
-      }
-      setItems((prev) =>
-        prev.map((item) =>
-          item.kind === 'actions'
-            ? {
-                ...item,
-                actions: item.actions.map((a) =>
-                  a.id === actionId
-                    ? { ...a, status: decision === 'approve' ? 'EXECUTED' : 'REJECTED' }
-                    : a,
-                ),
-              }
-            : item,
-        ),
-      );
-      if (decision === 'approve') onDocumentChanged();
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
+  const panelValue = useMemo(() => ({ statuses, decide, selectedBlockId }), [statuses, decide, selectedBlockId]);
 
   return (
-    <div className="sd-chat flex h-full flex-col bg-[#1c1c2a] text-zinc-100">
-      <header className="sd-pane-head sd-chat__head border-b border-white/10 px-4 pb-2.5 pt-3">
-        <div className="flex items-center gap-2">
-          <span className="sd-chat__badge flex h-7 w-7 items-center justify-center rounded-lg bg-white text-xs font-bold text-zinc-900">
-            AI
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">AI 에이전트</p>
-            <p className="truncate text-[11px] text-zinc-400">
-              {selectedBlockId
-                ? `선택: ${selectedBlockLabel || '블록'}`
-                : '문서 전체 모드'}
-            </p>
-          </div>
-
-          {/* 커서 스타일 모델 셀렉터 */}
-          <div className="relative ml-auto">
-            <button
-              onClick={() => setModelMenuOpen((v) => !v)}
-              className="sd-model flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/40"
-              title="모델 선택"
-            >
-              {activeLabel}
-              <span className="text-zinc-500">▾</span>
-            </button>
-            {modelMenuOpen && (
-              <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-lg border border-white/10 bg-[#23232f] py-1 shadow-xl">
-                {modelInfo && modelInfo.options.length === 0 ? (
-                  <a
-                    href="/studio/settings"
-                    className="block px-3 py-2 text-[11px] text-zinc-400 hover:bg-white/5"
-                  >
-                    등록된 LLM이 없습니다 — 설정에서 API 키 등록 →
-                  </a>
-                ) : (
-                  <>
-                    {/* 다른 provider로 전환 */}
-                    {(modelInfo?.options ?? [])
-                      .filter((o) => o.configId !== modelInfo?.active?.configId)
-                      .map((o) => (
-                        <button
-                          key={o.configId}
-                          onClick={() => selectModel(o.configId, o.model ?? '')}
-                          className="block w-full px-3 py-2 text-left text-[11px] text-zinc-300 hover:bg-white/5"
-                        >
-                          {o.providerLabel} · {o.model ?? '기본'}
-                        </button>
-                      ))}
-                    {/* 활성 provider의 모델 목록 */}
-                    {modelInfo?.active && models.length > 0 && (
+    <PanelContext.Provider value={panelValue}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <div className="sd-chat dark flex h-full flex-col">
+          <header className="sd-pane-head sd-chat__head">
+            <div className="sd-chat__titlebar">
+              <span className="sd-chat__logo" aria-label="INDEX">
+                index
+              </span>
+              <span className="sd-chat__product">문서 AI</span>
+              <div className="sd-chat__model-wrap">
+                <button
+                  type="button"
+                  onClick={() => setModelMenuOpen((v) => !v)}
+                  className="sd-model"
+                  title={`모델 선택 · ${activeLabel}`}
+                >
+                  <span className="sd-model__name">{modelShort}</span>
+                  <span aria-hidden>▾</span>
+                </button>
+                {modelMenuOpen && (
+                  <div className="sd-model-menu" role="menu">
+                    {modelInfo && modelInfo.options.length === 0 ? (
+                      <a href="/agent-studio/settings">등록된 모델이 없습니다 — 설정에서 API 키 등록 →</a>
+                    ) : (
                       <>
-                        <p className="border-t border-white/5 px-3 pb-1 pt-2 text-[9px] tracking-wide text-zinc-500">
-                          {modelInfo.options.find((o) => o.configId === modelInfo.active!.configId)
-                            ?.providerLabel ?? ''}{' '}
-                          모델
-                        </p>
-                        {models.map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => selectModel(modelInfo.active!.configId, m)}
-                            className={`block w-full px-3 py-1.5 text-left text-[11px] hover:bg-white/5 ${
-                              m === modelInfo.active!.model ? 'text-white' : 'text-zinc-400'
-                            }`}
-                          >
-                            {m === modelInfo.active!.model ? '✓ ' : ''}
-                            {m}
-                          </button>
-                        ))}
+                        {(modelInfo?.options ?? [])
+                          .filter((o) => o.configId !== modelInfo?.active?.configId)
+                          .map((o) => (
+                            <button key={o.configId} type="button" onClick={() => selectModel(o.configId, o.model ?? '')}>
+                              {o.providerLabel} · {o.model ?? '기본'}
+                            </button>
+                          ))}
+                        {modelInfo?.active && models.length > 0 && (
+                          <>
+                            <p>
+                              {modelInfo.options.find((o) => o.configId === modelInfo.active!.configId)?.providerLabel ?? ''} 모델
+                            </p>
+                            {models.map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                className={m === modelInfo.active!.model ? 'is-on' : undefined}
+                                onClick={() => selectModel(modelInfo.active!.configId, m)}
+                              >
+                                {m === modelInfo.active!.model ? '✓ ' : ''}
+                                {m}
+                              </button>
+                            ))}
+                          </>
+                        )}
                       </>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
+            <div className="sd-chat__context">
+              <span className={`sd-chat__context-target${selectedBlockId ? ' is-block' : ''}`}>
+                {selectedBlockId ? `선택한 블록 · ${selectedBlockLabel || '블록'}` : '문서 전체에 요청'}
+              </span>
+              {activeTeam && <span className="sd-chat__context-team">담당 {activeTeam}</span>}
+            </div>
+          </header>
+
+          {error && (
+            <p className="sd-chat__error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="sd-chat__thread">
+            <DocumentToolUIs />
+            <Thread
+              components={{ Welcome: IndexWelcome }}
+              placeholder={selectedBlockId ? '선택한 블록을 어떻게 바꿀까요?' : '무엇을 작성하거나 고칠까요?'}
+            />
           </div>
         </div>
-        <div className="sd-chat__teams mt-2.5 flex flex-wrap gap-1">
-          {['콘텐츠팀', '법규팀', '시공디테일팀', '이미지팀', '지식관리팀', 'PM'].map((team) => (
-            <span
-              key={team}
-              className={`sd-chip rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                activeTeam?.startsWith(team)
-                  ? 'is-on bg-white text-zinc-900'
-                  : 'bg-white/10 text-zinc-400'
-              }`}
-            >
-              {team}
-            </span>
-          ))}
-        </div>
-      </header>
+      </AssistantRuntimeProvider>
+    </PanelContext.Provider>
+  );
+}
 
-      <div ref={scrollRef} className="sd-chat__list flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {items.map((item, i) => {
-          if (item.kind === 'user') {
-            return (
-              <div key={i} className="sd-msg sd-msg--user ml-8 rounded-2xl rounded-tr-sm bg-white px-3.5 py-2.5 text-sm text-zinc-900">
-                {item.text}
-              </div>
-            );
-          }
-          if (item.kind === 'assistant') {
-            return (
-              <div key={i} className="sd-msg sd-msg--ai mr-6 rounded-2xl rounded-tl-sm bg-white/5 px-3.5 py-2.5 text-sm leading-6">
-                {item.agentLabel && (
-                  <span className="sd-msg__agent mb-1 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
-                    {item.agentLabel}
-                  </span>
-                )}
-                <div>
-                  {item.text}
-                  {item.streaming && <span className="animate-pulse">▍</span>}
-                </div>
-              </div>
-            );
-          }
-          if (item.kind === 'sources') {
-            // 근거는 한 줄로 접어 두고, 펼치면 제목만 보인다(원문 링크가 있을 때만 링크).
-            return (
-              <details key={i} className="sd-src-group mr-4 text-[11px] text-zinc-400">
-                <summary className="cursor-pointer select-none py-1 hover:text-zinc-200">근거 {item.sources.length}개</summary>
-                <ul className="mt-1 space-y-1 pl-3">
-                  {item.sources.map((source) => (
-                    <li key={source.id} className="truncate">
-                      {source.url ? (
-                        <a href={source.url} target="_blank" rel="noreferrer" className="text-zinc-300 underline-offset-2 hover:underline">
-                          {source.title}
-                        </a>
-                      ) : (
-                        <span className="text-zinc-300">{source.title}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            );
-          }
-          return (
-            <div key={i} className="mr-4 space-y-2">
-              {item.actions.map((action) => (
-                <div key={action.id} className="sd-action rounded-xl border border-white/20 bg-white/5 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-zinc-300">
-                      {ACTION_LABELS[action.type] ?? action.type}
-                    </span>
-                    <span className="text-[10px] uppercase text-zinc-400">
-                      위험도 {action.riskLevel}
-                    </span>
-                  </div>
-                  <ActionPayloadPreview type={action.type} payload={action.payload} />
-                  {action.status === 'PROPOSED' ? (
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        onClick={() => handleAction(action.id, 'approve')}
-                        className="sd-btn sd-btn--primary flex-1 rounded-lg bg-white py-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
-                      >
-                        승인하고 적용
-                      </button>
-                      <button
-                        onClick={() => handleAction(action.id, 'reject')}
-                        className="sd-btn rounded-lg border border-white/20 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10"
-                      >
-                        거절
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-zinc-400">
-                      {action.status === 'EXECUTED' ? '✓ 문서에 적용되었습니다' : '거절되었습니다'}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-        {busy && (
-          <p className="sd-typing" role="status" aria-label="에이전트가 작업 중">
-            <i />
-            <i />
-            <i />
-          </p>
-        )}
-        {error && <p className="sd-chat__error text-xs text-red-400">{error}</p>}
-      </div>
-
-      <div className="sd-chat__presets flex gap-1.5 overflow-x-auto px-3 pb-1">
-        {['블로그 초안 작성해줘', '방화문 법규 알려줘', '공정별 비용 차트 만들어줘'].map(
-          (preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setInput(preset)}
-              className="sd-suggest shrink-0 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-zinc-400 hover:border-white/40 hover:text-zinc-200"
-            >
-              {preset}
-            </button>
-          ),
-        )}
-      </div>
-      <form onSubmit={handleSend} className="sd-chat__form border-t border-white/10 p-3">
-        <div className="sd-composer flex items-end gap-2 rounded-xl bg-white/5 p-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              // 한글 IME 조합 중(Enter로 글자 확정)이면 전송하지 않는다 — 마지막 글자 남는 버그 방지
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                void handleSend(e);
-              }
-            }}
-            rows={2}
-            placeholder="AI에게 요청하기... (예: 블로그 초안 작성해줘)"
-            className="sd-composer__input flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-zinc-500"
-          />
+/** Empty state: INDEX wordmark + suggestions that send right away. */
+function IndexWelcome() {
+  const runtime = useAssistantRuntime();
+  const { selectedBlockId } = useContext(PanelContext);
+  const suggestions = selectedBlockId
+    ? ['전문가 톤으로 다듬어줘', '더 짧고 읽기 쉽게 줄여줘', '이 내용을 표로 바꿔줘']
+    : ['34평 거실 리모델링 블로그 초안 써줘', '욕실 방수 시공 체크리스트 만들어줘', '공정별 비용 차트 만들어줘', '고객 제안서 목차 잡아줘'];
+  return (
+    <div className="sd-welcome">
+      <span className="sd-welcome__logo" aria-hidden>
+        index
+      </span>
+      <h2>무엇을 도와드릴까요?</h2>
+      <p>
+        {selectedBlockId
+          ? '선택한 블록을 다듬거나 바꿔 드릴게요.'
+          : '초안 작성, 블록 수정, 표·차트 만들기를 도와드려요. 블록을 선택하면 그 블록만 고칠 수 있어요.'}
+      </p>
+      <div className="sd-welcome__suggest">
+        {suggestions.map((text) => (
           <button
-            type="submit"
-            disabled={busy || !input.trim()}
-            className="sd-send rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 disabled:opacity-40"
-            aria-label="전송"
+            key={text}
+            type="button"
+            onClick={() => runtime.thread.append({ role: 'user', content: [{ type: 'text', text }] })}
           >
-            ↑
+            {text}
           </button>
-        </div>
-      </form>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** In-thread cards for the document agent's tool-shaped parts. */
+function DocumentToolUIs() {
+  useAssistantToolUI({
+    toolName: 'document_actions',
+    render: ({ args }) => <ActionCards actions={(args as { actions?: ActionPreview[] }).actions ?? []} />,
+  });
+  useAssistantToolUI({
+    toolName: 'document_evidence',
+    render: ({ args }) => {
+      const sources = (args as { sources?: { id: string; title: string; url?: string }[] }).sources ?? [];
+      if (sources.length === 0) return null;
+      return (
+        <details className="sd-evidence">
+          <summary>근거 {sources.length}개</summary>
+          <ul>
+            {sources.map((s) => (
+              <li key={s.id}>
+                {s.url ? (
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    {s.title}
+                  </a>
+                ) : (
+                  <span>{s.title}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      );
+    },
+  });
+  return null;
+}
+
+function ActionCards({ actions }: { actions: ActionPreview[] }) {
+  const { statuses, decide } = useContext(PanelContext);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  return (
+    <div className="sd-actions">
+      {actions.map((action) => {
+        const done: PanelContextValue['statuses'][string] | undefined = statuses[action.id];
+        const status: string = done ? done.status : action.status;
+        return (
+          <div key={action.id} className="sd-action">
+            <div className="sd-action__head">
+              <strong>{ACTION_LABELS[action.type] ?? action.type}</strong>
+              <span>위험도 {action.riskLevel}</span>
+            </div>
+            <ActionPayloadPreview type={action.type} payload={action.payload} />
+            {status === 'PROPOSED' ? (
+              <div className="sd-action__buttons">
+                <button
+                  type="button"
+                  className="sd-btn sd-btn--primary"
+                  disabled={busyId !== null}
+                  onClick={async () => {
+                    setBusyId(action.id);
+                    await decide(action.id, 'approve');
+                    setBusyId(null);
+                  }}
+                >
+                  승인하고 적용
+                </button>
+                <button
+                  type="button"
+                  className="sd-btn"
+                  disabled={busyId !== null}
+                  onClick={async () => {
+                    setBusyId(action.id);
+                    await decide(action.id, 'reject');
+                    setBusyId(null);
+                  }}
+                >
+                  거절
+                </button>
+              </div>
+            ) : (
+              <p className="sd-action__status">{status === 'EXECUTED' ? '✓ 문서에 적용되었습니다' : '거절되었습니다'}</p>
+            )}
+            {done?.warnings && done.warnings.length > 0 && <p className="sd-action__warn">⚠️ {done.warnings.join(' · ')}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -158,9 +158,15 @@ export default function About() {
               <Link className="ab-btn ab-btn--dark" to={hero.primary.to}>
                 {hero.primary.label} <Arrow />
               </Link>
-              <Link className="ab-btn ab-btn--line" to={hero.secondary.to}>
-                {hero.secondary.label}
-              </Link>
+              {hero.secondary.to.startsWith("#") ? (
+                <a className="ab-btn ab-btn--line" href={hero.secondary.to}>
+                  {hero.secondary.label}
+                </a>
+              ) : (
+                <Link className="ab-btn ab-btn--line" to={hero.secondary.to}>
+                  {hero.secondary.label}
+                </Link>
+              )}
             </div>
           </div>
 

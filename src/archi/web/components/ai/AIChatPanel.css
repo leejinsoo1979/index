@@ -1,0 +1,379 @@
+/*
+ * Document AI panel — assistant-ui Thread (ChatGPT-style chat) themed with the shared --wk-* tokens.
+ * The library's shadcn colour variables are re-pointed at the INDEX palette inside .sd-chat,
+ * and `.dark` on the root turns on its dark: variants.
+ */
+.sd-chat {
+  --background: var(--wk-surface, #111114);
+  --foreground: var(--wk-text, #f2f2f5);
+  --card: var(--wk-surface-2, #18181c);
+  --card-foreground: var(--wk-text, #f2f2f5);
+  --popover: var(--wk-surface-2, #18181c);
+  --popover-foreground: var(--wk-text, #f2f2f5);
+  --primary: var(--wk-accent-strong, #5b6cf0);
+  --primary-foreground: #fff;
+  --secondary: var(--wk-surface-3, #212127);
+  --secondary-foreground: var(--wk-text, #f2f2f5);
+  --muted: var(--wk-surface-3, #212127);
+  --muted-foreground: var(--wk-text-3, #8d8d98);
+  --ui-accent: var(--wk-surface-3, #212127);
+  --ui-accent-foreground: var(--wk-text, #f2f2f5);
+  --border: var(--wk-line-strong, #2f2f37);
+  --input: var(--wk-line-strong, #2f2f37);
+  --ring: var(--wk-accent-line, rgba(154, 166, 255, 0.34));
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--wk-surface, #111114);
+  color: var(--wk-text, #f2f2f5);
+  font-family: var(--wk-font, 'Pretendard', sans-serif);
+}
+
+/* ── header: 60px title line + 40px context strip (aligned with the editor's top bar + tabs) ── */
+.sd-chat__head {
+  display: block;
+  flex: none;
+  border-bottom: 1px solid var(--wk-line);
+  background: var(--wk-bg);
+}
+
+.sd-chat__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 60px;
+  padding: 0 16px;
+}
+
+.sd-chat__logo {
+  color: var(--wk-text);
+  font-family: var(--font-logo, 'Chillax', sans-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  line-height: 1;
+}
+
+.sd-chat__product {
+  padding: 2px 8px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 999px;
+  color: var(--wk-text-2);
+  font-size: 11.5px;
+  font-weight: 550;
+}
+
+.sd-chat__model-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.sd-model {
+  display: inline-flex;
+  max-width: 150px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wk-text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sd-model:hover {
+  color: var(--wk-text);
+}
+
+.sd-model__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sd-model-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  width: 230px;
+  padding: 6px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 10px;
+  background: var(--wk-surface-2);
+  box-shadow: 0 16px 40px var(--wk-shadow);
+}
+
+.sd-model-menu button,
+.sd-model-menu a {
+  display: block;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wk-text-2);
+  font-size: 12.5px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sd-model-menu button:hover,
+.sd-model-menu a:hover,
+.sd-model-menu button.is-on {
+  background: var(--wk-surface-3);
+  color: var(--wk-text);
+}
+
+.sd-model-menu p {
+  margin: 6px 9px 2px;
+  color: var(--wk-text-4);
+  font-size: 11px;
+}
+
+.sd-chat__context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 16px;
+  border-top: 1px solid var(--wk-line);
+  font-size: 12.5px;
+}
+
+.sd-chat__context-target {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--wk-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-chat__context-target.is-block {
+  color: var(--wk-accent);
+}
+
+.sd-chat__context-team {
+  flex: none;
+  margin-left: auto;
+  color: var(--wk-text-3);
+  font-size: 12px;
+}
+
+.sd-chat__error {
+  flex: none;
+  margin: 10px 14px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--wk-danger-line);
+  border-radius: 8px;
+  background: var(--wk-danger-bg);
+  color: var(--wk-danger);
+  font-size: 12.5px;
+}
+
+/* ── thread (library) ── */
+.sd-chat__thread {
+  flex: 1;
+  min-height: 0;
+}
+
+.sd-chat .aui-thread-root {
+  background: var(--wk-surface);
+}
+
+/* narrow side panel: tighter gutters, readable text */
+.sd-chat .aui-thread-root [data-slot='aui_thread-viewport'] > div {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.sd-chat .aui-composer-input {
+  font-size: 14.5px;
+}
+
+/* no attachment backend for the document agent */
+.sd-chat .aui-composer-add-attachment,
+.sd-chat [class*='aui-composer-add-attachment'] {
+  display: none;
+}
+
+/* ── welcome ── */
+.sd-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.sd-welcome__logo {
+  color: var(--wk-text);
+  font-family: var(--font-logo, 'Chillax', sans-serif);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1;
+}
+
+.sd-welcome h2 {
+  margin: 6px 0 0;
+  color: var(--wk-text);
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.sd-welcome p {
+  margin: 0 0 6px;
+  color: var(--wk-text-3);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.sd-welcome__suggest {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+}
+
+.sd-welcome__suggest button {
+  padding: 10px 13px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wk-text-2);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sd-welcome__suggest button:hover {
+  background: var(--wk-surface-3);
+  color: var(--wk-text);
+}
+
+/* ── in-thread cards ── */
+.sd-evidence {
+  margin-top: 6px;
+  color: var(--wk-text-3);
+  font-size: 12px;
+}
+
+.sd-evidence summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sd-evidence summary:hover {
+  color: var(--wk-text);
+}
+
+.sd-evidence ul {
+  margin: 6px 0 0;
+  padding-left: 14px;
+}
+
+.sd-evidence li {
+  overflow: hidden;
+  color: var(--wk-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-evidence a {
+  color: var(--wk-text-2);
+  text-underline-offset: 2px;
+}
+
+.sd-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sd-action {
+  padding: 12px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 12px;
+  background: var(--wk-surface-2);
+  font-size: 12.5px;
+}
+
+.sd-action__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sd-action__head strong {
+  color: var(--wk-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sd-action__head span {
+  color: var(--wk-text-3);
+  font-size: 11.5px;
+}
+
+.sd-action ul,
+.sd-action p {
+  color: var(--wk-text-2);
+}
+
+.sd-action__buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sd-btn {
+  padding: 7px 12px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wk-text-2);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sd-btn:hover:not(:disabled) {
+  background: var(--wk-surface-3);
+  color: var(--wk-text);
+}
+
+.sd-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.sd-btn--primary {
+  flex: 1;
+  border-color: var(--wk-accent-strong);
+  background: var(--wk-accent-strong);
+  color: #fff;
+}
+
+.sd-btn--primary:hover:not(:disabled) {
+  background: var(--wk-accent-strong);
+  color: #fff;
+  filter: brightness(1.1);
+}
+
+.sd-action__status {
+  margin-top: 8px;
+  color: var(--wk-text-3);
+}
+
+.sd-action__warn {
+  margin-top: 6px;
+  color: var(--wk-warn);
+}
