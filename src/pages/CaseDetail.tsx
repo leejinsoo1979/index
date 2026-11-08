@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { cases, caseArticle } from "../data/cases";
+import { markdownToSections, toCaseItem, usePosts } from "../lib/posts";
 import { CaseCard } from "../components/CaseCard";
 import {
   ShareIcon,
@@ -13,10 +13,11 @@ import "./CaseDetail.css";
 
 export default function CaseDetail() {
   const { id } = useParams();
-  const item = useMemo(
-    () => cases.find((c) => String(c.id) === id),
-    [id]
-  );
+  const { data: posts, loading } = usePosts();
+  const cases = useMemo(() => posts.map(toCaseItem), [posts]);
+  const item = useMemo(() => cases.find((c) => String(c.id) === id), [cases, id]);
+  const post = useMemo(() => posts.find((p) => p.id === id), [posts, id]);
+  const caseArticle = useMemo(() => markdownToSections(post?.body ?? ""), [post]);
 
   const [progress, setProgress] = useState(0);
   const articleRef = useRef<HTMLElement>(null);
@@ -37,7 +38,7 @@ export default function CaseDetail() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  if (!item) return <Placeholder title="게시글을 찾을 수 없습니다" />;
+  if (!item) return loading ? null : <Placeholder title="게시글을 찾을 수 없습니다" />;
 
   const related = cases.filter((c) => c.id !== item.id).slice(0, 3);
   const nextPost = cases[(cases.indexOf(item) + 1) % cases.length];

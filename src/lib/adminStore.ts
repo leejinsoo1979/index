@@ -4,18 +4,6 @@
  * admin screens is saved so edits survive reloads. Swap the load/save
  * helpers for real API calls when a backend lands.
  */
-import { cases } from "../data/cases";
-import { captureKnowledge } from './knowledgeCapture';
-
-export interface AdminPost {
-  id: number;
-  title: string;
-  group: string;
-  category: string;
-  date: string;
-  views: number;
-  visible: boolean;
-}
 
 export interface AdminMember {
   id: number;
@@ -51,26 +39,7 @@ function save<T>(key: string, rows: T[]) {
   window.localStorage.setItem(`${PREFIX}:${key}`, JSON.stringify(rows));
 }
 
-/* ── Posts (게시판) ── */
-export function loadPosts(): AdminPost[] {
-  return load("posts", () =>
-    cases.map((item) => ({
-      id: item.id,
-      title: item.title,
-      group: item.group,
-      category: item.category,
-      date: item.date,
-      views: item.views ?? 0,
-      visible: true,
-    })),
-  );
-}
-export const savePosts = (rows: AdminPost[]) => {
-  const previous = loadPosts();
-  save("posts", rows);
-  for (const row of rows) if (JSON.stringify(previous.find(p => p.id === row.id)) !== JSON.stringify(row)) captureKnowledge('AdminPost', String(row.id), row);
-  for (const row of previous) if (!rows.some(p => p.id === row.id)) captureKnowledge('AdminPost', String(row.id), row, 'delete');
-};
+/* 게시판 글은 src/lib/posts.ts (Firestore posts) 로 옮겨졌다. */
 
 function today() {
   const d = new Date();
@@ -162,15 +131,6 @@ export function registerMember(input: {
 }
 
 /* ── Site-side hooks (관리자 수정 → 사이트 반영) ── */
-
-/** 관리자에서 비노출 처리한 게시글(사례) id 집합 — Case Library에서 숨긴다. */
-export function hiddenPostIds(): Set<number> {
-  try {
-    return new Set(loadPosts().filter((p) => !p.visible).map((p) => p.id));
-  } catch {
-    return new Set();
-  }
-}
 
 /** Emails allowed into /admin. Keep in sync with firestore.rules / storage.rules isAdmin(). */
 export const ADMIN_EMAILS = ["sbbc212@gmail.com"];

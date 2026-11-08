@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cases, caseFilters, type CaseFilter } from "../data/cases";
+import { caseFilters, type CaseFilter } from "../data/cases";
+import { toCaseItem, usePosts } from "@/lib/posts";
 import { CaseCard, CaseRow } from "../components/CaseCard";
 import Pagination from "../components/Pagination";
 import { FlipReveal, FlipRevealItem } from "@/components/ui/flip-reveal";
 import { ContainerAnimated, ContainerStagger } from "@/components/blocks/animated-gallery";
-import { hiddenPostIds } from "@/lib/adminStore";
 import "./Cases.css";
 
 // 관리자에서 비노출 처리한 사례는 목록에서 제외 (게시판 관리와 연동)
-const hidden = hiddenPostIds();
-const visibleCases = cases.filter((item) => !hidden.has(item.id));
 
 type SortKey = "latest" | "views" | "title";
 const SORTS: { key: SortKey; label: string }[] = [
@@ -29,6 +27,9 @@ function SearchIcon() {
 }
 
 export default function Cases() {
+  // 게시판 글 (관리자 > 게시판 관리). Hidden posts never reach the public list.
+  const { data: posts } = usePosts();
+  const visibleCases = useMemo(() => posts.map(toCaseItem), [posts]);
   const [filter, setFilter] = useState<CaseFilter>("전체");
   const libraryRef = useRef<HTMLElement>(null);
 
@@ -48,9 +49,9 @@ export default function Cases() {
     return [...rows].sort((a, b) => {
       if (sort === "views") return (b.views ?? 0) - (a.views ?? 0) || b.date.localeCompare(a.date);
       if (sort === "title") return a.title.localeCompare(b.title, "ko");
-      return b.date.localeCompare(a.date) || b.id - a.id;
+      return b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
     });
-  }, [query, libraryFilter, sort]);
+  }, [visibleCases, query, libraryFilter, sort]);
 
   useEffect(() => setPage(1), [query, libraryFilter, sort]);
 

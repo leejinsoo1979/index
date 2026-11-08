@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { loadMembers, loadPosts } from "../../lib/adminStore";
+import { loadMembers } from "../../lib/adminStore";
+import { usePosts } from "../../lib/posts";
 import {
   APPLICATION_STATUS_LABEL,
   effectiveStatus,
@@ -12,7 +13,7 @@ import {
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
 export default function AdminDashboard() {
-  const posts = useMemo(loadPosts, []);
+  const { data: posts } = usePosts({ includeHidden: true });
   const { data: seminars } = useSeminars({ includeUnpublished: true });
   const { data: applications } = useSeminarApplications({ all: true });
   const members = useMemo(loadMembers, []);

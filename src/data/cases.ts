@@ -1,5 +1,6 @@
 export interface CaseItem {
-  id: number;
+  /** numeric for the original samples, a document id for posts written in /admin/boards */
+  id: number | string;
   category: string;
   /** category group key used by the filter tabs */
   group: "방수" | "마감" | "설비" | "단열" | "전기" | "기타";
