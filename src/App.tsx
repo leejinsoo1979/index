@@ -20,7 +20,8 @@ import AdminSeminars from "./pages/admin/AdminSeminars";
 import AdminCurriculum from "./pages/admin/AdminCurriculum";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminMembers from "./pages/admin/AdminMembers";
-import { primaryNav, footerColumns, legalLinks } from "./data/navigation";
+import AdminMenus from "./pages/admin/AdminMenus";
+import { menuRouteLabels, useNavigation } from "./lib/navigation";
 
 // ARCHI Agent Studio (ported from inshow_agent): large, so it is code-split.
 const Experts = lazy(() => import('./pages/Experts'));
@@ -31,14 +32,13 @@ const ExpertConversations = lazy(() => import('./pages/ExpertConversations'));
 const StudioApp = lazy(() => import("./archi/StudioApp"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
-const implemented = new Set(["/", "/ai", "/cases", "/seminars", "/mypage", "/signup", "/terms", "/about/organization", "/tools"]);
-
-// Build a label lookup for every remaining routed path.
-const routeLabels = new Map<string, string>();
-for (const item of primaryNav) routeLabels.set(item.to, item.label);
-for (const col of footerColumns)
-  for (const link of col.links) routeLabels.set(link.to, link.label);
-for (const link of legalLinks) routeLabels.set(link.to, link.label);
+/** Any path without a page: if an admin put it in a menu (/admin/menus), show "준비 중" under that menu name. */
+function MenuPlaceholder() {
+  const { pathname } = useLocation();
+  const { nav } = useNavigation();
+  const label = menuRouteLabels(nav).get(pathname.replace(/\/+$/, "") || "/");
+  return <Placeholder title={label ?? "페이지를 찾을 수 없습니다"} />;
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -81,6 +81,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="agent" element={<Navigate to="/agent-studio" replace />} />
+          <Route path="menus" element={<AdminMenus />} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="curriculum" element={<AdminCurriculum />} />
@@ -88,16 +89,7 @@ export default function App() {
           <Route path="expert-spaces" element={<Navigate to="/experts/interior-show/settings" replace/>} />
           <Route path="members" element={<AdminMembers />} />
         </Route>
-        {[...routeLabels]
-          .filter(([path]) => !implemented.has(path))
-          .map(([path, label]) => (
-            <Route
-              key={path}
-              path={path}
-              element={<Placeholder title={label} />}
-            />
-          ))}
-        <Route path="*" element={<Placeholder title="페이지를 찾을 수 없습니다" />} />
+        <Route path="*" element={<MenuPlaceholder />} />
       </Routes>
     </Layout>
   );

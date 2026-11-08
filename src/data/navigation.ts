@@ -1,3 +1,8 @@
+/**
+ * Default site menus. Operators edit menus in /admin/menus (stored as the `navigation`
+ * site-content block); these values are only the starting point and the fallback.
+ * Read menus through `useNavigation()` (src/lib/navigation.ts), not these constants.
+ */
 export interface NavLink {
   label: string;
   englishLabel?: string;
@@ -6,6 +11,8 @@ export interface NavLink {
   adminOnly?: boolean;
   /** Open in a new tab (standalone pages with their own navigation, e.g. /ai). */
   newTab?: boolean;
+  /** Kept in the list but not shown anywhere. */
+  hidden?: boolean;
 }
 
 export const primaryNav: NavLink[] = [
@@ -17,6 +24,15 @@ export const primaryNav: NavLink[] = [
 
 export interface FooterColumn {
   links: NavLink[];
+}
+
+export interface SiteNavigation {
+  primary: NavLink[];
+  footer: FooterColumn[];
+  legal: NavLink[];
+  /** Footer brand line under the logo. */
+  org: string;
+  copyright: string;
 }
 
 export const footerColumns: FooterColumn[] = [
@@ -50,3 +66,11 @@ export const legalLinks: NavLink[] = [
   { label: "개인정보처리방침", to: "/privacy" },
   { label: "이용약관", to: "/terms" },
 ];
+
+export const defaultNavigation: SiteNavigation = {
+  primary: primaryNav,
+  footer: footerColumns,
+  legal: legalLinks,
+  org: "주거인테리어 협회",
+  copyright: "© 2025 주거인테리어 협회. All rights reserved.",
+};

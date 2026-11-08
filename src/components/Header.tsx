@@ -1,14 +1,13 @@
 import { NavLink, Link, useLocation } from "react-router-dom";
-import { primaryNav } from "../data/navigation";
+import { isExternalLink, useNavigation, visibleLinks } from "../lib/navigation";
 import { useAuth } from "../auth/AuthContext";
-import { isAdminEmail } from "../lib/adminStore";
 import ThemeToggle from "./ThemeToggle";
 import "./Header.css";
 
 export default function Header() {
   const { pathname } = useLocation();
-  const { user, logout } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  const { user, logout, isAdmin } = useAuth();
+  const { nav } = useNavigation();
   // Same layout everywhere; home gets the transparent dark-overlay variant.
   const isHome = pathname === "/";
 
@@ -43,7 +42,7 @@ export default function Header() {
         )}
       </div>
       <nav className="site-header__nav" aria-label="주요 메뉴">
-        {primaryNav.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+        {visibleLinks(nav.primary, isAdmin).map((item) => {
           const labels = (
             <>
               <span className="site-header__label site-header__label--en">
@@ -54,8 +53,8 @@ export default function Header() {
               </span>
             </>
           );
-          return item.newTab ? (
-            <a key={item.to} href={item.to} target="_blank" rel="noopener" className="site-header__link">
+          return item.newTab || isExternalLink(item.to) ? (
+            <a key={item.to} href={item.to} target={item.newTab ? "_blank" : undefined} rel="noopener" className="site-header__link">
               {labels}
             </a>
           ) : (
