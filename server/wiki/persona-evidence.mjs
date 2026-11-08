@@ -7,11 +7,16 @@ const ATTRIBUTION=/^발언 출처: (.+)$/m;
 /** Imported notes remain readable, but only their exact timestamped transcript is evidence. */
 export function personalEvidenceChunks(page){
   if(page.tags?.some(t=>['유튜브 목차','자료 목록','참고 이미지'].includes(t)))return [];
+  if(page.category==='답변 보완'){
+    const question=page.content.match(/## 질문\s*\n([\s\S]*?)\n## 보완된 답변/)?.[1]?.trim()||page.title;
+    const answer=page.content.split('## 보완된 답변')[1]||page.content;
+    return chunkMarkdown(answer).map(c=>({text:`질문: ${question.slice(0,1500)}\n\n소유자 보완 답변:\n${c.text}`,ownerCorrection:true,attribution:'소유 임원이 직접 보완한 답변 · 최우선'}));
+  }
   if(page.tags?.includes('PDF 원문')){
     const sections=[...page.content.matchAll(/^## (\d+)쪽\s*\n([\s\S]*?)(?=^## \d+쪽\s*\n|(?![\s\S]))/gm)];
     return sections.flatMap(m=>chunkPages([{num:Number(m[1]),text:m[2]}]).map(c=>({text:c.text,pages:`${c.page}쪽`,attribution:'사용자가 제공한 협회 연구자료 PDF · 원문 본문과 별도 표시된 OCR'})));
   }
-  if(!page.tags?.includes('유튜브 원문'))return chunkMarkdown(page.content).filter(c=>!c.heading||!/^(참고 출처|관련 항목|관련 문서|목차)/.test(c.heading)).map(c=>({text:c.text,heading:c.heading,attribution:page.tags?.includes('지식백과')?'영상 자막에 기반한 개념 정리 · 직접 발언 인용 아님':undefined}));
+  if(!page.tags?.includes('유튜브 원문'))return chunkMarkdown(page.content).filter(c=>!c.heading||!/^(참고 출처|관련 항목|관련 문서|목차)/.test(c.heading)).map(c=>({text:c.text,heading:c.heading,ownerCorrection:page.category==='답변 보완',attribution:page.category==='답변 보완'?'소유 임원이 직접 보완한 답변 · 최우선':page.tags?.includes('지식백과')?'영상 자막에 기반한 개념 정리 · 직접 발언 인용 아님':undefined}));
   const start=page.content.indexOf(TRANSCRIPT);
   if(start<0)return [];
   const raw=page.content.slice(start+TRANSCRIPT.length).split(SUMMARY)[0];

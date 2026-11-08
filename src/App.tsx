@@ -27,6 +27,7 @@ const Experts = lazy(() => import('./pages/Experts'));
 const ExpertChat = lazy(() => import('./pages/ExpertChat'));
 const ExpertSettings = lazy(() => import('./pages/ExpertSettings'));
 const ExpertWiki = lazy(() => import('./pages/ExpertWiki'));
+const ExpertConversations = lazy(() => import('./pages/ExpertConversations'));
 const StudioApp = lazy(() => import("./archi/StudioApp"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/experts/:personId" element={<Suspense fallback={null}><ExpertChat/></Suspense>} />
         <Route path="/experts/:personId/settings" element={<Suspense fallback={null}><ExpertSettings/></Suspense>} />
         <Route path="/experts/:personId/wiki" element={<Suspense fallback={null}><ExpertWiki/></Suspense>} />
+        <Route path="/experts/:personId/conversations" element={<Suspense fallback={null}><ExpertConversations/></Suspense>} />
         <Route path="/about/organization" element={<Team />} />
         <Route
           path="/agent-studio/*"

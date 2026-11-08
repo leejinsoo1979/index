@@ -14,7 +14,7 @@ export class PersonalWikiSearch{
   sync(personId,pages){
     const existing=new Map(this.db.prepare('SELECT page_id,hash FROM expert_search_docs WHERE person_id=?').all(personId).map(r=>[r.page_id,r.hash]));
     for(const page of pages){
-      const hash=createHash('sha256').update(JSON.stringify([page.version,page.status,page.title,page.content,page.tags])).digest('hex');
+      const hash=createHash('sha256').update(JSON.stringify([2,page.version,page.status,page.title,page.content,page.tags,page.category])).digest('hex');
       if(existing.get(page.id)===hash){existing.delete(page.id);continue;}
       const chunks=page.status==='published'&&!isVoice(page)?personalEvidenceChunks(page):[];
       this.store.transaction(()=>{
@@ -40,7 +40,7 @@ export class PersonalWikiSearch{
     const queryText=String(query).replace(/알려\s*(주세요|주실래요|줄래요|줄래|줘요|줘)|설명\s*(해주세요|해줘요|해줘)/g,' ');
     const tokens=[...new Set(terms(queryText,{query:true}))].slice(0,30);if(!tokens.length)return [];
     const expressions=tokens.map(t=>'"'+t.replaceAll('"','""')+'"');
-    const statement=this.db.prepare(`SELECT c.*,bm25(expert_search_fts,0,0,3,1) AS rank FROM expert_search_fts JOIN expert_search_chunks c ON c.id=expert_search_fts.chunk_id WHERE expert_search_fts MATCH ? AND c.person_id=? ORDER BY rank LIMIT ?`);
+    const statement=this.db.prepare(`SELECT c.*,bm25(expert_search_fts,0,0,3,1) AS rank FROM expert_search_fts JOIN expert_search_chunks c ON c.id=expert_search_fts.chunk_id WHERE expert_search_fts MATCH ? AND c.person_id=? ORDER BY CASE WHEN json_extract(c.meta,'$.ownerCorrection')=1 THEN 0 ELSE 1 END,rank LIMIT ?`);
     let rows=statement.all(expressions.join(' AND '),personId,limit);
     if(rows.length<Math.min(limit,3))rows=statement.all(expressions.join(' OR '),personId,limit*3);
     const byId=new Map(pages.filter(p=>p.status==='published'&&!isVoice(p)).map(p=>[p.id,p]));
@@ -52,6 +52,6 @@ export class PersonalWikiSearch{
     this.sync(personId,pages);const page=pages.find(p=>p.id===pageId&&p.status==='published'&&!isVoice(p));if(!page)return null;
     const index=Math.max(0,Math.floor(Number(chunkIndex)||0)),start=Math.max(0,index-1);
     const chunks=this.db.prepare('SELECT ord,meta FROM expert_search_chunks WHERE person_id=? AND page_id=? AND ord>=? ORDER BY ord LIMIT 5').all(personId,pageId,start).map(r=>({...JSON.parse(r.meta),chunkIndex:r.ord}));
-    return {pageId,title:page.title,version:page.version,chunks,totalChunks:this.db.prepare('SELECT COUNT(*) n FROM expert_search_chunks WHERE person_id=? AND page_id=?').get(personId,pageId).n};
+    return {pageId,title:page.title,version:page.version,updatedAt:page.updatedAt,chunks,totalChunks:this.db.prepare('SELECT COUNT(*) n FROM expert_search_chunks WHERE person_id=? AND page_id=?').get(personId,pageId).n};
   }
 }

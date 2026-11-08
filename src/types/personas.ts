@@ -3,7 +3,7 @@ export type ExpertProfile = {
   published:boolean; version:number; documentCount:number; voiceReady:boolean;
   suggestions:string[]; greeting?:string; styleVersion?:string; ownerUid?:string; voice?:string; principles?:string;
 };
-export type ExpertSource = {id:string;title:string;personId:string;personName:string;version:number;excerpt:string;updatedAt:string;pages?:string;url?:string;timestamp?:string;attribution?:string;chunkIndex?:number};
+export type ExpertSource = {id:string;title:string;personId:string;personName:string;version:number;excerpt:string;updatedAt:string;pages?:string;url?:string;timestamp?:string;attribution?:string;chunkIndex?:number;ownerCorrection?:boolean};
 export type ExpertMessage = {id:string;role:'user'|'assistant';content:string;state:'pending'|'complete'|'error';createdAt:string;sources:ExpertSource[];error?:string};
 export type ExpertRoom = {id:string;personId:string;title:string;updatedAt:string;messages?:ExpertMessage[]};
 export const REPRESENTATIVE:ExpertProfile = {

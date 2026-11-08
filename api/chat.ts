@@ -16,6 +16,8 @@ interface ChatRequestBody {
   memoryMessages?: Array<{ role?: string; content?: string }>;
   userId?: string;
   model?: string;
+  /** 홈 입력창의 응답 모드: 심층 분석이면 상위 모델. */
+  mode?: "fast" | "deep";
 }
 
 const ALLOWED_MODELS = new Set(["gpt-5.4-nano", "gpt-5.4-mini", "gpt-5.4"]);
@@ -47,8 +49,8 @@ const HEAVY_QUESTION =
 /** "방법", "공법", "기법" … contain 법 but aren't about law. */
 const isHeavyQuestion = (question: string) => HEAVY_QUESTION.test(question.replace(/(?<!소)(?:방|해|용|요|수|비|문|작|기|공|편|마)법/g, ""));
 
-function chatModel(question: string, requested?: string) {
-  if (process.env.CHAT_AI_PROVIDER === "deepseek") return deepseekModel(requested);
+function chatModel(question: string, requested?: string, deep = false) {
+  if (process.env.CHAT_AI_PROVIDER === "deepseek") return deepseekModel(requested ?? (deep ? "deepseek-v4-pro" : undefined));
   const baseURL = process.env.CHAT_LLM_BASE_URL?.trim();
   if (baseURL) {
     const local = createOpenAI({ baseURL, apiKey: process.env.CHAT_LLM_API_KEY || "local", name: "local" });
@@ -56,7 +58,7 @@ function chatModel(question: string, requested?: string) {
     return local.chat(process.env.CHAT_LLM_MODEL?.trim() || "qwen3.5:27b");
   }
   if (requested && ALLOWED_MODELS.has(requested)) return openai(requested);
-  return isHeavyQuestion(question)
+  return deep || isHeavyQuestion(question)
     ? openai(process.env.OPENAI_MODEL_HEAVY || "gpt-5.4-mini")
     : openai(process.env.OPENAI_MODEL || "gpt-5.4-nano");
 }
@@ -164,7 +166,7 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
 
     let answered = false;
     const result = streamText({
-      model: chatModel(lastUserMessage.content, body.model),
+      model: chatModel(lastUserMessage.content, body.model, body.mode === "deep"),
       system: [
         system,
         wiki,

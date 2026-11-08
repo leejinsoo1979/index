@@ -7,7 +7,9 @@ import {
   type AiMode,
   type AiShape,
 } from "../components/AiStateAnimation";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { expertRequest } from "../lib/personas";
+import type { ExpertProfile } from "../types/personas";
 import ParticleTitle from "../components/ParticleTitle";
 import { useAuth } from "../auth/AuthContext";
 import "./Home.css";
@@ -227,6 +229,13 @@ export default function Home() {
   const [askModel, setAskModel] = useState<(typeof askModels)[number]["name"]>(askModels[0].name);
   const [askModelOpen, setAskModelOpen] = useState(false);
   const askModelRef = useRef<HTMLDivElement>(null);
+  // 질문할 에이전트: INDEX AI(범용) 또는 개별 대표의 개인 AI. 응답 모드는 모든 에이전트 공통.
+  const navigate = useNavigate();
+  const [askAgent, setAskAgent] = useState("index");
+  const [askAgentOpen, setAskAgentOpen] = useState(false);
+  const askAgentRef = useRef<HTMLDivElement>(null);
+  const [experts, setExperts] = useState<ExpertProfile[]>([]);
+  const agentExpert = askAgent === "index" ? null : experts.find((item) => item.id === askAgent) ?? null;
 
   /** INDEX AI is members-only: every call carries the Firebase ID token. */
   async function authHeaders(): Promise<Record<string, string>> {
@@ -266,13 +275,24 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (!askModelOpen) return;
+    if (!askModelOpen && !askAgentOpen) return;
     function handlePointerDown(event: MouseEvent) {
       if (!askModelRef.current?.contains(event.target as Node)) setAskModelOpen(false);
+      if (!askAgentRef.current?.contains(event.target as Node)) setAskAgentOpen(false);
     }
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [askModelOpen]);
+  }, [askModelOpen, askAgentOpen]);
+
+  useEffect(() => {
+    let active = true;
+    expertRequest<{ profiles: ExpertProfile[] }>("directory")
+      .then((result) => active && setExperts(result.profiles.filter((item) => item.published !== false)))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeId) ?? null,
@@ -330,6 +350,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({
           messages: sourceMessages.map(({ role, content }) => ({ role, content })),
+          mode: askModel === "심층 분석" ? "deep" : "fast",
         }),
         signal: controller.signal,
       });
@@ -439,6 +460,13 @@ export default function Home() {
   function handleSubmit(value: string) {
     const question = (value || message).trim();
     if (!question || isResponding) return;
+    if (agentExpert) {
+      // 개별 대표에게: 그 대표의 개인 대화방으로 가서 같은 질문을 같은 모드로 보낸다.
+      setMessage("");
+      const mode = askModel === "심층 분석" ? "deep" : "fast";
+      navigate(`/experts/${encodeURIComponent(agentExpert.id)}?q=${encodeURIComponent(question)}&mode=${mode}`);
+      return;
+    }
     if (!user) {
       // Members only: keep the question, show the login card, and send it after login.
       window.sessionStorage.setItem(PENDING_QUESTION_KEY, question);
@@ -553,17 +581,58 @@ export default function Home() {
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         onKeyDown={submitOnEnter}
-        placeholder={user ? "무엇이든 물어보세요" : "로그인 후 질문할 수 있어요"}
-        aria-label="INDEX AI에게 질문"
+        placeholder={!user ? "로그인 후 질문할 수 있어요" : agentExpert ? `${agentExpert.name}에게 물어보세요` : "무엇이든 물어보세요"}
+        aria-label={agentExpert ? `${agentExpert.name}에게 질문` : "INDEX AI에게 질문"}
         autoComplete="off"
       />
+      <div className="home__ask-model-wrap" ref={askAgentRef}>
+        <button
+          type="button"
+          className="home__ask-model"
+          aria-haspopup="listbox"
+          aria-expanded={askAgentOpen}
+          aria-label="에이전트 선택"
+          onClick={() => {
+            setAskAgentOpen((open) => !open);
+            setAskModelOpen(false);
+          }}
+        >
+          {agentExpert ? agentExpert.name : "INDEX AI"} <ChevronDownIcon />
+        </button>
+        {askAgentOpen && (
+          <div className="home__ask-menu" role="listbox" aria-label="에이전트 선택">
+            {[{ id: "index", name: "INDEX AI", description: "협회 지식·법규·사례 전반" }, ...experts.map((item) => ({ id: item.id, name: item.name, description: item.role || "개인 AI" }))].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="option"
+                aria-selected={askAgent === item.id}
+                onClick={() => {
+                  setAskAgent(item.id);
+                  setAskAgentOpen(false);
+                }}
+              >
+                <span className="home__ask-menu-check">{askAgent === item.id && <CheckIcon />}</span>
+                <span className="home__ask-menu-label">
+                  <strong>{item.name}</strong>
+                  <small>{item.description}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="home__ask-model-wrap" ref={askModelRef}>
         <button
           type="button"
           className="home__ask-model"
           aria-haspopup="listbox"
           aria-expanded={askModelOpen}
-          onClick={() => setAskModelOpen((open) => !open)}
+          aria-label="응답 모드 선택"
+          onClick={() => {
+            setAskModelOpen((open) => !open);
+            setAskAgentOpen(false);
+          }}
         >
           {askModel} <ChevronDownIcon />
         </button>

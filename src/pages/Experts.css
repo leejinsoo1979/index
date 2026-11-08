@@ -200,3 +200,5 @@
 .expert-shell--chat{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden}.expert-shell--chat>.expert-top,.expert-shell--chat>.expert-person-intro{flex-shrink:0}.expert-shell--chat>.expert-room-layout{flex:1;min-height:0;height:auto}
 .expert-top>div>a,.expert-top>a:not(.expert-brand),.expert-person-intro>div>a,.expert-person-intro>a,.expert-person-intro h1 span,.expert-person-copy>span,.expert-person-copy dt,.expert-person-copy dd small,.expert-video-caption,.expert-brand span{color:#374151;}
 .expert-login p{color:#1f2937;}.expert-login a{color:#111827!important;}
+
+.expert-markdown--stream>:last-child::after{content:"";display:inline-block;width:2px;height:1em;margin-inline-start:3px;vertical-align:-.12em;background:currentColor;animation:expert-caret .85s steps(2,start) infinite}@keyframes expert-caret{50%{opacity:0}}@media(prefers-reduced-motion:reduce){.expert-markdown--stream>:last-child::after{animation:none}}

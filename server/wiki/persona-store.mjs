@@ -3,6 +3,7 @@ import { mkdirSync,readFileSync,existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { atomicFile } from './store.mjs';
 import { PersonalWikiSearch } from './persona-search.mjs';
+import { PersonalConversations } from './persona-conversations.mjs';
 
 const BUILTIN = {id:'interior-show',name:'인테리어쇼 대표',role:'주거 실내건축 · 개인 AI',bio:'자료와 경험을 쌓고, 생각을 나누는 인테리어쇼 대표의 개인 지식 공간입니다.',video:'/media/representative/interior-show-greeting.webm',animation:'/media/representative/interior-show-greeting.webp',poster:'/media/representative/interior-show-poster.png',published:true,version:1,ownerUid:'',voice:'',principles:'',suggestions:['주거 공간을 계획할 때 무엇부터 정리하면 좋을까요?','디자인과 실제 생활의 편리함을 어떻게 맞추면 좋을까요?','공사를 시작하기 전에 어떤 질문을 해봐야 할까요?']};
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -23,6 +24,7 @@ export class PersonaStore {
       CREATE INDEX IF NOT EXISTS expert_message_room ON expert_messages(room_id);`);
     this.db.prepare('INSERT OR IGNORE INTO expert_profiles VALUES(?,?)').run(BUILTIN.id,JSON.stringify(BUILTIN));
     this.searchIndex=new PersonalWikiSearch(store);
+    this.conversations=new PersonalConversations(this);
   }
   profile(id){if(!safeId(id))fail('인물 식별자가 올바르지 않습니다.');return unpack(this.db.prepare('SELECT data FROM expert_profiles WHERE id=?').get(id))??fail('인물 공간을 찾지 못했습니다.',404);}
   canManage(p,actor){return Boolean(actor?.uid&&(actor.admin||p.ownerUid===actor.uid));}
@@ -102,7 +104,7 @@ export class PersonaStore {
     const voice=docs.filter(isVoice).slice(0,6).map(p=>`${p.title}\n${p.content.slice(0,3000)}`).join('\n\n');
     const hits=this.searchIndex.search(person.id,this.pages(person.id),question);
     const style=this.styleContext(person.id,question);
-    return {voice:[voice,style.text].filter(Boolean).join('\n\n'),styleVersion:style.version,sources:hits.map((h,i)=>({id:h.p.id,title:h.p.title,personId:person.id,personName:person.name,version:h.p.version,excerpt:h.text,updatedAt:h.p.updatedAt,url:h.url,timestamp:h.timestamp,attribution:h.attribution,pages:h.pages,chunkIndex:h.chunkIndex,ref:i+1}))};
+    return {voice:[voice,style.text].filter(Boolean).join('\n\n'),styleVersion:style.version,sources:hits.map((h,i)=>({id:h.p.id,title:h.p.title,personId:person.id,personName:person.name,version:h.p.version,excerpt:h.text,updatedAt:h.p.updatedAt,url:h.url,timestamp:h.timestamp,attribution:h.attribution,pages:h.pages,chunkIndex:h.chunkIndex,ownerCorrection:h.ownerCorrection,ref:i+1}))};
   }
   begin(id,body,actor){
     const question=text(body.question,6000);if(!question)fail('질문을 입력해 주세요.');if(!safeId(body.requestId))fail('요청 식별자가 올바르지 않습니다.');
@@ -136,6 +138,10 @@ export class PersonaStore {
     if(action==='directory')return {profiles:this.directory(actor)};
     if(action==='profile'){const p=this.profile(pid);this.view(p,actor);return {profile:publicProfile(p,this.pages(pid),this.stylePack(pid)?.version),canManage:this.canManage(p,actor)};}
     if(action==='saveProfile')return this.saveProfile(body.profile??{},actor);
+    if(action==='ownerRooms')return this.conversations.rooms(pid,actor);
+    if(action==='ownerRoom')return this.conversations.view(pid,body.roomId,actor);
+    if(action==='correctAnswer')return this.conversations.correct(pid,body,actor);
+    if(action==='deleteCorrection')return this.conversations.remove(pid,body.messageId,actor);
     if(action==='settings'){const p=this.profile(pid);this.manage(p,actor);return p;}
     if(action==='saveVoice')return this.saveVoice(pid,body,actor);
     if(action==='importDraft')return this.importDraft(pid,body,actor);

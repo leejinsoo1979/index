@@ -89,3 +89,46 @@ await test('the initial home description stays in later conversation context wit
  assert.ok(!p.replyHistory(otherRoom).some(m=>m.content.includes('32평')));
  assert.equal(p.pages('interior-show').length,0);assert.equal(p.store.pages().length,0);
 }));
+
+await test('personal FTS and read tools cannot cross a room/person boundary and immediately drop archived evidence',()=>fixture(p=>{
+ p.saveProfile(profile(),admin);const first=p.savePage('interior-show',{draft:page('동선 원문','냉장고 문과 통행 동선을 확인합니다.'),options:{expectedVersion:0}},owner);
+ p.saveProfile({...profile('second'),ownerUid:'other',expectedVersion:0},admin);const second=p.savePage('second',{draft:page('다른 사람 원문','냉장고 문은 다른 사람의 기록입니다.'),options:{expectedVersion:0}},other);
+ const room=p.createRoom('interior-show',member);
+ const hits=p.dispatch({action:'searchEvidence',roomId:room.id,personId:'second',query:'냉장고',actor:member});assert.equal(hits.sources.length,1);assert.equal(hits.sources[0].id,first.id);
+ assert.throws(()=>p.dispatch({action:'readEvidence',roomId:room.id,pageId:second.id,actor:member}),e=>e.status===404);
+ assert.throws(()=>p.dispatch({action:'knowledgeCatalog',roomId:room.id,actor:other}),e=>e.status===404);
+ p.savePage('interior-show',{draft:{...first,status:'archived'},options:{id:first.id,expectedVersion:1}},owner);
+ assert.equal(p.dispatch({action:'searchEvidence',roomId:room.id,query:'냉장고',actor:member}).sources.length,0);
+ assert.equal(p.store.pages().length,0);
+}));
+
+await test('PDF search keeps page boundaries and OCR attribution instead of reducing the PDF to a generated summary',()=>fixture(p=>{
+ const draft={...page('협회 연구 원문','## 1쪽\n\n첫쪽의 방통공사 원문입니다.\n\n## 2쪽\n\n붙박이장 후면 공기층 단열 원문입니다.\n\n### 그림·표 OCR\n\n표에서 읽은 별도의 문구입니다.'),tags:['PDF 원문']};
+ p.savePage('interior-show',{draft,options:{expectedVersion:0}},admin);
+ const hits=p.retrieve(p.profile('interior-show'),'붙박이장 공기층');assert.ok(hits.sources.length);assert.equal(hits.sources[0].pages,'2쪽');assert.ok(!hits.sources[0].excerpt.includes('첫쪽'));assert.match(hits.sources[0].attribution,/PDF/);
+}));
+
+await test('owner conversation review is separately authorized, scoped to that expert, and masks member identifiers',()=>fixture(p=>{
+ p.saveProfile(profile(),admin);const room=p.createRoom('interior-show',member);
+ p.saveProfile({...profile('second'),ownerUid:'other',expectedVersion:0},admin);const second=p.createRoom('second',member);
+ assert.throws(()=>p.dispatch({action:'ownerRooms',personId:'interior-show',actor:member}),e=>e.status===403);
+ assert.throws(()=>p.dispatch({action:'ownerRoom',personId:'interior-show',roomId:second.id,actor:owner}),e=>e.status===404);
+ const rooms=p.dispatch({action:'ownerRooms',personId:'interior-show',actor:owner});assert.equal(rooms.length,1);assert.match(rooms[0].member,/^회원 [0-9a-f]{6}$/);assert.ok(!JSON.stringify(rooms).includes('member_uid'));
+ assert.equal(p.dispatch({action:'ownerRoom',personId:'interior-show',roomId:room.id,actor:owner}).messages.length,1);
+ assert.throws(()=>p.dispatch({action:'room',roomId:room.id,actor:owner}),e=>e.status===404);
+}));
+
+await test('owner corrections take retrieval priority, preserve revisions, survive room deletion, and can be withdrawn',()=>fixture(p=>{
+ p.saveProfile(profile(),admin);p.savePage('interior-show',{draft:page('주방 수납 일반','주방 수납은 많으면 좋다는 일반 초안입니다.'),options:{expectedVersion:0}},owner);
+ const room=p.createRoom('interior-show',member),requestId=randomUUID();p.begin(room.id,{question:'주방 수납이 많으면 좋지? 연락처 010-1234-5678 user@example.com',requestId},member);
+ const reply=p.finish(room.id,{requestId,content:'주방 수납은 무조건 많으면 좋아.',sources:[],grounding:'general'},member);
+ const body={action:'correctAnswer',personId:'interior-show',roomId:room.id,messageId:reply.id,content:'주방 수납은 양보다 꺼내기와 정리 동선이 우선입니다. 앞 물건을 모두 빼야 하는 깊은 선반은 피합니다.'};
+ assert.throws(()=>p.dispatch({...body,actor:member}),e=>e.status===403);
+ const first=p.dispatch({...body,actor:owner}).correction;assert.ok(!first.question.includes('010-1234'));assert.ok(!first.question.includes('user@example'));
+ let hits=p.retrieve(p.profile('interior-show'),'주방 수납');assert.equal(hits.sources[0].id,first.pageId);assert.equal(hits.sources[0].ownerCorrection,true);assert.match(hits.sources[0].excerpt,/꺼내기와 정리/);
+ const edited=p.dispatch({...body,content:'주방 수납은 정리와 꺼내기 동선을 먼저 확인합니다. 자주 쓰는 물건은 손이 닿는 위치에 둡니다.',actor:owner}).correction;
+ assert.equal(edited.pageId,first.pageId);assert.equal(p.dispatch({action:'history',personId:'interior-show',pageId:first.pageId,actor:owner}).length,2);
+ p.dispatch({action:'deleteRoom',roomId:room.id,actor:member});assert.equal(p.retrieve(p.profile('interior-show'),'주방 수납').sources[0].id,first.pageId);
+ assert.deepEqual(p.dispatch({action:'deleteCorrection',personId:'interior-show',messageId:reply.id,actor:owner}),{deleted:true});
+ assert.ok(!p.retrieve(p.profile('interior-show'),'주방 수납').sources.some(s=>s.id===first.pageId));assert.equal(p.store.pages().length,0);assert.equal(p.store.status().events,0);
+}));
