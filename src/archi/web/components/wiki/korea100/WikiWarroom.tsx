@@ -576,7 +576,7 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
               자료 가져오기 IMPORT
             </button>
           </div>
-          <span className="wr-hint">{view === 'stage' ? '탑 클릭 = 분야 확대 · 칸 클릭 = 문서 흐름 · ESC = 전체 화면 복귀' : '분야·신호 클릭 = 상세 · ESC = 선택 해제'}</span>
+          <span className="wr-hint">{view === 'stage' ? '드래그 = 360° 회전 · 휠 = 확대 · 우클릭 드래그 = 이동 · 칸 클릭 = 문서 흐름 · ESC = 전체 보기' : '분야·신호 클릭 = 상세 · ESC = 선택 해제'}</span>
         </div>
       </footer>
     </div>

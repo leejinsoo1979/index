@@ -7,6 +7,7 @@
    tile = one wiki document, route = the document's wiki links (흐름). */
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export type StageStatus = 'published' | 'ready' | 'unsourced' | 'broken' | 'draft';
 export type StageDoc = { id: string; title: string; status: StageStatus; links: string[] };
@@ -166,14 +167,14 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     const TOTAL = Math.max(1, docs.length);
 
     const tileGeo = track(new THREE.PlaneGeometry(TILE, TILE));
-    const tileMat = track(new THREE.MeshBasicMaterial({ toneMapped: false }));
+    const tileMat = track(new THREE.MeshBasicMaterial({ toneMapped: false, side: THREE.DoubleSide }));
     const tiles = new THREE.InstancedMesh(tileGeo, tileMat, TOTAL);
     tiles.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(TOTAL * 3), 3);
     scene.add(tiles);
 
     const glowTex = track(glowTexture());
     const glowGeo = track(new THREE.PlaneGeometry(TILE * 2.2, TILE * 2.2));
-    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
     const glows = new THREE.InstancedMesh(glowGeo, glowMat, TOTAL);
     glows.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(TOTAL * 3), 3);
     scene.add(glows);
@@ -207,7 +208,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         p.docs.forEach((d) => tally.set(d.status, (tally.get(d.status) ?? 0) + 1));
         const dominant = ([...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'draft') as StageStatus;
         const tex = track(panelTexture(p, dominant, wPx, hPx, LABEL_H / ph));
-        const mat = track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+        const mat = track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
         const geo = track(new THREE.PlaneGeometry(PANEL_W, ph));
         const panel = new THREE.Mesh(geo, mat);
         panel.position.set(0, y + ph / 2, 0);
@@ -236,7 +237,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       });
 
       const headerTex = track(headerTexture(gi, g));
-      const headerMat = track(new THREE.MeshBasicMaterial({ map: headerTex, transparent: true, toneMapped: false }));
+      const headerMat = track(new THREE.MeshBasicMaterial({ map: headerTex, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
       const headerGeo = track(new THREE.PlaneGeometry(PANEL_W, (PANEL_W * 148) / 1024));
       const header = new THREE.Mesh(headerGeo, headerMat);
       header.position.set(0, y + 0.36, 0);
@@ -246,7 +247,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
 
       maxTop = Math.max(maxTop, y + 0.9);
       const center = new THREE.Vector3(Math.sin(ang) * R, y * 0.48, -Math.cos(ang) * R);
-      const fd = Math.max(8, (y + 2.5) / 0.9);
+      const fd = Math.max(10, (y + 4) / 0.72);
       gateInfo.push({
         key: g.key,
         focusPos: new THREE.Vector3(Math.sin(ang) * (R - fd), y * 0.48 + 0.6, -Math.cos(ang) * (R - fd)),
@@ -308,8 +309,29 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       scene.add(new THREE.Points(geo, track(new THREE.PointsMaterial({ color: 0x38c6f4, size: 0.045, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }))));
     }
 
-    // ── route (흐름): gold tubes + glowing nodes between linked documents ──
+    // ── route (흐름): thin gold/cyan lines between linked documents, with pulses travelling along them ──
     const routeObjs: THREE.Object3D[] = [];
+    const pulses: { sprite: THREE.Sprite; curve: THREE.Curve<THREE.Vector3>; offset: number; speed: number }[] = [];
+    const streams: { map: THREE.Texture; speed: number }[] = [];
+    // Bright streaks on a dim track: scrolled along each line so the data visibly moves source → target.
+    const streakCanvas = document.createElement('canvas');
+    streakCanvas.width = 256;
+    streakCanvas.height = 4;
+    {
+      const g = streakCanvas.getContext('2d')!;
+      g.fillStyle = 'rgba(255,255,255,0.22)';
+      g.fillRect(0, 0, 256, 4);
+      for (const [x, w] of [[0, 70], [128, 46]] as const) {
+        const grad = g.createLinearGradient(x, 0, x + w, 0);
+        grad.addColorStop(0, 'rgba(255,255,255,0.22)');
+        grad.addColorStop(0.85, 'rgba(255,255,255,1)');
+        grad.addColorStop(1, 'rgba(255,255,255,0.22)');
+        g.fillStyle = grad;
+        g.fillRect(x, 0, w, 4);
+      }
+    }
+    const streakTex = track(new THREE.CanvasTexture(streakCanvas));
+    streakTex.wrapS = THREE.RepeatWrapping;
     const clearRoute = () => {
       routeObjs.forEach((o) => {
         scene.remove(o);
@@ -318,60 +340,107 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         (m.material as THREE.Material | undefined)?.dispose();
       });
       routeObjs.length = 0;
+      pulses.length = 0;
+      streams.forEach((st) => st.map.dispose());
+      streams.length = 0;
     };
-    const lifted = (id: string, lift: number) => {
+    const anchor = (id: string) => {
       const p = tilePos.get(id);
       const n = tileNormal.get(id);
-      return p && n ? p.clone().add(n.clone().multiplyScalar(lift)) : null;
+      return p && n ? { p: p.clone().add(n.clone().multiplyScalar(0.03)), n } : null;
     };
-    const tube = (from: THREE.Vector3, to: THREE.Vector3, color: number, opacity: number, radius: number) => {
-      const mid = from.clone().lerp(to, 0.5);
-      mid.y += 0.5 + from.distanceTo(to) * 0.06;
-      mid.add(new THREE.Vector3(0, 0, 1.2));
-      const curve = new THREE.CatmullRomCurve3([from, mid, to], false, 'catmullrom', 0.3);
+    /** Same tower: leave the wall, run in front of it, come back in (no loops over the tiles).
+        Different towers: rise off the wall and arc over to the other tower. */
+    const flowCurve = (a: { p: THREE.Vector3; n: THREE.Vector3 }, b: { p: THREE.Vector3; n: THREE.Vector3 }, sameGate: boolean) => {
+      if (sameGate) {
+        const out = 0.35 + a.p.distanceTo(b.p) * 0.12;
+        return new THREE.CatmullRomCurve3([a.p, a.p.clone().add(a.n.clone().multiplyScalar(out)), b.p.clone().add(b.n.clone().multiplyScalar(out)), b.p], false, 'centripetal');
+      }
+      const lift = 0.6 + a.p.distanceTo(b.p) * 0.05;
+      const up = new THREE.Vector3(0, lift, 0);
+      const a1 = a.p.clone().add(a.n.clone().multiplyScalar(0.9)).add(up.clone().multiplyScalar(0.5));
+      const b1 = b.p.clone().add(b.n.clone().multiplyScalar(0.9)).add(up.clone().multiplyScalar(0.5));
+      const mid = a1.clone().lerp(b1, 0.5).add(up);
+      return new THREE.CatmullRomCurve3([a.p, a1, mid, b1, b.p], false, 'centripetal');
+    };
+    const line = (curve: THREE.Curve<THREE.Vector3>, color: number, opacity: number, radius: number, speed = 0.5) => {
+      const map = streakTex.clone();
+      map.needsUpdate = true;
+      map.repeat.set(Math.max(1, curve.getLength() / 2.2), 1);
+      map.offset.x = Math.random();
+      streams.push({ map, speed: reduceMotion ? 0 : speed });
       const mesh = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 40, radius, 6, false),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+        new THREE.TubeGeometry(curve, 96, radius, 5, false),
+        new THREE.MeshBasicMaterial({ color, map, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
       );
       scene.add(mesh);
       routeObjs.push(mesh);
     };
-    const node = (at: THREE.Vector3, color: number, scale: number) => {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const dot = (at: THREE.Vector3, color: number, scale: number, opacity = 1) => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
       s.position.copy(at);
       s.scale.setScalar(scale);
       scene.add(s);
       routeObjs.push(s);
+      return s;
     };
+    /** Three data packets per line, evenly spaced, riding from source to target. */
+    const pulse = (curve: THREE.Curve<THREE.Vector3>, color: number, speed: number) => {
+      if (reduceMotion) return;
+      const base = Math.random();
+      for (let k = 0; k < 3; k++) {
+        const sprite = dot(curve.getPoint(0), color, 0.24, 0.9);
+        pulses.push({ sprite, curve, offset: base + k / 3, speed });
+      }
+    };
+    // selection ring around the chosen tile
+    const ring = (at: { p: THREE.Vector3; n: THREE.Vector3 }) => {
+      const mesh = new THREE.Mesh(
+        new THREE.RingGeometry(TILE * 0.62, TILE * 0.78, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
+      );
+      mesh.position.copy(at.p).add(at.n.clone().multiplyScalar(0.01));
+      mesh.lookAt(at.p.clone().add(at.n));
+      scene.add(mesh);
+      routeObjs.push(mesh);
+    };
+    const gateOf = new Map(inst.map((d) => [d.id, d.gate]));
     const byId = new Map(docs.map((d) => [d.doc.id, d.doc]));
     const drawRoute = (selected: string | null) => {
       clearRoute();
       if (selected && byId.has(selected)) {
-        const from = lifted(selected, 0.35);
+        const from = anchor(selected);
         if (!from) return;
-        node(from, 0xffd76a, 0.85);
-        const incoming = docs.filter((d) => d.doc.links.includes(selected)).map((d) => d.doc.id);
+        ring(from);
         byId.get(selected)!.links.forEach((target) => {
-          const to = lifted(target, 0.35);
+          const to = anchor(target);
           if (!to) return;
-          tube(from, to, 0xffd76a, 0.9, 0.05);
-          node(to, 0xffd76a, 0.6);
+          const curve = flowCurve(from, to, gateOf.get(selected) === gateOf.get(target));
+          line(curve, 0xffc94d, 1, 0.02, 0.7);
+          dot(to.p, 0xffd76a, 0.32);
+          pulse(curve, 0xfff1c4, 0.22);
         });
-        incoming.forEach((source) => {
-          const to = lifted(source, 0.35);
-          if (!to) return;
-          tube(to, from, 0x38c6f4, 0.7, 0.035);
-          node(to, 0x38c6f4, 0.5);
-        });
+        docs
+          .filter((d) => d.doc.links.includes(selected))
+          .forEach((d) => {
+            const src = anchor(d.doc.id);
+            if (!src) return;
+            const curve = flowCurve(src, from, gateOf.get(d.doc.id) === gateOf.get(selected));
+            line(curve, 0x38c6f4, 0.85, 0.015, 0.55);
+            dot(src.p, 0x38c6f4, 0.26);
+            pulse(curve, 0xc9f1ff, 0.18);
+          });
         return;
       }
       cb.current.overviewRoute.forEach(([a, b]) => {
-        const from = lifted(a!, 0.35);
-        const to = lifted(b!, 0.35);
+        const from = anchor(a!);
+        const to = anchor(b!);
         if (!from || !to) return;
-        tube(from, to, 0xffd76a, 0.55, 0.035);
-        node(from, 0xffd76a, 0.9);
-        node(to, 0xffd76a, 0.9);
+        const curve = flowCurve(from, to, gateOf.get(a!) === gateOf.get(b!));
+        line(curve, 0xffc94d, 0.8, 0.016, 0.4);
+        dot(from.p, 0xffd76a, 0.3, 0.8);
+        dot(to.p, 0xffd76a, 0.3, 0.8);
+        pulse(curve, 0xfff1c4, 0.12);
       });
     };
     drawRoute(null);
@@ -392,21 +461,36 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       overview.pos.set(0, maxTop * 0.62 + 1, -R + d);
     };
     fitOverview();
-    const camPos = overview.pos.clone();
-    const camTgt = overview.tgt.clone();
+    // Free 360° look-around (drag = orbit, wheel = zoom, right-drag = pan); clicks on a tower or
+    // tile fly the camera there, and any drag hands control straight back to the user.
+    camera.position.copy(overview.pos);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.copy(overview.tgt);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.6;
+    controls.minDistance = 3;
+    controls.maxDistance = 140;
+    controls.maxPolarAngle = Math.PI * 0.495;
+    controls.update();
     const wantPos = overview.pos.clone();
     const wantTgt = overview.tgt.clone();
+    let flying = false;
     let focused = -1;
     const mouse = { x: 0, y: 0 };
+    controls.addEventListener('start', () => {
+      flying = false;
+    });
     const focus = (key: string | null) => {
       focused = key ? gateInfo.findIndex((g) => g.key === key) : -1;
       if (focused < 0) {
         wantPos.copy(overview.pos);
         wantTgt.copy(overview.tgt);
-        return;
+      } else {
+        wantPos.copy(gateInfo[focused]!.focusPos);
+        wantTgt.copy(gateInfo[focused]!.focusTgt);
       }
-      wantPos.copy(gateInfo[focused]!.focusPos);
-      wantTgt.copy(gateInfo[focused]!.focusTgt);
+      flying = true;
     };
     api.current = { focus, route: drawRoute };
 
@@ -427,7 +511,13 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       hoveredPanel = (panelHit?.object as THREE.Mesh) ?? null;
       renderer.domElement.style.cursor = hoveredTile >= 0 || hoveredPanel ? 'pointer' : 'crosshair';
     };
-    const onClick = () => {
+    let downAt: { x: number; y: number } | null = null;
+    const onDown = (e: PointerEvent) => {
+      downAt = { x: e.clientX, y: e.clientY };
+    };
+    const onClick = (e: MouseEvent) => {
+      // a drag that rotated the view is not a click
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
       if (hoveredTile >= 0) {
         const d = inst[hoveredTile]!;
         cb.current.onFocusGate(gates[d.gate]!.key);
@@ -443,6 +533,11 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       cb.current.onSelectDoc(null);
     };
     renderer.domElement.addEventListener('pointermove', pick);
+    renderer.domElement.addEventListener('pointerdown', onDown);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') focus(null);
+    };
+    window.addEventListener('keydown', onKey);
     renderer.domElement.addEventListener('click', onClick);
 
     // ── animate ──
@@ -451,6 +546,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     const white = new THREE.Color(0xffffff);
     const bootT0 = performance.now();
     let frame = 0;
+    let lastT = 0;
     const setTile = (i: number, c: THREE.Color, g: number) => {
       tiles.instanceColor!.setXYZ(i, c.r, c.g, c.b);
       glows.instanceColor!.setXYZ(i, c.r * g, c.g * g, c.b * g);
@@ -499,13 +595,22 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         hoverMat.opacity = Math.max(0, hoverMat.opacity - 0.03);
       }
 
-      const drift = focused < 0 && !reduceMotion ? Math.sin(t * 0.1) * 0.9 : 0;
-      camPos.x += (wantPos.x + drift + mouse.x * 0.9 - camPos.x) * 0.045;
-      camPos.y += (wantPos.y + mouse.y * -0.5 - camPos.y) * 0.045;
-      camPos.z += (wantPos.z - camPos.z) * 0.045;
-      camTgt.lerp(wantTgt, 0.05);
-      camera.position.copy(camPos);
-      camera.lookAt(camTgt);
+      const dt = Math.min(0.1, t - lastT);
+      lastT = t;
+      for (const st of streams) st.map.offset.x -= dt * st.speed;
+      for (const p of pulses) {
+        const u = (t * p.speed + p.offset) % 1;
+        p.sprite.position.copy(p.curve.getPoint(u));
+        (p.sprite.material as THREE.SpriteMaterial).opacity = Math.sin(u * Math.PI) * 0.95;
+      }
+
+      if (flying) {
+        const k = reduceMotion ? 1 : 0.06;
+        camera.position.lerp(wantPos, k);
+        controls.target.lerp(wantTgt, k);
+        if (camera.position.distanceTo(wantPos) < 0.03 && controls.target.distanceTo(wantTgt) < 0.03) flying = false;
+      }
+      controls.update();
       renderer.render(scene, camera);
     };
     animate();
@@ -516,10 +621,6 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       fitOverview();
-      if (focused < 0) {
-        wantPos.copy(overview.pos);
-        wantTgt.copy(overview.tgt);
-      }
     });
     ro.observe(host);
 
@@ -527,7 +628,10 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       cancelAnimationFrame(frame);
       ro.disconnect();
       renderer.domElement.removeEventListener('pointermove', pick);
+      renderer.domElement.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
       renderer.domElement.removeEventListener('click', onClick);
+      controls.dispose();
       clearRoute();
       tiles.dispose();
       glows.dispose();
