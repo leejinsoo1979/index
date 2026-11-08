@@ -360,3 +360,5 @@
 .expert-dir-card-foot{justify-content:center;}
 .expert-welcome-portrait>video,.expert-launcher .expert-launcher__avatar>video{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:50% 18%;background:#f0f1f3;}
 .expert-shell .ai-nav__association,.expert-shell .ai-nav__association:hover{color:#fff;}
+.expert-upload-links{display:flex;flex-wrap:wrap;gap:14px;}
+.expert-settings .expert-top>div>a{display:inline-flex;align-items:center;gap:6px;}

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { ThinkingOrbLabel } from '@/components/orbs/ThinkingOrb';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { firebaseDb, firebaseStorage } from '@/lib/firebase';
@@ -114,7 +115,13 @@ function StudioGate({
   return (
     <div className="archi-studio flex min-h-screen items-center justify-center bg-zinc-50 px-4 text-zinc-900">
       <div className="max-w-sm text-center">
-        <p className="text-lg font-semibold">{title}</p>
+        {title.endsWith("중…") ? (
+          <div className="flex justify-center">
+            <ThinkingOrbLabel design="working">{title}</ThinkingOrbLabel>
+          </div>
+        ) : (
+          <p className="text-lg font-semibold">{title}</p>
+        )}
         {body && <p className="mt-2 text-sm text-zinc-500">{body}</p>}
         {retry && (
           <button type="button" onClick={retry} className="mt-5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white">

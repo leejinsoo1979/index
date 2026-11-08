@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PanelLeft, PanelRight } from 'lucide-react';
+import { Moon, PanelLeft, PanelRight, Sun } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@archi-web/lib/client/api';
 import { AIChatPanel } from '@archi-web/components/ai/AIChatPanel';
@@ -11,6 +11,7 @@ import { BlockOutline } from '@archi-web/components/studio/BlockOutline';
 import { NavRail } from '@archi-web/components/studio/NavRail';
 import { ResizeHandle, useResizable } from '@archi-web/components/studio/Resizable';
 import { TopBar } from '@archi-web/components/studio/TopBar';
+import { useStudioTheme } from '../../studioTheme';
 import './StudioDocument.css';
 
 type DocMeta = { id: string; projectId: string; title: string; status: string };
@@ -69,6 +70,12 @@ export default function DocumentStudioPage() {
   const [showOutline, setShowOutline] = useState(() => readPanelPref('archi.doc.outline', false));
   useEffect(() => writePanelPref('archi.doc.chat', showChat), [showChat]);
   useEffect(() => writePanelPref('archi.doc.outline', showOutline), [showOutline]);
+  // Document viewer only: read/write the page on white paper while the studio stays dark.
+  const [lightPaper, setLightPaper] = useState(() => readPanelPref('archi.doc.lightPaper', false));
+  useEffect(() => writePanelPref('archi.doc.lightPaper', lightPaper), [lightPaper]);
+  // With the studio-wide light theme on, the page is already white: hide the document-only toggle.
+  const [studioTheme] = useStudioTheme();
+  const paperLight = studioTheme === 'light' || lightPaper;
   const chatPanel = useResizable({
     initial: 340,
     min: 280,
@@ -175,6 +182,15 @@ export default function DocumentStudioPage() {
             >
               <PanelRight size={15} /> 구조
             </button>
+            {studioTheme !== 'light' && <button
+              type="button"
+              className={`sd-toggle${lightPaper ? ' is-on' : ''}`}
+              onClick={() => setLightPaper((v) => !v)}
+              aria-pressed={lightPaper}
+              title={lightPaper ? '문서를 어두운 화면으로 보기' : '문서를 흰 종이로 보기'}
+            >
+              {lightPaper ? <Sun size={15} /> : <Moon size={15} />} {lightPaper ? '라이트' : '다크'}
+            </button>}
           </div>
           {viewMode === 'canvas' && (
             <span className="sd-tabs__hint ml-2 text-[11px] text-zinc-400">
@@ -183,7 +199,7 @@ export default function DocumentStudioPage() {
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className={`sd-viewer min-h-0 flex-1 overflow-hidden${paperLight ? ' is-light' : ''}`}>
           {viewMode === 'doc' ? (
             <div className="sd-stage h-full p-4">
               <div className="sd-paper mx-auto h-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">

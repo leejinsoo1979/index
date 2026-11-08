@@ -92,12 +92,13 @@
 
 /* ── document: a page, not a boxed form ── */
 .sd-stage {
-  padding: 0 24px !important;
+  padding: 0 !important;
   background: var(--wk-bg);
 }
 
+/* the page fills the viewer edge to edge in both themes (no side margins) */
 .sd-paper {
-  max-width: 940px !important;
+  max-width: none !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -134,4 +135,47 @@
   color: var(--wk-text) !important;
   font-size: 13.5px !important;
   font-weight: 650 !important;
+}
+
+/* ── 라이트 문서 보기: only the document viewer turns light (white paper on a soft grey desk).
+   The editor components are token-based, so redefining the --wk-* tokens here is enough. ── */
+.sd-viewer.is-light {
+  color-scheme: light;
+  --wk-bg: #eef0f3;
+  --wk-bg-2: #f3f4f6;
+  --wk-surface: #ffffff;
+  --wk-surface-2: #f4f5f7;
+  --wk-surface-3: #e9ebef;
+  --wk-line: #e3e5ea;
+  --wk-line-strong: #d3d6dd;
+  --wk-line-heavy: #c3c7cf;
+  --wk-text: #17181c;
+  --wk-text-1b: #22252d;
+  --wk-text-2: #3d404a;
+  --wk-text-2b: #555a66;
+  --wk-text-3: #6b6f7b;
+  --wk-text-4: #9a9ea8;
+  --wk-accent: #4f6bf6;
+  --wk-accent-strong: #4f6bf6;
+  --wk-accent-bg: rgba(79, 107, 246, 0.1);
+  --wk-accent-line: rgba(79, 107, 246, 0.38);
+  --wk-shadow: rgba(16, 24, 40, 0.1);
+  background: var(--wk-bg);
+  color: var(--wk-text);
+}
+/* light mode: the page fills the whole viewer — no grey desk, no margins around the paper */
+.sd-viewer.is-light,
+.sd-viewer.is-light .sd-stage {
+  background: #fff !important;
+}
+.sd-viewer.is-light .sd-stage {
+  padding: 0 !important;
+}
+.sd-viewer.is-light .sd-paper {
+  max-width: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  color: var(--wk-text);
 }

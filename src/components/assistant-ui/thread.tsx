@@ -1,5 +1,6 @@
 "use client";
 
+import { ThinkingOrbLabel } from "@/components/orbs/ThinkingOrb";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
@@ -286,6 +287,10 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
+        {/* Waiting for the first part of the answer. */}
+        <AuiIf condition={(s) => s.message.status?.type === "running" && s.message.parts.length === 0}>
+          <ThinkingOrbLabel design="weaving">답변을 준비하는 중…</ThinkingOrbLabel>
+        </AuiIf>
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],

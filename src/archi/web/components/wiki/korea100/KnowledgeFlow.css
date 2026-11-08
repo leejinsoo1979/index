@@ -1,0 +1,169 @@
+/* 지식 흐름 (KnowledgeFlow.tsx) — compact cards, bezier links with a travelling light pulse. */
+.kf {
+  --kf-card-h: 48px;
+  padding: 20px 22px 22px;
+  border: 1px solid var(--wk-line);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(91, 108, 240, 0.09), transparent 55%),
+    var(--wk-bg-2);
+  font-family: var(--wk-font);
+}
+
+.kf-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr);
+  gap: 0 clamp(48px, 9vw, 140px);
+  margin-bottom: 14px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--wk-text-4);
+}
+.kf-head span:nth-child(2) { text-align: center; }
+.kf-head span:last-child { text-align: right; }
+.kf-head b { margin-left: 4px; font-weight: 650; color: var(--wk-text-2); }
+
+.kf-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr);
+  gap: 0 clamp(48px, 9vw, 140px);
+  align-items: center;
+}
+.kf-links { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+
+.kf-col { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+.kf-col--center { align-items: stretch; }
+
+/* cards */
+.kf-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  min-height: var(--kf-card-h);
+  padding: 7px 12px 7px 14px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 12px;
+  background: var(--wk-surface);
+  color: var(--wk-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+.kf-card__title {
+  grid-column: 1;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.kf-card__meta { grid-column: 1; font-size: 11px; color: var(--wk-text-4); }
+.kf-card__go { grid-column: 2; grid-row: 1 / span 2; color: var(--wk-text-4); opacity: 0; transition: opacity 0.18s ease; }
+.kf-card:hover,
+.kf-card:focus-visible,
+.kf-card.is-hot {
+  border-color: var(--wk-accent-line);
+  background: var(--wk-surface-2);
+  outline: none;
+}
+.kf-col--in .kf-card.is-hot { transform: translateX(3px); }
+.kf-col--out .kf-card.is-hot { transform: translateX(-3px); }
+.kf-card.is-hot .kf-card__go { opacity: 1; color: var(--wk-accent); }
+.kf.has-hover .kf-card:not(.is-hot) { opacity: 0.55; }
+
+/* centre */
+.kf-core {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 20px 18px;
+  border: 1px solid var(--wk-accent-line);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(91, 108, 240, 0.18), rgba(91, 108, 240, 0.05)),
+    var(--wk-surface);
+  box-shadow: 0 0 0 6px rgba(91, 108, 240, 0.06), 0 18px 50px -18px rgba(91, 108, 240, 0.55);
+  color: var(--wk-text);
+  text-align: center;
+  cursor: default;
+}
+.kf-core__eyebrow { font-size: 10.5px; font-weight: 650; letter-spacing: 0.12em; color: var(--wk-accent); }
+.kf-core strong { font-size: 17px; font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; }
+.kf-core__meta { font-size: 11.5px; color: var(--wk-text-3); }
+.kf-core__counts { display: flex; gap: 10px; margin-top: 6px; }
+.kf-core__counts i {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--wk-surface-3);
+  font-size: 11px;
+  font-style: normal;
+  color: var(--wk-text-2);
+}
+
+/* links */
+.kf-link__base { fill: none; stroke-width: 1.4; opacity: 0.7; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
+.kf-link__pulse {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 10 260;
+  opacity: 0.55;
+  filter: drop-shadow(0 0 4px rgba(154, 166, 255, 0.9));
+  animation: kf-flow 2.8s linear infinite;
+}
+.kf.has-hover .kf-link:not(.is-hot) { opacity: 0.18; }
+.kf-link.is-hot .kf-link__base { opacity: 1; stroke-width: 2.2; }
+.kf-link.is-hot .kf-link__pulse { opacity: 1; animation-duration: 1.4s; }
+@keyframes kf-flow {
+  from { stroke-dashoffset: 270; }
+  to { stroke-dashoffset: 0; }
+}
+
+.kf-empty { margin: 0; padding: 14px; border: 1px dashed var(--wk-line-strong); border-radius: 12px; font-size: 12px; color: var(--wk-text-4); text-align: center; }
+
+.kf-more {
+  display: block;
+  margin: 16px auto 0;
+  padding: 7px 14px;
+  border: 1px solid var(--wk-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--wk-text-2);
+  cursor: pointer;
+}
+.kf-more:hover { border-color: var(--wk-accent-line); color: var(--wk-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-link__pulse { animation: none; opacity: 0; }
+}
+
+/* narrow: stack the three columns, links hidden */
+@media (max-width: 860px) {
+  .kf-head { display: none; }
+  .kf-stage { grid-template-columns: 1fr; gap: 14px; }
+  .kf-links { display: none; }
+  .kf-col--center { order: -1; }
+  .kf-col--in::before { content: "참조하는 문서"; font-size: 11.5px; color: var(--wk-text-4); }
+  .kf-col--out::before { content: "연결한 문서"; font-size: 11.5px; color: var(--wk-text-4); }
+}
+
+/* short cards hugging the centre, so the curves get room to breathe */
+.kf-col--in { align-items: flex-end; }
+.kf-col--out { align-items: flex-start; }
+.kf-col--in .kf-card,
+.kf-col--out .kf-card { width: min(100%, 260px); }
+.kf-head span:first-child { text-align: right; padding-right: max(0px, calc(100% - 260px)); }
+@media (max-width: 860px) {
+  .kf-col--in, .kf-col--out { align-items: stretch; }
+  .kf-col--in .kf-card, .kf-col--out .kf-card { width: 100%; }
+}

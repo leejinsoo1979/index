@@ -6,9 +6,10 @@ import { Dialog } from 'radix-ui';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Copy, FileText, History, Link2, Pencil, X } from 'lucide-react';
 import { WIKI_STATUS, type WikiPage, type WikiSource } from '../../../../wiki/types';
 import { WIKI_ENTRY_TYPES, articleLead, entryType } from '../../../../wiki/encyclopedia';
-import { documentSections, knowledgeConnectionModel, readProcess, registryRecords, registryStatus, relatedWikiPages, withoutProcess, writeProcess } from '../../../../wiki/registry';
+import { documentSections, readProcess, registryRecords, registryStatus, relatedWikiPages, withoutProcess, writeProcess } from '../../../../wiki/registry';
 import { WikiMarkdown } from '../WikiMarkdown';
 import DesktopProcessBoard from './DesktopProcessBoard';
+import KnowledgeFlow from './KnowledgeFlow';
 import { CustomSelect } from '@/components/ui/custom-select';
 import ProcessEditor from './ProcessEditor';
 import styles from './InstitutionDetail.module.css';
@@ -33,8 +34,8 @@ export function RegistryDetailView({page, pages, busy, onNavigate, onBack, onEdi
   const sections = useMemo(() => documentSections(page), [page]);
   const verification = registryStatus(page);
   const process = processState.process;
-  // 흐름 노드: the document's own 업무구조도, or else its knowledge flow (참조 → 이 항목 → 연결) as nodes.
-  const flow = useMemo(() => process ?? (related.all.length ? knowledgeConnectionModel(page, active) : null), [process, related, page, active]);
+  // 업무구조도 when the document has one; otherwise the knowledge flow (참조 → 이 항목 → 연결) is drawn by KnowledgeFlow.
+  const flow = process;
   const boardProcess = useMemo(() => flow ? (process ? {...flow,nodes:flow.nodes.map((n,i)=>({...n,display_id:String(i+1).padStart(2,'0')}))} : flow) : null, [flow, process]);
   const stats = [
     {value:related.all.length, label:'연결 지식'}, {value:page.sources.length, label:'원본 출처'},
@@ -63,7 +64,7 @@ export function RegistryDetailView({page, pages, busy, onNavigate, onBack, onEdi
       <header className={styles.sectionHeading}><div><h2>{process ? '업무구조도' : '지식 연결'}</h2><p>{process ? '행위자와 단계별 업무 흐름 · 노드를 누르면 상세와 근거가 열립니다.' : '원본 문서와 관련 지식을 함께 확인합니다.'}</p></div><button className="kr-command" disabled={busy} onClick={()=>setProcessEditing(true)}><Pencil size={14}/>{process ? '업무구조도 편집' : '업무구조도 작성'}</button></header>
       {processState.error && <p className="kr-review-note" role="alert">구조도를 표시하지 못했습니다: {processState.error}</p>}
       {process && <div className="kr-board-tools"><p>{process ? `${process.lanes.length}개 행위자 · ${process.stages.length}단계 · ${process.nodes.length}개 노드` : `이 항목을 참조 ${related.incoming.length}개 · 이 항목에서 연결 ${related.outgoing.length}개`}</p><div role="group" aria-label="구조도 보기"><button aria-pressed={compact} onClick={()=>setCompact(true)}>핵심 흐름</button><button aria-pressed={!compact} onClick={()=>setCompact(false)}>전체 구조도</button></div></div>}
-      {flow ? <div className={styles.processPanel + ' kr-process-panel'}><DesktopProcessBoard process={boardProcess!} compact={compact} selectedNodeId={selectedNode ?? ''} onNodeChange={setSelectedNode}/></div> : <div className="kr-connection-summary"><div><Link2 size={20}/><strong>{related.all.length}개의 지식과 연결되어 있습니다.</strong><span>연결한 문서 {related.outgoing.length} · 참조하는 문서 {related.incoming.length}</span></div><button className="kr-command" onClick={onGraph}>전체 화면에서 관계 보기<ArrowUpRight size={14}/></button></div>}
+      {process ? <div className={styles.processPanel + ' kr-process-panel'}><DesktopProcessBoard process={boardProcess!} compact={compact} selectedNodeId={selectedNode ?? ''} onNodeChange={setSelectedNode}/></div> : related.all.length ? <KnowledgeFlow page={page} incoming={related.incoming} outgoing={related.outgoing} onNavigate={onNavigate}/> : <div className="kr-connection-summary"><div><Link2 size={20}/><strong>{related.all.length}개의 지식과 연결되어 있습니다.</strong><span>연결한 문서 {related.outgoing.length} · 참조하는 문서 {related.incoming.length}</span></div><button className="kr-command" onClick={onGraph}>전체 화면에서 관계 보기<ArrowUpRight size={14}/></button></div>}
     </section>
     <section id="index-one-page" className={styles.canvasSection}>
       <header className={styles.sectionHeading}><div><h2>한 장 요약</h2><p>정의 · 주요 내용 · 적용 조건 · 출처</p></div><div className="kr-tab-switch" role="group" aria-label="본문 보기 방식"><button aria-pressed={tab==='canvas'} onClick={()=>setTab('canvas')}>한 장 캔버스</button><button aria-pressed={tab==='document'} onClick={()=>setTab('document')}>전체 문서</button></div></header>
