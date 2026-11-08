@@ -5,12 +5,12 @@
   --rule:#D2DACF; --accent:#1F6B52; --accent-bg:#E1EDE5; --num:#8A6B23;
   
   --c-root:#15201B; --c-law:#1F6B52; --c-design:#8A6B23; --c-build:#3F5F86;
-  --c-term:#A24E36; --c-tool:#6B4C80; --c-field:#7D6B5D;
+  --c-term:#A24E36; --c-tool:#6B4C80; --c-field:#1B7F91;
   
   --paper-rgb:234,238,233; --card-rgb:247,249,246; --shadow-rgb:21,32,27;
   --stage-glow:#F2F5F1; --grid-dot:rgba(21,32,27,.075); --accent-strong:#18563F;
   --fig-bg:transparent; --fig-pad:0; color-scheme:light;
-  --serif:Charter,"Bitstream Charter",Georgia,"Iowan Old Style","Nanum Myeongjo","AppleMyungjo","Noto Serif KR",serif;
+  --serif:"Pretendard","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; /* house font, not a serif */
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Apple SD Gothic Neo","Noto Sans KR",monospace;
   --glass:rgba(var(--card-rgb),.88);
   --edge:1px solid var(--rule);
@@ -21,7 +21,7 @@
 .sbos[data-theme="dark"]{--paper:#000000; --card:#0E0F0F; --ink:#E2E8E3; --soft:#A7B4AC; --faint:#7B8981;
   --rule:#26292A; --accent:#5DBB94; --accent-bg:#16211C; --num:#D4AC52;
   --c-root:#E2E8E3; --c-law:#5DBB94; --c-design:#D4AC52; --c-build:#82A6D6;
-  --c-term:#E2826A; --c-tool:#B293D4; --c-field:#BBA591;
+  --c-term:#E2826A; --c-tool:#B293D4; --c-field:#5CCBD9;
   --paper-rgb:0,0,0; --card-rgb:14,15,15; --shadow-rgb:0,0,0;
   --stage-glow:#0B0D0C; --grid-dot:rgba(226,232,227,.06); --accent-strong:#7FD0AC;
   --fig-bg:#E4EAE5; --fig-pad:14px 12px; color-scheme:dark;}
@@ -55,7 +55,7 @@
   background:var(--dot);margin-right:7px;vertical-align:1px}
 .sbos .lb.t-section{font:600 13.5px/1.2 var(--serif);color:var(--ink)}
 .sbos .lb.t-section b{font:600 10px/1 var(--mono);color:var(--dot);margin-right:5px;letter-spacing:.02em}
-.sbos .lb.t-term{font:italic 12.5px/1.2 var(--serif);color:var(--c-term)}
+.sbos .lb.t-term{font:12.5px/1.2 var(--serif);color:var(--c-term)}
 .sbos .lb.t-hub{font:600 11.5px/1.2 var(--mono);color:var(--dot)}
 .sbos .lb.t-tool{color:var(--c-tool)}
 .sbos .lb.sel{font-size:15px;color:var(--ink);background:var(--card);border:var(--edge);
@@ -186,7 +186,7 @@
   border:var(--edge);border-radius:20px;padding:6px 10px}
 .sbos .chip:hover,.sbos .chip.hot{border-color:var(--dot);color:var(--dot)}
 .sbos .chip .d{width:6px;height:6px;border-radius:50%;background:var(--dot)}
-.sbos .chip.term{font:italic 13.5px/1 var(--serif)}
+.sbos .chip.term{font:13.5px/1 var(--serif)}
 .sbos .more{font:11.5px var(--mono);color:var(--accent);padding:6px 0}
 .sbos .sibs{display:flex;gap:8px;margin-top:22px;padding-top:14px;border-top:var(--edge)}
 .sbos .sibs button{flex:1;text-align:left;font-size:13.5px;line-height:1.35;padding:8px 10px;border-radius:6px;border:var(--edge);background:var(--card)}
@@ -283,7 +283,7 @@
 .sbos #gx-boot div{text-align:center}
 .sbos #gx-boot b{display:block;font:600 17px/1 var(--mono);letter-spacing:-.01em;margin-bottom:12px}
 .sbos #gx-boot b span{color:var(--accent)}
-.sbos #gx-boot i{font:italic 15px var(--serif);color:var(--faint);animation:gx-breathe 1.6s ease-in-out infinite}
+.sbos #gx-boot i{font:15px var(--serif);color:var(--faint);animation:gx-breathe 1.6s ease-in-out infinite}
 @keyframes gx-breathe{50%{opacity:.35}}
 .sbos:not(.booting) #gx-boot{opacity:0;pointer-events:none}
 .sbos .nojs,.sbos .fail{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:30px;background:var(--paper);text-align:center;font-size:17px}
@@ -333,3 +333,9 @@
 .sbos .srcbtn{font:inherit;color:var(--accent)}
 .sbos .srcbtn:hover{text-decoration:underline;text-underline-offset:3px}
 .sbos .prose h1{word-break:keep-all}
+
+/* light map: the studio rail beside it follows the paper instead of staying black */
+.wk-app:has(.sbos[data-theme="light"]) .wk-rail{
+  --wk-bg:#F7F9F6; --wk-text-3:#4B5A52; --wk-accent:#1F6B52; --wk-line:#D2DACF;
+  background:#F7F9F6; border-right:1px solid #D2DACF}
+.wk-app:has(.sbos[data-theme="light"]) .wk-rail .wk-brand{color:#15201B}
