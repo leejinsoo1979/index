@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { CustomSelect } from "../../components/ui/custom-select";
+import ImageField from "../../components/admin/ImageField";
 import {
   deletePost,
   importSamplePosts,
@@ -223,10 +224,7 @@ export default function AdminBoards() {
               요약 (목록에 보이는 두세 줄)
               <textarea name="excerpt" rows={2} defaultValue={current?.excerpt} />
             </label>
-            <label>
-              대표 이미지 주소
-              <input name="image" defaultValue={current?.image} placeholder="https://… 또는 /images/…" />
-            </label>
+            <ImageField folder="posts" label="대표 이미지" name="image" defaultValue={current?.image ?? ""} hint="목록 카드와 글 상단에 보입니다. 가로로 긴 사진이 잘 어울립니다." />
             <label>
               본문
               <textarea name="body" rows={14} defaultValue={current?.body} placeholder={BODY_HINT} />
