@@ -12,7 +12,6 @@ import {
   Activity,
   ArrowLeft,
   BookOpen,
-  Files,
   Library,
   MessageSquare,
   Network,
@@ -102,9 +101,6 @@ export function StudioRail({ wikiView, onWikiView, brandTo = '/ai', brandLabel =
             </Link>
           ),
         )}
-        <Link to={`${BASE}/sources`} className={linkClass('sources')} data-label="원본 자료" aria-label="원본 자료">
-          <Files size={20} />
-        </Link>
 
         <span className="st-rail__sep" aria-hidden />
 
