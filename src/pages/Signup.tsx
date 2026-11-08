@@ -1,3 +1,4 @@
+import { markSignupInProgress } from "../lib/members";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "../components/icons";
@@ -95,15 +96,29 @@ export default function Signup() {
 
     setSubmitting(true);
     try {
-      const created = await signUpWithEmail(email.trim(), password, name.trim());
-      // Server-side member record: the INDEX AI daily question limit depends on memberType
-      // (api/_chatQuota.ts). firestore.rules let a member set it only when creating the doc.
+      markSignupInProgress(true);
+      const created = await signUpWithEmail(email.trim(), password, name.trim()).catch((error: unknown) => {
+        markSignupInProgress(false);
+        throw error;
+      });
+      // Member record (members/{uid}): memberType sets the INDEX AI daily question limit
+      // (api/_chatQuota.ts) and the record is what /admin/members lists. firestore.rules let a
+      // member set memberType/company/phone only when creating the doc; admins change them later.
       if (firebaseDb) {
         await setDoc(doc(firebaseDb, "members", created.uid), {
           memberType: isAssociation ? "사업자회원" : "일반회원",
           ...(isAssociation && company.trim() ? { company: company.trim() } : {}),
+          name: name.trim(),
+          email: email.trim(),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          provider: "이메일",
           createdAt: serverTimestamp(),
-        }).catch((error: unknown) => console.error("[signup] member profile save failed", error));
+          lastLoginAt: serverTimestamp(),
+        })
+          .catch((error: unknown) => console.error("[signup] member profile save failed", error))
+          .finally(() => markSignupInProgress(false));
+      } else {
+        markSignupInProgress(false);
       }
       // Auth stores email/password/name only — keep the extended profile
       // locally until a member-profile backend (e.g. Firestore) is wired up.

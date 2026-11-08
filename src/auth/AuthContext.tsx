@@ -20,11 +20,18 @@ import {
   googleProvider,
   isFirebaseConfigured,
 } from "../lib/firebase";
+import { isSuperAdmin, syncMemberProfile, useMemberRecord, type MemberRecord } from "../lib/members";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   configured: boolean;
+  /** Firestore members/{uid} of the signed-in user (null when none / not signed in). */
+  member: MemberRecord | null;
+  /** Admin access: super admins (ADMIN_EMAILS) plus members an admin granted role "admin".
+   *  Everyone when Firebase isn't configured (local demo). */
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
   signInWithGoogle: () => Promise<User>;
   signInWithEmail: (email: string, password: string) => Promise<User>;
   signUpWithEmail: (
@@ -57,14 +64,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);
       setLoading(false);
+      if (nextUser) void syncMemberProfile(nextUser).catch((error: unknown) => console.warn("[auth] member profile sync failed", error));
     });
   }, []);
+
+  const { record: member, loading: memberLoading } = useMemberRecord(user?.uid);
+  const superAdmin = isSuperAdmin(user?.email);
+  const suspended = !superAdmin && member?.status === "suspended";
+  const isAdmin = !isFirebaseConfigured || superAdmin || (member?.role === "admin" && !suspended);
+
+  // Suspended accounts are signed out (rules also refuse their admin rights).
+  useEffect(() => {
+    if (!suspended || !firebaseAuth) return;
+    void signOut(firebaseAuth).then(() => {
+      window.alert(`정지된 계정입니다.${member?.suspendedReason ? `\n사유: ${member.suspendedReason}` : ""}\n협회에 문의해 주세요.`);
+    });
+  }, [suspended, member?.suspendedReason]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      loading,
+      // Wait for the member record too, so admin gates don't flash "no access".
+      loading: loading || (Boolean(user) && memberLoading),
       configured: isFirebaseConfigured,
+      member,
+      isAdmin,
+      isSuperAdmin: superAdmin,
       async signInWithGoogle() {
         const result = await signInWithPopup(requireAuth(), googleProvider);
         return result.user;
@@ -92,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await signOut(requireAuth());
       },
     }),
-    [loading, user],
+    [loading, user, member, memberLoading, isAdmin, superAdmin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

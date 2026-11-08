@@ -2,7 +2,6 @@ import { useState } from "react";
 import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX } from "react-icons/fi";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
-import { ADMIN_EMAILS } from "../../lib/adminStore";
 import "./Admin.css";
 
 function DashIcon() {
@@ -73,6 +72,8 @@ const NAV = [
   { to: "/admin", label: "대시보드", icon: <DashIcon />, end: true },
   { to: "/agent-studio/wiki", label: "INDEX LLM Wiki", icon: <BoardIcon />, external: true },
   { to: "/agent-studio", label: "INDEX Agent Studio", icon: <AgentIcon />, external: true },
+  { to: "/admin/menus", label: "메뉴 관리", icon: <BoardIcon /> },
+  { to: "/admin/pages", label: "페이지 관리", icon: <BoardIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/curriculum", label: "커리큘럼 빌더", icon: <BoardIcon /> },
@@ -82,12 +83,13 @@ const NAV = [
 ];
 
 export default function AdminLayout() {
-  const { user, loading, configured } = useAuth();
+  const { user, loading, configured, isAdmin } = useAuth();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Firebase 미설정(로컬 데모)일 때는 게이트 없이 통과시킨다.
-  const allowed = !configured || (user && ADMIN_EMAILS.includes(user.email ?? ""));
+  // 관리자: ADMIN_EMAILS(최고 관리자) + 회원 관리에서 관리자로 지정된 회원.
+  const allowed = !configured || (user && isAdmin);
 
   if (loading) {
     return (

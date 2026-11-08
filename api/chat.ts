@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { deepseekModel } from "./_deepseek.js";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
 import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_regulationTools.js";
-import { consumeChatQuota, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
+import { consumeChatQuota, MemberSuspendedError, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { searchWiki, wikiContext, wikiSources } from "./_wiki.js";
 
@@ -103,6 +103,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         res.status(429).json({ error: error.message, code: "QUOTA_EXCEEDED", quota: error.quota });
+        return;
+      }
+      if (error instanceof MemberSuspendedError) {
+        res.status(403).json({ error: error.message, code: "MEMBER_SUSPENDED" });
         return;
       }
       throw error;

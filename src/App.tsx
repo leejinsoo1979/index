@@ -21,6 +21,7 @@ import AdminCurriculum from "./pages/admin/AdminCurriculum";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminMenus from "./pages/admin/AdminMenus";
+import AdminPages from "./pages/admin/AdminPages";
 import { menuRouteLabels, useNavigation } from "./lib/navigation";
 
 // ARCHI Agent Studio (ported from inshow_agent): large, so it is code-split.
@@ -82,6 +83,7 @@ export default function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="agent" element={<Navigate to="/agent-studio" replace />} />
           <Route path="menus" element={<AdminMenus />} />
+          <Route path="pages" element={<AdminPages />} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="curriculum" element={<AdminCurriculum />} />

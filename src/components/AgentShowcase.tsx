@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import { agentTools } from "../data/agents";
 import { about } from "../data/about";
 
-export default function AgentShowcase() {
-  const copy = about.agents;
+export default function AgentShowcase({ copy = about.agents }: { copy?: typeof about.agents }) {
   return (
     <section className="ab-section ab-section--tint" id="showcase" aria-labelledby="agents-title">
       <div className="ab-wrap">

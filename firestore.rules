@@ -1,11 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Keep in sync with ADMIN_EMAILS (src/lib/adminStore.ts, api/*).
-    function isAdmin() {
+    // Super admins: keep in sync with ADMIN_EMAILS (src/lib/adminStore.ts, api/*). They can never be
+    // demoted from the admin screen. Further admins are granted in /admin/members (members/{uid}.role).
+    function isSuperAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
         && request.auth.token.email in ['sbbc212@gmail.com'];
+    }
+    function memberDoc(uid) {
+      return /databases/$(database)/documents/members/$(uid);
+    }
+    function isAdmin() {
+      return isSuperAdmin()
+        || (request.auth != null
+          && exists(memberDoc(request.auth.uid))
+          && get(memberDoc(request.auth.uid)).data.get('role', '') == 'admin'
+          && get(memberDoc(request.auth.uid)).data.get('status', 'active') != 'suspended');
     }
 
     function seminarDoc(id) {
@@ -104,15 +115,37 @@ service cloud.firestore {
       }
     }
 
-    // Member profile read by the server for INDEX AI question limits (api/_chatQuota.ts).
-    // memberType is set once at signup; only admins can change it afterwards.
+    // Member profile: read by the server for INDEX AI limits (api/_chatQuota.ts) and listed in
+    // /admin/members. Members keep their own name/email/lastLoginAt current; memberType, role
+    // (admin) and status (suspended) are set by admins only.
     match /members/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow create: if request.auth != null
         && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['memberType', 'company', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['memberType', 'company', 'createdAt', 'name', 'email', 'lastLoginAt', 'phone', 'provider'])
         && request.resource.data.memberType in ['일반회원', '사업자회원'];
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (request.auth != null
+          && request.auth.uid == userId
+          && onlyChanged(['name', 'email', 'lastLoginAt']));
+      allow delete: if isAdmin();
+    }
+
+    // Board posts (사례 게시판 등): src/lib/posts.ts. Public sees visible posts; admins manage all.
+    match /posts/{postId} {
+      allow read: if resource.data.visible == true || isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.board in ['cases']
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200
+        && (!('body' in request.resource.data) || (request.resource.data.body is string && request.resource.data.body.size() <= 100000))
+        && request.resource.data.visible is bool;
+      allow delete: if isAdmin();
+    }
+
+    // Admin-editable site content (menus, page copy, partner list, footer…): src/lib/siteContent.ts.
+    match /siteContent/{key} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // chatUsage/{uid} (question counters) and kisconContractors / kisconSync are written

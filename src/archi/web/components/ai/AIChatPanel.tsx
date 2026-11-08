@@ -235,7 +235,7 @@ export function AIChatPanel({ documentId, selectedBlockId, selectedBlockLabel, o
     <PanelContext.Provider value={panelValue}>
       <AssistantRuntimeProvider runtime={runtime}>
         <div className="sd-chat dark flex h-full flex-col">
-          <header className="sd-pane-head sd-chat__head">
+          <header className="sd-chat__head">
             <div className="sd-chat__titlebar">
               <span className="sd-chat__logo" aria-label="INDEX">
                 index

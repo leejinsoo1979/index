@@ -2,16 +2,15 @@ import { useEffect,useRef,useState } from 'react';
 import { Link,useNavigate,useParams } from 'react-router-dom';
 import { ArrowLeft,ArrowUpRight,BookOpen,Check,FileText,LoaderCircle,Save,Upload } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { isAdminEmail } from '../lib/adminStore';
 import { expertRequest,filePayload } from '../lib/personas';
 import { REPRESENTATIVE,type ExpertProfile } from '../types/personas';
 import type { WikiDraft,WikiPage } from '../archi/wiki/types';
 import { CustomSelect } from '../components/ui/custom-select';
 import './Experts.css';
 export default function ExpertSettings(){
-  const {personId='interior-show'}=useParams(),{user,loading}=useAuth(),navigate=useNavigate();
+  const {personId='interior-show'}=useParams(),{user,loading,isAdmin}=useAuth(),navigate=useNavigate();
   const [profile,setProfile]=useState<ExpertProfile|null>(null),[pages,setPages]=useState<WikiPage[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[kind,setKind]=useState('knowledge');const file=useRef<HTMLInputElement>(null);
-  const admin=isAdminEmail(user?.email),isNew=personId==='new';
+  const admin=isAdmin,isNew=personId==='new';
   useEffect(()=>{setProfile(null);setError('');if(!user)return;if(isNew){setProfile({...REPRESENTATIVE,id:'',name:'',role:'',bio:'',video:'',poster:'',ownerUid:'',voice:'',principles:'',published:false,version:0});return;}let active=true;Promise.all([expertRequest<ExpertProfile>('settings',{personId}),expertRequest<WikiPage[]>('pages',{personId})]).then(([p,docs])=>{if(active){setProfile(p);setPages(docs);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[personId,user?.uid,isNew]);
   async function save(){if(!profile)return;setBusy(true);setError('');setNotice('');try{const p=await expertRequest<ExpertProfile>(admin?'saveProfile':'saveVoice',admin?{profile:{...profile,id:profile.id||undefined,expectedVersion:profile.version}}:{personId,voice:profile.voice,principles:profile.principles,expectedVersion:profile.version});setProfile(p);setNotice('저장했습니다. 다음 답변부터 적용됩니다.');if(isNew)navigate(`/experts/${p.id}/settings`,{replace:true});}catch(e){setError(e instanceof Error?e.message:'저장하지 못했습니다.');}finally{setBusy(false);}}
   async function upload(selected:File){setBusy(true);setError('');setNotice('');try{const draft=await expertRequest<WikiDraft>('importDraft',{personId,kind,...await filePayload(selected)});await expertRequest('savePage',{personId,draft,options:{expectedVersion:0,reason:'본인 자료 업로드'}});setPages(await expertRequest<WikiPage[]>('pages',{personId}));setNotice('원본과 본문을 보존했습니다. 지식 위키에서 내용을 확인하고 ‘검수 완료’로 바꾸면 답변에 반영됩니다.');}catch(e){setError(e instanceof Error?e.message:'자료를 가져오지 못했습니다.');}finally{setBusy(false);if(file.current)file.current.value='';}}

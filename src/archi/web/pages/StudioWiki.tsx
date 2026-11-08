@@ -19,6 +19,7 @@ import { RegistryDetailView } from '../components/wiki/korea100/RegistryDetailVi
 import { withoutProcess } from '../../wiki/registry';
 import { encyclopediaDraft, entryType, WIKI_ENTRY_TYPES, type WikiEntryType } from '../../wiki/encyclopedia';
 import { WikiPipeline, WikiAssistant } from '../components/wiki/WikiPipeline';
+import { StudioRail } from '../components/studio/StudioRail';
 
 const WikiWarroom = lazy(() => import('../components/wiki/korea100/WikiWarroom'));
 
@@ -311,11 +312,23 @@ export function WikiLibrary({ repository, workspaceId, actor, loadImports = NO_I
   </div>;
 
   return <div className={'wk-app' + (graphMode ? ' wk-app--galaxy' : '') + (warroomMode ? ' wk-app--warroom' : '') + (encyclopediaMode && !draft && !graphMode ? ' wk-app--registry' : '') + (selected && inspectorOpen && inspectorTab === 'history' && encyclopediaMode ? ' wk-registry-history' : '') + (sidebarOpen ? ' wk-sidebar-open' : '') + (inspectorOpen ? ' wk-inspector-open' : '')}>
-    <nav className="wk-rail" aria-label="스튜디오 바로가기">
-      <Link to={contextLink?.to ?? "/ai"} className="wk-brand" aria-label={contextLink?.label ?? "INDEX AI"}>i<span>.</span></Link>
-      <div className="wk-rail-links"><button className={warroomMode ? 'is-active' : ''} onClick={openWarroom} title="지식 현황판" aria-label="지식 현황판"><Activity size={21}/></button><button className={encyclopediaMode && !selected && !draft ? 'is-active' : ''} onClick={openEncyclopedia} title="백과사전" aria-label="백과사전"><BookOpen size={21} /></button><button className={!encyclopediaMode && !graphMode && !warroomMode ? 'is-active' : ''} onClick={() => home()} title="지식 라이브러리" aria-label="지식 라이브러리"><Library size={21} /></button><button className={graphMode ? 'is-active' : ''} onClick={() => { if (!busy && allowLeave()) { setDraft(null); setParams({ view: 'graph' }); setSidebarOpen(false); } }} title="문서 그래프" aria-label="문서 그래프"><Network size={21} /></button><Link to="/agent-studio/sources" title="원본 자료 관리" aria-label="원본 자료 관리"><Files size={20} /></Link><Link to="/agent-studio" title="Agent Studio" aria-label="Agent Studio"><Sparkles size={20} /></Link></div>
-      <div className="wk-rail-bottom"><Link to="/agent-studio/settings" aria-label="스튜디오 설정" title="스튜디오 설정"><Settings2 size={19} /></Link><Link to="/admin" aria-label="관리자 대시보드" title="관리자 대시보드"><ArrowLeft size={19} /></Link><span className="wk-avatar" title={actor}>{actor.slice(0, 1).toUpperCase()}</span></div>
-    </nav>
+    {contextLink ? (
+      <nav className="wk-rail" aria-label="스튜디오 바로가기">
+        <Link to={contextLink?.to ?? "/ai"} className="wk-brand" aria-label={contextLink?.label ?? "INDEX AI"}>i<span>.</span></Link>
+        <div className="wk-rail-links"><button className={warroomMode ? 'is-active' : ''} onClick={openWarroom} title="지식 현황판" aria-label="지식 현황판"><Activity size={21}/></button><button className={encyclopediaMode && !selected && !draft ? 'is-active' : ''} onClick={openEncyclopedia} title="백과사전" aria-label="백과사전"><BookOpen size={21} /></button><button className={!encyclopediaMode && !graphMode && !warroomMode ? 'is-active' : ''} onClick={() => home()} title="지식 라이브러리" aria-label="지식 라이브러리"><Library size={21} /></button><button className={graphMode ? 'is-active' : ''} onClick={() => { if (!busy && allowLeave()) { setDraft(null); setParams({ view: 'graph' }); setSidebarOpen(false); } }} title="문서 그래프" aria-label="문서 그래프"><Network size={21} /></button><Link to="/agent-studio/sources" title="원본 자료 관리" aria-label="원본 자료 관리"><Files size={20} /></Link><Link to="/agent-studio" title="Agent Studio" aria-label="Agent Studio"><Sparkles size={20} /></Link></div>
+        <div className="wk-rail-bottom"><Link to="/agent-studio/settings" aria-label="스튜디오 설정" title="스튜디오 설정"><Settings2 size={19} /></Link><Link to="/admin" aria-label="관리자 대시보드" title="관리자 대시보드"><ArrowLeft size={19} /></Link><span className="wk-avatar" title={actor}>{actor.slice(0, 1).toUpperCase()}</span></div>
+      </nav>
+    ) : (
+      <StudioRail
+        wikiView={warroomMode ? 'warroom' : graphMode ? 'graph' : encyclopediaMode ? 'encyclopedia' : 'library'}
+        onWikiView={(view) => {
+          if (view === 'warroom') openWarroom();
+          else if (view === 'encyclopedia') openEncyclopedia();
+          else if (view === 'library') home();
+          else if (!busy && allowLeave()) { setDraft(null); setParams({ view: 'graph' }); setSidebarOpen(false); }
+        }}
+      />
+    )}
     <button className="wk-sidebar-scrim" aria-label="탐색기 닫기" onClick={() => setSidebarOpen(false)} />
     <aside className="wk-sidebar">
       <div className="wk-workspace"><span className="wk-workspace-symbol"><BookOpen size={19} /></span><div><strong>INDEX Wiki</strong><span>KNOWLEDGE LIBRARY</span></div><button className="wk-icon wk-mobile-only" onClick={() => setSidebarOpen(false)} aria-label="탐색기 닫기"><PanelLeftClose size={17} /></button></div>

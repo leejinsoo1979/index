@@ -1,14 +1,30 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Admins: ADMIN_EMAILS (keep in sync with firestore.rules) plus members granted role "admin"
+    // in /admin/members (read from Firestore members/{uid}).
+    function isAdmin() {
+      return request.auth != null && (
+        (request.auth.token.email_verified == true && request.auth.token.email in ['sbbc212@gmail.com'])
+        || (firestore.exists(/databases/(default)/documents/members/$(request.auth.uid))
+          && firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data.get('role', '') == 'admin'
+          && firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data.get('status', 'active') != 'suspended'));
+    }
+
     // Seminar posters/gallery: public read, admin upload (images under 5MB).
     match /seminars/{file} {
       allow read: if true;
-      allow write: if request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in ['sbbc212@gmail.com']
+      allow write: if isAdmin()
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+    }
+    // Images used by admin-edited content (게시판 대표 이미지, 세미나, 파트너 로고, 페이지 이미지).
+    match /siteImages/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
     }
     match /agent-studio/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

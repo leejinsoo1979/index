@@ -21,6 +21,24 @@
   --border: var(--wk-line-strong, #2f2f37);
   --input: var(--wk-line-strong, #2f2f37);
   --ring: var(--wk-accent-line, rgba(154, 166, 255, 0.34));
+  /* Tailwind's --color-* are resolved once at :root (light theme), so point them here too. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--ui-accent);
+  --color-accent-foreground: var(--ui-accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
   display: flex;
   flex-direction: column;
@@ -58,6 +76,8 @@
 }
 
 .sd-chat__product {
+  flex: none;
+  white-space: nowrap;
   padding: 2px 8px;
   border: 1px solid var(--wk-line-strong);
   border-radius: 999px;
@@ -194,8 +214,30 @@
   padding-right: 14px;
 }
 
-.sd-chat .aui-composer-input {
+.sd-chat .aui-composer-input,
+.sd-chat .aui-composer-input:focus,
+.sd-chat .aui-composer-input:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--wk-text) !important;
   font-size: 14.5px;
+}
+
+.sd-chat .aui-composer-input::placeholder {
+  color: var(--wk-text-4) !important;
+}
+
+/* composer shell: dark field, accent edge on focus */
+.sd-chat [data-slot='aui_composer-shell'] {
+  border-color: var(--wk-line-strong) !important;
+  background: var(--wk-bg) !important;
+  box-shadow: none !important;
+}
+
+.sd-chat [data-slot='aui_composer-shell']:focus-within {
+  border-color: var(--wk-accent-line) !important;
 }
 
 /* no attachment backend for the document agent */
@@ -376,4 +418,73 @@
 .sd-action__warn {
   margin-top: 6px;
   color: var(--wk-warn);
+}
+
+/* ── composer pinned to the bottom in every state (library centers it while empty) ── */
+.sd-chat [data-slot='aui_thread-viewport'] > div {
+  justify-content: flex-start !important;
+}
+
+.sd-chat .aui-thread-viewport-footer {
+  position: sticky !important;
+  bottom: 0;
+  margin-top: auto !important;
+  padding-top: 8px;
+  padding-bottom: 14px !important;
+  background: var(--wk-surface) !important;
+}
+
+/* welcome sits in the middle of the space above the composer */
+.sd-chat .sd-welcome {
+  margin: auto 0;
+  padding-top: 12px;
+}
+
+/* ── composer: one row — input grows, send button on the right ── */
+.sd-chat [data-slot='aui_composer-shell'] {
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  gap: 6px !important;
+  min-height: 50px;
+  padding: 7px 7px 7px 14px !important;
+  border-radius: 16px !important;
+}
+
+.sd-chat .aui-composer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px !important;
+  max-height: 160px !important;
+  margin: 0 !important;
+  padding: 7px 0 !important;
+  border-radius: 0 !important;
+  line-height: 1.5 !important;
+  appearance: none;
+}
+
+.sd-chat .aui-composer-action-wrapper {
+  flex: none;
+  justify-content: flex-end !important;
+}
+
+.sd-chat .aui-composer-send,
+.sd-chat .aui-composer-cancel {
+  width: 36px !important;
+  height: 36px !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: var(--wk-accent-strong) !important;
+  color: #fff !important;
+}
+
+.sd-chat .aui-composer-send:disabled {
+  background: var(--wk-surface-3) !important;
+  color: var(--wk-text-4) !important;
+  opacity: 1 !important;
+}
+
+.sd-chat .aui-composer-dictate {
+  width: 36px !important;
+  height: 36px !important;
+  color: var(--wk-text-3) !important;
 }

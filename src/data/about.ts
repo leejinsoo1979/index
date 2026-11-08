@@ -9,8 +9,8 @@ export const about = {
     title: "전문가의 연결로,",
     titleAccent: "더 나은 주거공간을 만듭니다.",
     lead: "INDEX는 주거 실내건축 분야의 전문가들이 모여\n정보와 경험을 나누고, 공간의 혁신과 인테리어의 다양한 문제 해결을 함께 추구하는 집단입니다.",
-    primary: { label: "INDEX AI에게 질문하기", to: "/" },
-    secondary: { label: "에이전트 둘러보기", to: "#showcase" },
+    // 소개 페이지의 행동 버튼은 AI 스튜디오 입장 하나(사용자 지시).
+    primary: { label: "AI 스튜디오 들어가기", to: "/agent-studio" } as { label: string; to: string } | null,
   },
 
   mission: {
@@ -74,6 +74,13 @@ export const about = {
     keywords: ["설계", "시공", "자재", "기술", "교류", "혁신"],
   },
 
+  // "INDEX와 함께하는 사람들" — dark word wall of 인쇼아카데미 수강업체 (src/data/partners.ts).
+  together: {
+    eyebrow: "WITH INDEX",
+    title: "INDEX와 함께하는 사람들",
+    lead: "인쇼아카데미를 거쳐 간 전국의 인테리어 업체들입니다. 상호를 누르면 업체 홈페이지로 이동합니다.",
+  },
+
   cloud: {
     eyebrow: "WHAT WE EXPLORE",
     title: "INDEX가 함께 탐구하는",
@@ -93,7 +100,5 @@ export const about = {
     title: "경험을 나누고,",
     titleAccent: "함께 주거의 다음을 만듭니다.",
     body: "질문과 경험, 새로운 아이디어를 연결합니다.\n주거 실내건축의 더 나은 해법을 INDEX에서 함께 찾아보세요.",
-    primary: { label: "INDEX AI에게 질문하기", to: "/" },
-    secondary: { label: "세미나 신청하기", to: "/seminars" },
   },
 };

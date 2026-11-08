@@ -1,11 +1,12 @@
-import { isAdminEmail } from "./_firebaseAdmin.js";
+import { memberAccess } from "./_firebaseAdmin.js";
 import { isServerFirestoreConfigured, serverFirestore } from "./_firebaseServer.js";
 
 /**
  * Daily INDEX AI question limits per member, counted server-side in Firestore
  * `chatUsage/{uid}` ({ day: YYYYMMDD (KST), count }). Member type comes from
- * `members/{uid}.memberType`, written at signup (firestore.rules lets a member set it
- * only when creating the document). Admins are unlimited. Resets at 00:00 KST.
+ * `members/{uid}.memberType` (set at signup, changed by admins in /admin/members). Admins —
+ * ADMIN_EMAILS plus members granted role "admin" — are unlimited; suspended members are refused.
+ * Resets at 00:00 KST.
  *
  * Needs FIREBASE_SERVICE_ACCOUNT; without it (e.g. local dev) limits are not enforced.
  */
@@ -27,8 +28,17 @@ async function memberType(uid: string): Promise<MemberType> {
   return snap.get("memberType") === "사업자회원" ? "사업자회원" : "일반회원";
 }
 
+export class MemberSuspendedError extends Error {
+  status = 403;
+  constructor() {
+    super("정지된 계정입니다. 협회에 문의해 주세요.");
+  }
+}
+
 export async function getChatQuota(user: { uid: string; email?: string }): Promise<ChatQuota> {
-  if (isAdminEmail(user.email)) return { limit: null, used: 0, remaining: null, memberType: "관리자", enforced: true };
+  const access = await memberAccess(user);
+  if (access.suspended) throw new MemberSuspendedError();
+  if (access.admin) return { limit: null, used: 0, remaining: null, memberType: "관리자", enforced: true };
   if (!isServerFirestoreConfigured()) return { limit: null, used: 0, remaining: null, memberType: "일반회원", enforced: false };
   const type = await memberType(user.uid);
   const limit = CHAT_DAILY_LIMITS[type];
@@ -39,7 +49,9 @@ export async function getChatQuota(user: { uid: string; email?: string }): Promi
 
 /** Count one question, or throw QuotaExceededError. Returns the quota after this question. */
 export async function consumeChatQuota(user: { uid: string; email?: string }): Promise<ChatQuota> {
-  if (isAdminEmail(user.email)) return getChatQuota(user);
+  const access = await memberAccess(user);
+  if (access.suspended) throw new MemberSuspendedError();
+  if (access.admin) return getChatQuota(user);
   if (!isServerFirestoreConfigured()) {
     console.warn("[chat-quota] FIREBASE_SERVICE_ACCOUNT is not set — question limits are not enforced");
     return getChatQuota(user);
@@ -61,7 +73,7 @@ export async function consumeChatQuota(user: { uid: string; email?: string }): P
 
 /** Give a question back when the answer failed before anything was streamed. */
 export async function refundChatQuota(user: { uid: string; email?: string }): Promise<void> {
-  if (isAdminEmail(user.email) || !isServerFirestoreConfigured()) return;
+  if (!isServerFirestoreConfigured() || (await memberAccess(user)).admin) return;
   const db = serverFirestore();
   const ref = db.doc(`chatUsage/${user.uid}`);
   const day = todayKst();

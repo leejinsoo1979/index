@@ -1015,3 +1015,19 @@ a.admin-stat:hover{border-color:transparent;box-shadow:0 9px 17.5px rgba(0,0,0,.
   width: min(1040px, calc(100vw - 32px));
   max-width: none;
 }
+
+/* inline status line under the toolbar (member admin etc.) */
+.admin-note {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-elev, #fff);
+  font-size: 13px;
+  color: var(--ink-soft, #4b5563);
+}
+.admin-note--error {
+  border-color: #f3c2c2;
+  background: #fdf3f3;
+  color: #b42318;
+}

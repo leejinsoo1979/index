@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { firebaseDb, firebaseStorage } from '@/lib/firebase';
-import { ADMIN_EMAILS } from '@/lib/adminStore';
 import { prisma } from '@archi/db';
 import { firestorePersistence, localStoragePersistence } from './db/persistence';
 import { setSessionIdentity } from '@archi-web/lib/auth';
@@ -25,8 +24,8 @@ const LOCAL_IDENTITY = { uid: 'local-admin', email: 'local-admin@index.local', n
  * before any studio page renders.
  */
 export default function StudioApp() {
-  const { user, loading, configured } = useAuth();
-  const allowed = !configured || Boolean(user && ADMIN_EMAILS.includes(user.email ?? ''));
+  const { user, loading, configured, isAdmin } = useAuth();
+  const allowed = !configured || Boolean(user && isAdmin);
   const identity = !configured
     ? LOCAL_IDENTITY
     : user && allowed

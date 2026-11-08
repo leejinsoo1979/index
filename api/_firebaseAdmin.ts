@@ -1,4 +1,5 @@
 import { decodeProtectedHeader, importX509, jwtVerify, type JWTPayload } from "jose";
+import { isServerFirestoreConfigured, serverFirestore } from "./_firebaseServer.js";
 import type { VercelRequest } from "@vercel/node";
 
 const DEFAULT_ADMIN_EMAIL = "sbbc212@gmail.com";
@@ -47,9 +48,27 @@ export function isAdminEmail(email: string | undefined): boolean {
   return Boolean(email && allowedEmails.includes(email.toLowerCase()));
 }
 
+/**
+ * Admin / suspension state of a signed-in user. Super admins come from ADMIN_EMAILS; further admins
+ * and suspensions are set in /admin/members (Firestore members/{uid}.role / .status). Reading the
+ * member record needs FIREBASE_SERVICE_ACCOUNT; without it only ADMIN_EMAILS count as admins.
+ */
+export async function memberAccess(user: { uid: string; email?: string }): Promise<{ admin: boolean; suspended: boolean; memberType?: string }> {
+  const superAdmin = isAdminEmail(user.email);
+  if (!isServerFirestoreConfigured()) return { admin: superAdmin, suspended: false };
+  try {
+    const snap = await serverFirestore().doc(`members/${user.uid}`).get();
+    const suspended = !superAdmin && snap.get("status") === "suspended";
+    return { admin: superAdmin || (snap.get("role") === "admin" && !suspended), suspended, memberType: snap.get("memberType") };
+  } catch (error) {
+    console.warn("[member-access] member record read failed", error);
+    return { admin: superAdmin, suspended: false };
+  }
+}
+
 export async function requireAgentAdmin(req: VercelRequest, expectedUserId?: string) {
   const decoded = await verifyFirebaseUser(req);
-  if (!isAdminEmail(decoded.email)) throw new Error("Agent Studio 관리자 권한이 없습니다.");
+  if (!(await memberAccess(decoded)).admin) throw new Error("Agent Studio 관리자 권한이 없습니다.");
   if (expectedUserId && decoded.uid !== expectedUserId) throw new Error("사용자 인증 정보가 일치하지 않습니다.");
   return decoded;
 }
