@@ -460,3 +460,31 @@
 .tool-data a {
   color: var(--accent);
 }
+
+/* Inside Agent Studio (dark shell) */
+.tools-studio {
+  --card: #111214;
+  --ink: #f4f4f5;
+  --ink-soft: #b4b4bb;
+  --ink-faint: #8a8a93;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  background: #0b0b0d;
+}
+
+.tools-studio .tools {
+  min-height: 100%;
+  background: transparent;
+}
+
+.tools-studio .tools__eyebrow {
+  font-size: 18px;
+}
+
+.tools-studio .tools__title {
+  font-size: 32px;
+}
+
+.tools-studio .tool-card:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}

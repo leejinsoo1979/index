@@ -12,6 +12,7 @@ import {
   Activity,
   ArrowLeft,
   BookOpen,
+  LayoutGrid,
   Library,
   MessageSquare,
   Network,
@@ -55,6 +56,7 @@ function activeKey(pathname: string, search: string, wikiView?: WikiView | null)
   }
   if (head === 'sources' || head === 'knowledge') return 'sources';
   if (head === 'messenger') return 'messenger';
+  if (head === 'apps') return 'apps';
   if (head === 'ontology') return 'wiki:graph'; // ontology was merged into the knowledge galaxy
   if (head === 'settings') return 'settings';
   return 'studio'; // studio home and document editor (/agent-studio/:documentId)
@@ -109,6 +111,9 @@ export function StudioRail({ wikiView, onWikiView, brandTo = '/ai', brandLabel =
         </Link>
         <Link to={`${BASE}/messenger`} className={linkClass('messenger')} data-label="메신저 · 작업" aria-label="메신저">
           <MessageSquare size={20} />
+        </Link>
+        <Link to={`${BASE}/apps`} className={linkClass('apps')} data-label="Apps · AI 도구" aria-label="Apps">
+          <LayoutGrid size={20} />
         </Link>
       </div>
 

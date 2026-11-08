@@ -10,6 +10,7 @@ import { setStorageBackend } from '@archi-web/lib/storage';
 import StudioHome from '@archi-web/pages/StudioHome';
 import StudioDocument from '@archi-web/pages/StudioDocument';
 import StudioMessenger from '@archi-web/pages/StudioMessenger';
+import StudioApps from '@archi-web/pages/StudioApps';
 import StudioSettings from '@archi-web/pages/StudioSettings';
 import './studio.css';
 
@@ -90,6 +91,8 @@ export default function StudioApp() {
         <Route path="knowledge" element={<Navigate to="/agent-studio/wiki" replace />} />
         <Route path="sources" element={<Navigate to="/agent-studio/wiki" replace />} />
         <Route path="messenger" element={<StudioMessenger />} />
+        <Route path="apps" element={<StudioApps />} />
+        <Route path="apps/:id" element={<StudioApps />} />
         <Route path="ontology" element={<Navigate to="/agent-studio/wiki?view=graph" replace />} />
         <Route path="settings" element={<StudioSettings />} />
         <Route path=":documentId" element={<StudioDocument />} />

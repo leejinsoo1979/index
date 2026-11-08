@@ -54,7 +54,8 @@ function stageText(tool: Tool) {
   return tool.stages.length ? tool.stages.map(stageLabel).join(" · ") : "전 단계 공통";
 }
 
-export default function Tools() {
+/** `basePath`: /tools on the site, /agent-studio/apps inside Agent Studio. */
+export default function Tools({ basePath = "/tools" }: { basePath?: string }) {
   const { id } = useParams();
   const { tools, error } = useTools();
   const tool = id ? tools?.find((t) => t.id === id) : undefined;
@@ -65,22 +66,22 @@ export default function Tools() {
         {id ? (
           tools && !tool ? (
             <p className="tools__empty">
-              없는 도구입니다. <Link to="/tools">전체 도구 보기</Link>
+              없는 도구입니다. <Link to={basePath}>전체 도구 보기</Link>
             </p>
           ) : tool ? (
-            <ToolDetail tool={tool} />
+            <ToolDetail tool={tool} basePath={basePath} />
           ) : (
             <p className="tools__empty">{error || "불러오는 중…"}</p>
           )
         ) : (
-          <ToolCatalog tools={tools} error={error} />
+          <ToolCatalog tools={tools} error={error} basePath={basePath} />
         )}
       </div>
     </div>
   );
 }
 
-function ToolCatalog({ tools, error }: { tools: Tool[] | null; error: string }) {
+function ToolCatalog({ tools, error, basePath }: { tools: Tool[] | null; error: string; basePath: string }) {
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState(ALL);
   const [audience, setAudience] = useState(ALL);
@@ -143,7 +144,7 @@ function ToolCatalog({ tools, error }: { tools: Tool[] | null; error: string }) 
       <ul className="tools__grid">
         {visible.map((t) => (
           <li key={t.id}>
-            <Link className="tool-card" to={`/tools/${t.id}`}>
+            <Link className="tool-card" to={`${basePath}/${t.id}`}>
               <div className="tool-card__meta">
                 <span>{stageText(t)}</span>
                 {!t.available && <span className="tool-card__off">연결 준비 중</span>}
@@ -162,7 +163,7 @@ function ToolCatalog({ tools, error }: { tools: Tool[] | null; error: string }) 
   );
 }
 
-function ToolDetail({ tool }: { tool: Tool }) {
+function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const initial = () =>
@@ -185,7 +186,7 @@ function ToolDetail({ tool }: { tool: Tool }) {
   async function run(e: FormEvent) {
     e.preventDefault();
     if (!user) {
-      navigate(`/mypage?redirect=/tools/${tool.id}`);
+      navigate(`/mypage?redirect=${basePath}/${tool.id}`);
       return;
     }
     setRunning(true);
@@ -209,7 +210,7 @@ function ToolDetail({ tool }: { tool: Tool }) {
 
   return (
     <div className="tool-detail">
-      <Link className="tool-detail__back" to="/tools">
+      <Link className="tool-detail__back" to={basePath}>
         ← 전체 도구
       </Link>
       <header className="tool-detail__head">
