@@ -93,14 +93,14 @@ function pageHtml(md: string, pages: WikiPage[]) {
   return { html, heads };
 }
 
-export function buildGalaxy(allPages: WikiPage[], tools: GalaxyTool[]): { graph: GalaxyGraph; pages: GalaxyPages } {
+export function buildGalaxy(allPages: WikiPage[], tools: GalaxyTool[], owner?: string): { graph: GalaxyGraph; pages: GalaxyPages } {
   const pages = allPages.filter((p) => p.status !== 'archived' && p.title?.trim());
   const nodes: GalaxyNode[] = [];
   const edges: GalaxyEdge[] = [];
   const PAGES: GalaxyPages = {};
   const order: string[] = [];
 
-  nodes.push({ id: 'root', type: 'root', group: 'root', label: 'INDEX 지식 은하', desc: '주거 실내건축 전문가들이 검수하며 쌓아 가는 INDEX의 지식 전체입니다.', val: 34 });
+  nodes.push({ id: 'root', type: 'root', group: 'root', label: owner ? `${owner} 지식 은하` : 'INDEX 지식 은하', desc: owner ? `${owner}이(가) 쌓아 온 자료와 문서 전체입니다.` : '주거 실내건축 전문가들이 검수하며 쌓아 가는 INDEX의 지식 전체입니다.', val: 34 });
 
   // sections = categories, grouped into the four collections
   const byCategory = new Map<string, WikiPage[]>();

@@ -339,3 +339,9 @@
   --wk-bg:#F7F9F6; --wk-text-3:#4B5A52; --wk-accent:#1F6B52; --wk-line:#D2DACF;
   background:#F7F9F6; border-right:1px solid #D2DACF}
 .wk-app:has(.sbos[data-theme="light"]) .wk-rail .wk-brand{color:#15201B}
+
+/* brand: the INDEX wordmark, then whose galaxy it is */
+.sbos .brand{display:inline-flex;align-items:baseline;gap:9px;font:600 14px/1 var(--serif);letter-spacing:-.01em;padding:9px 14px 10px}
+.sbos .brand .logo,.sbos #gx-boot .logo{font:600 21px/1 "Chillax",var(--serif);letter-spacing:-.4px;color:var(--ink)}
+.sbos .brand em{font-style:normal;color:var(--ink)}
+.sbos .brand span{color:var(--accent)}

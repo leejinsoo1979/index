@@ -19,6 +19,8 @@ export type GalaxyHost = {
   openPage: (id: string) => void;
   openTool: (id: string) => void;
   nav: (key: string) => void;
+  /** person whose galaxy this is; empty for the INDEX-wide map */
+  owner?: string;
 };
 
 export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPages, host: GalaxyHost): () => void {
@@ -378,7 +380,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
   }
   function labelHTML(n) {
     if (n.type === 'section') return `<b>${esc(n.badge)}</b>${esc(n.label)}`;
-    if (n.type === 'root') return 'INDEX <span style="color:var(--accent)">지식</span> 은하';
+    if (n.type === 'root') return `${host.owner ? esc(host.owner) : 'INDEX'} <span style="color:var(--accent)">지식</span> 은하`;
     return esc(clip(n.label, n === S.sel ? 64 : 40));
   }
   function refreshLabels() {
