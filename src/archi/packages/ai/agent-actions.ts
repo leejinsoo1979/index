@@ -164,7 +164,6 @@ export const ALLOWED_ACTION_TYPES = [
   'update_block_title',
   'mark_block_approved',
   'generate_image',
-  'extract_ontology',
 ] as const;
 
 export function parseAgentAction(value: unknown): AgentActionInput {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FiChevronDown, FiDownload, FiShare2 } from 'react-icons/fi';
+import { FiChevronDown, FiDownload } from 'react-icons/fi';
 import { apiFetch } from '@archi-web/lib/client/api';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,7 +28,7 @@ type Props = {
   saveState: 'idle' | 'saving' | 'saved';
 };
 
-/** 문서 상단 바: 제목(인라인 편집) + 상태 + 지식 추출 + 내보내기 */
+/** 문서 상단 바: 제목(인라인 편집) + 상태 + 내보내기 */
 export function TopBar({ documentId, title, status, saveState }: Props) {
   const [exportOpen, setExportOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -88,27 +88,6 @@ export function TopBar({ documentId, title, status, saveState }: Props) {
     }
   }
 
-  async function handleExtract() {
-    setBusy('extract');
-    setNotice(null);
-    try {
-      const stats = await apiFetch<{
-        nodesCreated: number;
-        nodesLinked: number;
-        edgesCreated: number;
-      }>('/api/ontology/extract', {
-        method: 'POST',
-        body: JSON.stringify({ documentId }),
-      });
-      setNotice(
-        `지식 추출: 노드 ${stats.nodesCreated}개 생성 · ${stats.nodesLinked}개 연결 · 관계 ${stats.edgesCreated}개`,
-      );
-    } catch (e) {
-      setNotice((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
 
   return (
     <header className="sd-pane-head sd-topbar flex h-12 shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4">
@@ -143,14 +122,6 @@ export function TopBar({ documentId, title, status, saveState }: Props) {
 
       <div className="ml-auto flex items-center gap-2">
         {notice && <span className="max-w-xs truncate text-[11px] text-zinc-500">{notice}</span>}
-        <button
-          onClick={handleExtract}
-          disabled={busy !== null}
-          className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50"
-        >
-          <FiShare2 size={12} aria-hidden />
-          {busy === 'extract' ? '추출 중...' : '지식 추출'}
-        </button>
         <div className="relative">
           <button
             onClick={() => setExportOpen((v) => !v)}

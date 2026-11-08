@@ -105,8 +105,9 @@ const NEW_BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
   [BlockTypes.ONTOLOGY_SUMMARY]: { title: '관련 지식', nodes: [] },
 };
 
-/** Block types this editor can create (palette hides anything else). */
-const AVAILABLE: ReadonlySet<string> = new Set(Object.values(BlockTypes));
+/** Block types this editor can create (palette hides anything else). ontology_summary is retired:
+ *  existing blocks still render, but new ones can't be added. */
+const AVAILABLE: ReadonlySet<string> = new Set(Object.values(BlockTypes).filter((t) => t !== 'ontology_summary'));
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   heading: '제목',
@@ -138,7 +139,7 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   seo_meta: 'SEO',
   blog_section: '블로그섹션',
   technical_section: '기술섹션',
-  ontology_summary: '지식요약',
+  ontology_summary: '지식 요약(사용 중단)',
 };
 
 type Props = {

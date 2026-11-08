@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Network,
   Settings2,
-  Share2,
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
@@ -57,7 +56,7 @@ function activeKey(pathname: string, search: string, wikiView?: WikiView | null)
   }
   if (head === 'sources' || head === 'knowledge') return 'sources';
   if (head === 'messenger') return 'messenger';
-  if (head === 'ontology') return 'ontology';
+  if (head === 'ontology') return 'wiki:graph'; // ontology was merged into the knowledge galaxy
   if (head === 'settings') return 'settings';
   return 'studio'; // studio home and document editor (/agent-studio/:documentId)
 }
@@ -114,9 +113,6 @@ export function StudioRail({ wikiView, onWikiView, brandTo = '/ai', brandLabel =
         </Link>
         <Link to={`${BASE}/messenger`} className={linkClass('messenger')} data-label="메신저 · 작업" aria-label="메신저">
           <MessageSquare size={20} />
-        </Link>
-        <Link to={`${BASE}/ontology`} className={linkClass('ontology')} data-label="온톨로지" aria-label="온톨로지">
-          <Share2 size={20} />
         </Link>
       </div>
 

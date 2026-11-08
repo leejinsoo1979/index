@@ -33,7 +33,7 @@ const TYPE_LABELS: Record<string, string> = {
   seo_meta: 'SEO',
   blog_section: '블로그섹션',
   technical_section: '기술섹션',
-  ontology_summary: '지식요약',
+  ontology_summary: '지식 요약(사용 중단)',
 };
 
 function blockSummary(block: EditorBlock): string {

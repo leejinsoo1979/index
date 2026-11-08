@@ -11,7 +11,6 @@ import StudioHome from '@archi-web/pages/StudioHome';
 import StudioDocument from '@archi-web/pages/StudioDocument';
 import StudioSources from '@archi-web/pages/StudioSources';
 import StudioMessenger from '@archi-web/pages/StudioMessenger';
-import StudioOntology from '@archi-web/pages/StudioOntology';
 import StudioSettings from '@archi-web/pages/StudioSettings';
 import './studio.css';
 
@@ -92,7 +91,7 @@ export default function StudioApp() {
         <Route path="knowledge" element={<Navigate to="/agent-studio/wiki" replace />} />
         <Route path="sources" element={<StudioSources />} />
         <Route path="messenger" element={<StudioMessenger />} />
-        <Route path="ontology" element={<StudioOntology />} />
+        <Route path="ontology" element={<Navigate to="/agent-studio/wiki?view=graph" replace />} />
         <Route path="settings" element={<StudioSettings />} />
         <Route path=":documentId" element={<StudioDocument />} />
       </Routes>

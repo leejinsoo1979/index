@@ -158,8 +158,8 @@ export async function chat(userId: string, input: z.infer<typeof chatRequestSche
     searchResults,
   });
 
-  // RAG: 사용자가 승인한 지식 그래프에서 메시지와 관련된 노드/관계를 컨텍스트로 주입한다.
-  const knowledgeContext = await buildKnowledgeContext(workspaceId, input.message);
+  // 지식 근거는 INDEX 위키 검색(knowledgeRequest 'retrieve')이 맡는다. 온톨로지 그래프는 사용 중단.
+  const knowledgeContext: string | undefined = undefined;
   // 세션 메모리: 같은 워크스페이스의 관련 과거 세션 요약을 회상해 컨텍스트로 주입한다(Hermes식).
   const sessionMemory = await buildSessionMemoryContext(
     workspaceId,
@@ -292,15 +292,6 @@ export async function approveAction(userId: string, actionId: string) {
       targetId: actionId,
       after: { status: executed.status, result },
     });
-
-    // 실행된 문서에서 온톨로지 후보 자동 추출 — 사용자의 실제 작업이 지식 그래프에 누적된다.
-    // 실패해도 액션 실행 자체는 성공으로 유지한다.
-    try {
-      const { extractFromDocument } = await import('./ontology');
-      await extractFromDocument(userId, action.documentId);
-    } catch (error) {
-      console.warn('[agent] 온톨로지 자동 추출 실패:', error);
-    }
 
     return { status: executed.status, result };
   } catch (error) {
@@ -820,9 +811,8 @@ async function executeAction(userId: string, action: AgentActionInput) {
       return { insertedBlockIds: [created.id], warnings };
     }
     case 'extract_ontology': {
-      const { extractFromDocument } = await import('./ontology');
-      await extractFromDocument(userId, action.target.documentId);
-      return { extracted: true, warnings };
+      // 온톨로지 기능은 사용 중단. 예전 승인 대기 액션이 남아 있어도 아무것도 바꾸지 않는다.
+      return { extracted: false, warnings: [...warnings, '지식 추출(온톨로지)은 더 이상 사용하지 않습니다.'] };
     }
   }
 }

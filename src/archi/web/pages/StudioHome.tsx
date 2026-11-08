@@ -586,7 +586,7 @@ export default function StudioDashboardPage() {
                     { icon: FiFolder, label: '프로젝트', value: counts?.projects ?? 0, href: null },
                     { icon: FiFileText, label: '문서', value: counts?.documents ?? 0, href: null },
                     { icon: FiCheckSquare, label: '진행 중 업무', value: counts?.openTasks ?? 0, href: '/studio/messenger' },
-                    { icon: FiShare2, label: '지식 노드', value: counts?.ontologyNodes ?? 0, href: '/studio/ontology' },
+                    { icon: FiShare2, label: '지식 자료', value: counts?.approvedSources ?? 0, href: '/studio/wiki?view=graph' },
                   ].map(({ icon: Icon, label, value, href }, i) => (
                     <button
                       key={label}
@@ -703,7 +703,7 @@ export default function StudioDashboardPage() {
               {/* 지식 그래프 */}
               <button
                 type="button"
-                onClick={() => router.push('/studio/ontology')}
+                onClick={() => router.push('/studio/wiki?view=graph')}
                 className="group relative w-full overflow-hidden rounded-2xl bg-zinc-900 p-5 text-left text-white"
               >
                 <span
@@ -716,14 +716,13 @@ export default function StudioDashboardPage() {
                 />
                 <span className="flex items-center gap-2 text-[13px] font-semibold">
                   <FiBookOpen size={14} aria-hidden />
-                  지식 그래프
+                  지식 은하
                 </span>
                 <span className="mt-1.5 block text-[11px] leading-4 text-zinc-400">
-                  노드 {counts?.ontologyNodes ?? 0} · 검수 대기 {counts?.candidateNodes ?? 0} · 승인 소스{' '}
-                  {counts?.approvedSources ?? 0}
+                  INDEX 위키 문서와 분야의 연결 지도
                 </span>
                 <span className="mt-4 inline-flex items-center gap-1 text-[12px] font-medium text-white">
-                  그래프 열기
+                  지식 은하 열기
                   <FiArrowRight size={12} className="transition group-hover:translate-x-0.5" aria-hidden />
                 </span>
               </button>
