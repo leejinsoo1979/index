@@ -99,7 +99,7 @@ export default function ExpertConversations() {
     <main className="expert-shell expert-conv">
       <nav className="expert-top">
         <Link className="expert-brand" to="/experts">
-          index<span>PEOPLE</span>
+          index
         </Link>
         <div>
           <Link to={`/experts/${personId}/settings`}>자료와 말투</Link>
