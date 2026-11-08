@@ -5,6 +5,7 @@ import { CustomSelect } from "@/components/ui/custom-select";
 import ThinkingOrb from "@/components/orbs/ThinkingOrb";
 import type { OrbDesign } from "@/components/orbs/orbEngine";
 import { AUDIENCES, LIFECYCLE_STAGES, audienceLabel, stageLabel } from "@/data/lifecycle";
+import MeetingNotes from "./meetings/MeetingNotes";
 import "./Tools.css";
 
 type ToolField = {
@@ -40,6 +41,7 @@ type Tool = {
   example: Record<string, FieldValue>;
   available: boolean;
   missing: string[];
+  screen?: "meetings";
 };
 type Source = { id: string; title: string; publisher?: string; url?: string; snippet?: string };
 type RunResult = { ok: true; sources: Source[]; data: unknown } | { ok: false; error: string };
@@ -98,6 +100,8 @@ export default function Tools({ basePath = "/tools" }: { basePath?: string }) {
             <p className="tools__empty">
               없는 도구입니다. <Link to={basePath}>전체 도구 보기</Link>
             </p>
+          ) : tool?.screen === "meetings" ? (
+            <MeetingNotes basePath={basePath} />
           ) : tool ? (
             <ToolDetail tool={tool} basePath={basePath} />
           ) : (

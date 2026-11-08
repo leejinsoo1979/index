@@ -12,6 +12,7 @@
     "test:wiki": "node scripts/test-wiki.mjs",
     "kiscon:backfill": "esbuild scripts/kiscon-backfill.ts --bundle --platform=node --format=esm --packages=external --outfile=node_modules/.cache/kiscon-backfill.mjs --log-level=warning && node --env-file-if-exists=.env.local node_modules/.cache/kiscon-backfill.mjs",
     "wiki:server": "node server/wiki/server.mjs",
+    "meetings:server": "node --import tsx server/meetings/server.mjs",
     "wiki:mercury": "node scripts/start-index-mercury.mjs",
     "wiki:build": "npm run build && node scripts/build-knowledge-runtime.mjs",
     "test:knowledge": "node --test scripts/test-knowledge-runtime.mjs",

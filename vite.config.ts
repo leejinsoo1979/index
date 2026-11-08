@@ -4,9 +4,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { localApi } from "./vite-plugins/local-api";
 import { wikiRuntime } from "./vite-plugins/wiki-runtime";
+import { meetingsRuntime } from "./vite-plugins/meetings-runtime";
 
 export default defineConfig(({ command }) => ({
-  plugins: [react(), tailwindcss(), wikiRuntime(), localApi()],
+  plugins: [react(), tailwindcss(), wikiRuntime(), meetingsRuntime(), localApi()],
   resolve: {
     // Keep hooks bound to the same React instance even when Vite rebuilds its
     // dependency graph after packages are installed while the dev server runs.

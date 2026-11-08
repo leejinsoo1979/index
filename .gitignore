@@ -9,4 +9,5 @@ dist-ssr
 tsconfig.tsbuildinfo
 .index-knowledge/
 .index-runtime/
+.index-meetings/
 services/mercury/node_modules/

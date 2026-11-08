@@ -45,7 +45,7 @@ export type ToolField = {
   defaults?: string[];
 };
 
-type Requirement = "law" | "building" | "landUse" | "kcsc" | "business" | "contractors" | "wiki" | "llm" | "companyData";
+type Requirement = "law" | "building" | "landUse" | "kcsc" | "business" | "contractors" | "wiki" | "llm" | "companyData" | "meetings";
 
 export type ToolResult = { ok: true; sources: RegulationSource[]; data: unknown } | { ok: false; error: string };
 
@@ -62,6 +62,8 @@ type ToolDef = {
   requires: Requirement[];
   inputs: ToolField[];
   example: Record<string, string | boolean | string[]>;
+  /** opens its own screen in the Apps page instead of the input form (e.g. 회의록 AI) */
+  screen?: "meetings";
   run: (input: Record<string, unknown>) => Promise<{ sources: RegulationSource[]; data: unknown }>;
 };
 
@@ -83,6 +85,24 @@ const AGENCY_OPTIONS = (Object.keys(INTERPRETATION_AGENCIES) as InterpretationAg
 }));
 
 const TOOLS: ToolDef[] = [
+  {
+    id: "meeting-notes",
+    name: "회의록 AI",
+    summary: "회의를 녹음하면 화자별 회의록, 결정 사항, 할 일, 추가 비용·일정 변경까지 정리합니다.",
+    description: "마이크나 온라인 회의 소리를 녹음하거나 녹음 파일을 올리면 WhisperX로 받아 적고 화자를 나눈 뒤, 세 줄 요약·결정 사항·담당자별 할 일·쟁점과 현장 체크(요구 변경, 자재 변경, 추가 비용, 일정, 하자)를 정리합니다. 임원 회의는 참석 임원마다 개인 위키에 '회의 기억'과 '관계 기억'으로 남아 임원 에이전트가 다음 대화에서 기억합니다. 녹음은 협회 서버에만 보관됩니다.",
+    stages: [],
+    audience: ["owner", "designer", "builder"],
+    tags: ["회의록", "녹음", "음성 인식", "화자 분리", "임원", "할 일"],
+    dataSources: ["WhisperX 음성 인식(협회 서버)", "INDEX 임원 개인 위키"],
+    status: "beta",
+    requires: ["meetings", "llm"],
+    inputs: [],
+    example: {},
+    screen: "meetings",
+    run: async () => {
+      throw new RegulationError("회의록 AI는 전용 화면에서 사용합니다.");
+    },
+  },
   {
     id: "company-check",
     name: "업체 한 번에 확인",
@@ -430,7 +450,9 @@ async function availability(): Promise<Record<Requirement, boolean>> {
   let wiki = false;
   const token = await knowledgeToken();
   if (token) wiki = Boolean(await fetch(`${knowledgeBase()}/api/wiki/health`, { signal: AbortSignal.timeout(800) }).then((r) => r.ok).catch(() => false));
-  return { law: s.law, building: s.building, landUse: s.landUse, kcsc: s.kcsc, business: s.business, contractors: s.business && isServerFirestoreConfigured(), wiki, llm: hasToolModel(), companyData: s.business || isServerFirestoreConfigured() };
+  const meetingsBase = (process.env.INDEX_MEETINGS_URL || `http://127.0.0.1:${process.env.MEETINGS_PORT || 5320}`).replace(/\/$/, "");
+  const meetings = Boolean(await fetch(`${meetingsBase}/api/meetings/health`, { signal: AbortSignal.timeout(800) }).then((r) => (r.ok ? r.json() : null)).then((h) => h?.engine).catch(() => false));
+  return { meetings, law: s.law, building: s.building, landUse: s.landUse, kcsc: s.kcsc, business: s.business, contractors: s.business && isServerFirestoreConfigured(), wiki, llm: hasToolModel(), companyData: s.business || isServerFirestoreConfigured() };
 }
 
 const REQUIREMENT_LABEL: Record<Requirement, string> = {
@@ -443,6 +465,7 @@ const REQUIREMENT_LABEL: Record<Requirement, string> = {
   wiki: "INDEX 지식 서버",
   llm: "AI 모델 키(DEEPSEEK_API_KEY 등)",
   companyData: "공공데이터 키 또는 Firebase 서비스 계정",
+  meetings: "회의록 서버(npm run meetings:server)",
 };
 
 export async function listTools() {
