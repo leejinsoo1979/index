@@ -18,12 +18,12 @@
   --info-w:400px; --reader-w:min(760px,58vw); --hero-w:440px;
   --ease:cubic-bezier(.2,.8,.2,1);
   --w:68ch;}
-.sbos[data-theme="dark"]{--paper:#0F1513; --card:#171F1B; --ink:#E2E8E3; --soft:#A7B4AC; --faint:#7B8981;
-  --rule:#29342F; --accent:#5DBB94; --accent-bg:#1B2C24; --num:#D4AC52;
+.sbos[data-theme="dark"]{--paper:#000000; --card:#0E0F0F; --ink:#E2E8E3; --soft:#A7B4AC; --faint:#7B8981;
+  --rule:#26292A; --accent:#5DBB94; --accent-bg:#16211C; --num:#D4AC52;
   --c-root:#E2E8E3; --c-law:#5DBB94; --c-design:#D4AC52; --c-build:#82A6D6;
   --c-term:#E2826A; --c-tool:#B293D4; --c-field:#BBA591;
-  --paper-rgb:15,21,19; --card-rgb:23,31,27; --shadow-rgb:0,0,0;
-  --stage-glow:#16201C; --grid-dot:rgba(226,232,227,.06); --accent-strong:#7FD0AC;
+  --paper-rgb:0,0,0; --card-rgb:14,15,15; --shadow-rgb:0,0,0;
+  --stage-glow:#0B0D0C; --grid-dot:rgba(226,232,227,.06); --accent-strong:#7FD0AC;
   --fig-bg:#E4EAE5; --fig-pad:14px 12px; color-scheme:dark;}
 .sbos,.sbos *{box-sizing:border-box;margin:0;padding:0}
 .sbos{background:var(--paper);color:var(--ink);font:17px/1.62 var(--serif);
