@@ -7,6 +7,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '@/auth/AuthContext';
 import { WikiLibrary } from '@archi-web/pages/StudioWiki';
 import { normalizeDraft, type WikiPage, type WikiRepository } from '../../wiki/types';
 import '@/styles/global.css';
@@ -43,10 +44,12 @@ const seed: WikiPage[] = await fetch(snapshot).then((r) => (r.ok ? r.json() : []
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
+    <AuthProvider>
     <BrowserRouter>
       <div className="archi-studio">
         <WikiLibrary repository={memoryRepository(seed)} workspaceId="preview" actor="디자인 미리보기" />
       </div>
     </BrowserRouter>
+    </AuthProvider>
   </React.StrictMode>,
 );

@@ -8,6 +8,7 @@ import { CustomSelect } from '@/components/ui/custom-select';
 import { knowledgeRequest } from '@/lib/knowledgeServer';
 import { WIKI_CATEGORIES, WIKI_STATUS, type WikiPage } from '../../../../wiki/types';
 import { resolvePage, wikiLinks } from '../../../../wiki/markdown';
+import WarroomStage, { STAGE_STATUS, type StageGate, type StageStatus } from './WarroomStage';
 import './WikiWarroom.css';
 
 export type WikiWarroomProps = {
@@ -94,11 +95,15 @@ function analyze(pages: WikiPage[]) {
   const incoming = new Map<string, number>();
   const missingTargets = new Map<string, { target: string; from: Set<string> }>();
   const hasMissing = new Set<string>();
+  const linkTargets = new Map<string, string[]>();
 
   for (const page of active) {
     for (const target of wikiLinks(page.content || '')) {
       const other = resolvePage(target, active);
       if (other && other.id !== page.id) {
+        const list = linkTargets.get(page.id) ?? [];
+        if (!list.includes(other.id)) list.push(other.id);
+        linkTargets.set(page.id, list);
         outgoing.set(page.id, (outgoing.get(page.id) ?? 0) + 1);
         incoming.set(other.id, (incoming.get(other.id) ?? 0) + 1);
       } else if (!other) {
@@ -155,6 +160,9 @@ function analyze(pages: WikiPage[]) {
       missingLinks: [...missingTargets.values()].reduce((n, m) => n + m.from.size, 0),
     },
     missingTargets: [...missingTargets.values()].sort((a, b) => b.from.size - a.from.size),
+    linkTargets,
+    hasMissing,
+    incoming,
     recent: [...active].sort(byUpdated).slice(0, 18),
   };
 }
@@ -188,6 +196,8 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
   const [selection, setSelection] = useState<Selection>(null);
   const [sort, setSort] = useState<SortKey>('total');
   const [lit, setLit] = useState(false);
+  const [view, setView] = useState<'stage' | 'table'>('stage');
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const bigNum = useCountUp(data.totals.docs);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -213,7 +223,10 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
   useEffect(() => {
     const t = window.setTimeout(() => setLit(true), 60);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelection(null);
+      if (e.key === 'Escape') {
+        setSelection(null);
+        setSelectedDoc(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => {
@@ -241,6 +254,45 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
     return sorted;
   }, [data.fields, sort]);
 
+  // 3D wall: one tower per 분야, panels stacked by 검수 단계 (bottom → top), one tile per document.
+  const stageGates = useMemo<StageGate[]>(() => {
+    const docStatus = (p: WikiPage, base: StageStatus): StageStatus => (data.hasMissing.has(p.id) ? 'broken' : base);
+    const doc = (p: WikiPage, base: StageStatus) => ({ id: p.id, title: p.title, status: docStatus(p, base), links: data.linkTargets.get(p.id) ?? [] });
+    return visibleFields
+      .filter((f) => f.total > 0)
+      .map((f) => {
+        const reviewSourced = f.review.filter((p) => (p.sources ?? []).length > 0);
+        const reviewUnsourced = f.review.filter((p) => (p.sources ?? []).length === 0);
+        const panels = [
+          { key: 'draft', label: '초안', docs: f.draft.map((p) => doc(p, 'draft')) },
+          { key: 'unsourced', label: '검토 대기 · 출처 없음', docs: reviewUnsourced.map((p) => doc(p, 'unsourced')) },
+          { key: 'ready', label: '검토 대기 · 출처 있음', docs: reviewSourced.map((p) => doc(p, 'ready')) },
+          { key: 'published', label: '검수 완료', docs: f.published.map((p) => doc(p, 'published')) },
+        ].filter((p) => p.docs.length > 0);
+        return { key: f.key, label: f.key, panels };
+      });
+  }, [visibleFields, data.hasMissing, data.linkTargets]);
+
+  // Overview flow: strongest cross-분야 links (hub documents first).
+  const overviewRoute = useMemo(() => {
+    const field = new Map(data.active.map((p) => [p.id, fieldOf(p)]));
+    const hubs = [...data.active].sort((a, b) => (data.incoming.get(b.id) ?? 0) + (data.linkTargets.get(b.id)?.length ?? 0) - ((data.incoming.get(a.id) ?? 0) + (data.linkTargets.get(a.id)?.length ?? 0)));
+    const pairs: string[][] = [];
+    const seen = new Set<string>();
+    for (const p of hubs) {
+      for (const target of data.linkTargets.get(p.id) ?? []) {
+        if (field.get(target) === field.get(p.id)) continue;
+        const key = [field.get(p.id), field.get(target)].sort().join('→');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([p.id, target]);
+        if (pairs.length >= 8) return pairs;
+      }
+    }
+    return pairs;
+  }, [data.active, data.incoming, data.linkTargets]);
+
+  const selectedPage = selectedDoc ? data.active.find((p) => p.id === selectedDoc) : undefined;
   const maxTotal = Math.max(1, ...data.fields.map((f) => f.total));
   const t = data.totals;
   const publishedRate = t.docs ? Math.round((t.published / t.docs) * 100) : 0;
@@ -257,7 +309,17 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
   const asOf = new Date().toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
 
   return (
-    <div ref={rootRef} className={`wk-warroom${lit ? ' is-lit' : ''}`}>
+    <div ref={rootRef} className={`wk-warroom${lit ? ' is-lit' : ''}${view === 'stage' ? ' is-stage' : ''}`}>
+      {view === 'stage' && (
+        <WarroomStage
+          gates={stageGates}
+          focusedGate={selection?.kind === 'field' ? selection.key : null}
+          selectedDoc={selectedDoc}
+          overviewRoute={overviewRoute}
+          onFocusGate={(key) => setSelection(key ? { kind: 'field', key } : null)}
+          onSelectDoc={setSelectedDoc}
+        />
+      )}
       <div className="wr-scan" aria-hidden />
 
       {/* ── HUD top: brand + big counter ── */}
@@ -293,9 +355,15 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
           <div className="wr-num">{bigNum.toLocaleString('ko-KR')}</div>
           <div className="wr-cap">저장 문서 STORED DOCUMENTS</div>
           <div className="wr-legend">
-            <span><i className="wr-tone wr-tone--ok" />검수 완료 {t.published}</span>
-            <span><i className="wr-tone wr-tone--warn" />검토 대기 {t.review}</span>
-            <span><i className="wr-tone wr-tone--muted" />초안 {t.draft}</span>
+            {(['published', 'ready', 'unsourced', 'broken', 'draft'] as StageStatus[]).map((k) => {
+              const n = stageGates.reduce((sum, g) => sum + g.panels.reduce((m, p) => m + p.docs.filter((d) => d.status === k).length, 0), 0);
+              return (
+                <span key={k}>
+                  <i className="wr-tone" style={{ background: STAGE_STATUS[k].css, boxShadow: `0 0 6px ${STAGE_STATUS[k].css}` }} />
+                  {STAGE_STATUS[k].label} {n}
+                </span>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -312,7 +380,10 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
                 type="button"
                 key={f.key}
                 className={`wr-gate${on ? ' is-on' : ''}${f.total === 0 ? ' is-empty' : ''}`}
-                onClick={() => setSelection(on ? null : { kind: 'field', key: f.key })}
+                onClick={() => {
+                  setSelectedDoc(null);
+                  setSelection(on ? null : { kind: 'field', key: f.key });
+                }}
               >
                 <span className="wr-gl">
                   <span className="wr-gn">{String(i + 1).padStart(2, '0')}</span>
@@ -332,7 +403,7 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
         </nav>
 
         {/* ── center: daily-board style field × status rows ── */}
-        <section className="wr-board" aria-label="분야별 현황">
+        <section className="wr-board" aria-label="분야별 현황" aria-hidden={view !== 'table'}>
           <div className="wr-board__head">
             <div>
               <h2>
@@ -392,12 +463,21 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
         {/* ── right: detail card + pipeline (route panel) ── */}
         <aside className="wr-side">
           <div className="wr-detail">
-            {selection && (
-              <button type="button" className="wr-close" aria-label="선택 해제" onClick={() => setSelection(null)}>
+            {(selection || selectedDoc) && (
+              <button type="button" className="wr-close" aria-label="선택 해제" onClick={() => { setSelection(null); setSelectedDoc(null); }}>
                 ✕
               </button>
             )}
-            {selectedField ? (
+            {selectedPage ? (
+              <DocDetail
+                page={selectedPage}
+                links={(data.linkTargets.get(selectedPage.id) ?? []).map((id) => data.active.find((p) => p.id === id)).filter((p): p is WikiPage => Boolean(p))}
+                backlinks={data.active.filter((p) => (data.linkTargets.get(p.id) ?? []).includes(selectedPage.id))}
+                broken={data.hasMissing.has(selectedPage.id)}
+                onSelect={setSelectedDoc}
+                onNavigate={onNavigate}
+              />
+            ) : selectedField ? (
               <FieldDetail field={selectedField} onNavigate={onNavigate} onRegistry={onRegistry} />
             ) : selection?.kind === 'lens' ? (
               <LensDetail
@@ -480,6 +560,12 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
         </div>
         <div className="wr-nav">
           <div className="wr-links">
+            <button type="button" className={view === 'stage' ? 'is-on' : ''} aria-pressed={view === 'stage'} onClick={() => setView('stage')}>
+              개요 OVERVIEW
+            </button>
+            <button type="button" className={view === 'table' ? 'is-on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>
+              전체표 TABLE
+            </button>
             <button type="button" onClick={onGraph}>
               은하 그래프 GRAPH
             </button>
@@ -490,10 +576,61 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
               자료 가져오기 IMPORT
             </button>
           </div>
-          <span className="wr-hint">분야·신호 클릭 = 상세 · ESC = 선택 해제</span>
+          <span className="wr-hint">{view === 'stage' ? '탑 클릭 = 분야 확대 · 칸 클릭 = 문서 흐름 · ESC = 전체 화면 복귀' : '분야·신호 클릭 = 상세 · ESC = 선택 해제'}</span>
         </div>
       </footer>
     </div>
+  );
+}
+
+function DocDetail({ page, links, backlinks, broken, onSelect, onNavigate }: { page: WikiPage; links: WikiPage[]; backlinks: WikiPage[]; broken: boolean; onSelect: (id: string) => void; onNavigate: (id: string) => void }) {
+  const status: StageStatus = broken ? 'broken' : page.status === 'published' ? 'published' : page.status === 'review' ? ((page.sources ?? []).length ? 'ready' : 'unsourced') : 'draft';
+  const s = STAGE_STATUS[status];
+  return (
+    <>
+      <div className="wr-d-gate">DOC · {fieldOf(page)}</div>
+      <div className="wr-d-name">{page.title}</div>
+      <span className="wr-d-st" style={{ color: s.css, borderColor: s.css }}>
+        {s.en} · {s.label}
+      </span>
+      <p className="wr-d-meta">
+        출처 {(page.sources ?? []).length} · 연결 {links.length} · 참조됨 {backlinks.length} · {ago(page.updatedAt)}
+      </p>
+      <button type="button" className="wr-d-open" onClick={() => onNavigate(page.id)}>
+        문서 열기 →
+      </button>
+      {links.length > 0 && (
+        <>
+          <div className="wr-d-sub">흐름 → 이 문서가 연결한 지식 ({links.length})</div>
+          <ul className="wr-list">
+            {links.slice(0, 8).map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => onSelect(p.id)}>
+                  <span>{p.title}</span>
+                  <small>{fieldOf(p)} · {WIKI_STATUS[p.status]}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {backlinks.length > 0 && (
+        <>
+          <div className="wr-d-sub">흐름 ← 이 문서를 참조 ({backlinks.length})</div>
+          <ul className="wr-list">
+            {backlinks.slice(0, 6).map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => onSelect(p.id)}>
+                  <span>{p.title}</span>
+                  <small>{fieldOf(p)} · {WIKI_STATUS[p.status]}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {links.length + backlinks.length === 0 && <p className="wr-d-meta">아직 다른 문서와 연결되지 않았습니다.</p>}
+    </>
   );
 }
 
