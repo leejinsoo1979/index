@@ -21,6 +21,8 @@ export type GalaxyHost = {
   nav: (key: string) => void;
   /** person whose galaxy this is; empty for the INDEX-wide map */
   owner?: string;
+  /** flips the studio-wide theme; the host then sets data-theme on the root */
+  toggleTheme: () => void;
 };
 
 export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPages, host: GalaxyHost): () => void {
@@ -946,11 +948,11 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     lgeo.attributes.color.needsUpdate = true;
     if (hl.list.length) buildHL(hl.list);
   }
-  themeBtn.onclick = () => {
-    rootEl.dataset.theme = isDark() ? 'light' : 'dark';
-    store.set('theme', rootEl.dataset.theme);
-    paintThemeBtn(); recolor();
-  };
+  themeBtn.onclick = () => host.toggleTheme();
+  // the theme is owned by the studio (rail toggle); follow its changes on the root
+  const themeWatch = new MutationObserver(() => { paintThemeBtn(); recolor(); });
+  themeWatch.observe(rootEl, { attributes: true, attributeFilter: ['data-theme'] });
+  off.signal.addEventListener('abort', () => themeWatch.disconnect());
   paintThemeBtn();
 
   // ------------------------------------------------------------------ resize

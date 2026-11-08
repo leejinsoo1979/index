@@ -15,11 +15,14 @@ import {
   LayoutGrid,
   Library,
   MessageSquare,
+  Moon,
   Network,
   Settings2,
   Sparkles,
+  Sun,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
+import { useStudioTheme } from '../../../studioTheme';
 import './StudioRail.css';
 
 export type WikiView = 'warroom' | 'encyclopedia' | 'library' | 'graph';
@@ -65,6 +68,7 @@ function activeKey(pathname: string, search: string, wikiView?: WikiView | null)
 export function StudioRail({ wikiView, onWikiView, brandTo = '/ai', brandLabel = 'INDEX AI' }: Props) {
   const { pathname, search } = useLocation();
   const { user } = useAuth();
+  const [theme, toggleTheme] = useStudioTheme();
   const active = activeKey(pathname, search, wikiView);
   const initial = (user?.email || user?.displayName || 'I').slice(0, 1).toUpperCase();
 
@@ -118,6 +122,15 @@ export function StudioRail({ wikiView, onWikiView, brandTo = '/ai', brandLabel =
       </div>
 
       <div className="wk-rail-bottom">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          data-label={theme === 'dark' ? '밝은 화면' : '어두운 화면'}
+          aria-label={theme === 'dark' ? '밝은 화면으로 전환' : '어두운 화면으로 전환'}
+          aria-pressed={theme === 'light'}
+        >
+          {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+        </button>
         <Link to={`${BASE}/settings`} className={linkClass('settings')} data-label="설정" aria-label="스튜디오 설정">
           <Settings2 size={19} />
         </Link>

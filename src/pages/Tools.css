@@ -463,13 +463,14 @@
 
 /* Inside Agent Studio (dark shell) */
 .tools-studio {
-  --card: #111214;
-  --ink: #f4f4f5;
-  --ink-soft: #b4b4bb;
-  --ink-faint: #8a8a93;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  background: #0b0b0d;
+  /* follows the studio theme (dark by default, light via the rail toggle) */
+  --card: var(--wk-surface-2, #111214);
+  --ink: var(--wk-text, #f4f4f5);
+  --ink-soft: var(--wk-text-2, #b4b4bb);
+  --ink-faint: var(--wk-text-3, #8a8a93);
+  --line: var(--wk-line, rgba(255, 255, 255, 0.08));
+  --line-strong: var(--wk-line-strong, rgba(255, 255, 255, 0.14));
+  background: var(--wk-bg, #0b0b0d);
 }
 
 .tools-studio .tools {
@@ -486,7 +487,7 @@
 }
 
 .tools-studio .tool-card:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--wk-line-heavy, rgba(255, 255, 255, 0.3));
 }
 
 /* ── Multi-select, date, image fields ── */
@@ -704,15 +705,15 @@
 }
 
 .tools-studio .tool-report__verdict.is-ok {
-  color: #4ade80;
+  color: var(--wk-ok, #4ade80);
 }
 
 .tools-studio .tool-report__verdict.is-caution {
-  color: #fbbf24;
+  color: var(--wk-warn, #fbbf24);
 }
 
 .tools-studio .tool-report__verdict.is-stop {
-  color: #f87171;
+  color: var(--wk-danger, #f87171);
 }
 
 .tool-result__running {

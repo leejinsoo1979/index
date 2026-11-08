@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { WikiPage } from '../../../wiki/types';
 import { buildGalaxy, type GalaxyTool } from './galaxyData';
+import { useStudioTheme } from '../../../studioTheme';
 import './KnowledgeGalaxy.css';
 
 /**
@@ -27,6 +28,11 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
   const host = useRef({ onOpenPage, onOpenTool, onNav });
   host.current = { onOpenPage, onOpenTool, onNav };
   const [tools, setTools] = useState<GalaxyTool[] | null>(toolCache);
+  const [theme, toggleTheme] = useStudioTheme();
+  const toggle = useRef(toggleTheme);
+  toggle.current = toggleTheme;
+
+  useEffect(() => { if (root.current) root.current.dataset.theme = theme; }, [theme]);
 
   useEffect(() => {
     if (toolCache) return;
@@ -43,7 +49,6 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
   useEffect(() => {
     const el = root.current;
     if (!el || !data) return;
-    try { el.dataset.theme = JSON.parse(localStorage.getItem('index-galaxy:theme') || '"dark"') === 'light' ? 'light' : 'dark'; } catch { el.dataset.theme = 'dark'; }
     let destroy: (() => void) | null = null;
     let cancelled = false;
     void import('./galaxyEngine').then(({ mountGalaxy }) => {
@@ -53,6 +58,7 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
         openTool: (id) => host.current.onOpenTool(id),
         nav: (key) => host.current.onNav(key as GalaxyNavKey),
         owner,
+        toggleTheme: () => toggle.current(),
       });
     });
     return () => {
@@ -68,7 +74,7 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
   }, [data, owner]);
 
   return (
-    <div ref={root} className="sbos booting" data-theme="dark">
+    <div ref={root} className="sbos booting" data-theme={theme}>
       <div id="gx-stage" aria-hidden="true" />
       <div id="gx-labels" aria-hidden="true" />
       <div id="gx-ring" aria-hidden="true"><i /></div>

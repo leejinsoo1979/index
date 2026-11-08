@@ -42,3 +42,56 @@
   --wk-radius: 12px;
   --wk-font: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+/*
+ * Light theme for every AI menu, switched by the rail's sun/moon button (src/archi/studioTheme.ts
+ * sets <html data-studio-theme="light">). Same structure as the dark set: rail/sidebar a step
+ * below the content, white cards, four text levels, the same INDEX blue.
+ */
+html[data-studio-theme="light"] :is(.archi-studio, .wk-app, .wk-modal, .wk-overlay, .wk-gate) {
+  --wk-bg: #f3f3f6;
+  --wk-bg-2: #f7f7f9;
+  --wk-surface: #fbfbfc;
+  --wk-surface-2: #ffffff;
+  --wk-surface-3: #eeeef2;
+  --wk-line: #e6e6eb;
+  --wk-line-strong: #d9d9df;
+  --wk-text: #16161a;
+  --wk-text-2: #3f3f46;
+  --wk-text-3: #6b6b75;
+  --wk-text-4: #9a9aa4;
+  --wk-accent: #4453e0;
+  --wk-accent-strong: #5b6cf0;
+  --wk-accent-bg: rgba(91, 108, 240, 0.1);
+  --wk-accent-line: rgba(68, 83, 224, 0.32);
+  --wk-warn: #a8670f;
+  --wk-warn-bg: rgba(217, 153, 40, 0.1);
+  --wk-warn-line: rgba(217, 153, 40, 0.36);
+  --wk-ok: #18804f;
+  --wk-ok-bg: rgba(31, 157, 99, 0.09);
+  --wk-ok-line: rgba(31, 157, 99, 0.3);
+  --wk-danger: #c93a3a;
+  --wk-danger-bg: rgba(209, 67, 67, 0.08);
+  --wk-danger-line: rgba(209, 67, 67, 0.3);
+  --wk-line-heavy: #c7c7cf;
+  --wk-text-2b: #52525b;
+  --wk-text-1b: #27272a;
+  --wk-shadow: rgba(20, 20, 30, 0.12);
+  color-scheme: light;
+}
+/* the few spots drawn white for the dark surfaces */
+html[data-studio-theme="light"] .wk-brand { color: var(--wk-text); }
+html[data-studio-theme="light"] .wk-library-photo figcaption { color: var(--wk-text); }
+
+/* knowledge registry (백과사전·문서 상세): same switch for its --kr-* palette */
+html[data-studio-theme="light"] .wk-korea100-scope {
+  --kr-canvas: #f5f6f7; --kr-surface: #ffffff; --kr-muted-surface: #f0f2f3;
+  --kr-text: #15191c; --kr-muted: #4f5a62; --kr-faint: #7a8690;
+  --kr-border: #dfe3e6; --kr-border-strong: #c6cdd2; --kr-accent: #1d7650;
+  --kr-accent-soft: #e2f1e9; --kr-ink: #cfe5d9; --kr-warning: #9a5f0c;
+  --kr-warning-soft: #fbf0dc; --kr-link: #2c66ad; --kr-link-soft: #e6eef9;
+  color-scheme: light;
+}
+html[data-studio-theme="light"] body:has(.wk-app--registry, .kr-dialog) .cselect__content { background: #fff; border-color: #c6cdd2; box-shadow: 0 16px 40px rgba(20, 24, 28, 0.14); color-scheme: light; }
+html[data-studio-theme="light"] body:has(.wk-app--registry, .kr-dialog) .cselect__item { color: #2a3136; }
+html[data-studio-theme="light"] body:has(.wk-app--registry, .kr-dialog) :is(.cselect__item[data-highlighted], .cselect__item[data-state=checked]) { background: #e2f1e9; color: #1d7650; }

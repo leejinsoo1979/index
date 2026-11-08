@@ -334,11 +334,6 @@
 .sbos .srcbtn:hover{text-decoration:underline;text-underline-offset:3px}
 .sbos .prose h1{word-break:keep-all}
 
-/* light map: the studio rail beside it follows the paper instead of staying black */
-.wk-app:has(.sbos[data-theme="light"]) .wk-rail{
-  --wk-bg:#F7F9F6; --wk-text-3:#4B5A52; --wk-accent:#1F6B52; --wk-line:#D2DACF;
-  background:#F7F9F6; border-right:1px solid #D2DACF}
-.wk-app:has(.sbos[data-theme="light"]) .wk-rail .wk-brand{color:#15201B}
 
 /* brand: the INDEX wordmark, then whose galaxy it is */
 .sbos .brand{display:inline-flex;align-items:baseline;gap:9px;font:600 14px/1 var(--serif);letter-spacing:-.01em;padding:9px 14px 10px}
