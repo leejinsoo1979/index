@@ -23,6 +23,7 @@ import {
 import { isServerFirestoreConfigured } from "./_firebaseServer.js";
 import { contractorSources, searchContractors } from "./_kiscon.js";
 import type { AudienceId, StageId } from "../src/data/lifecycle.js";
+import { companyCheck, DEFECT_LOCATIONS, DEFECT_TIMING, DEFECT_TRADES, defectDiagnosis, defectPeriods, hasToolModel, HOUSING_TYPES, quoteReview, WORK_ITEMS, workPermit } from "./_toolsWork.js";
 
 /**
  * INDEX AI 도구 catalogue. Every tool has one shared shape — metadata for the /tools
@@ -35,14 +36,16 @@ import type { AudienceId, StageId } from "../src/data/lifecycle.js";
 export type ToolField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "checkbox";
+  type: "text" | "textarea" | "select" | "checkbox" | "multiselect" | "date" | "image";
   placeholder?: string;
   required?: boolean;
   help?: string;
   options?: { value: string; label: string }[];
+  /** multiselect: values checked by default */
+  defaults?: string[];
 };
 
-type Requirement = "law" | "building" | "landUse" | "kcsc" | "business" | "contractors" | "wiki";
+type Requirement = "law" | "building" | "landUse" | "kcsc" | "business" | "contractors" | "wiki" | "llm" | "companyData";
 
 export type ToolResult = { ok: true; sources: RegulationSource[]; data: unknown } | { ok: false; error: string };
 
@@ -58,7 +61,7 @@ type ToolDef = {
   status: "beta" | "stable";
   requires: Requirement[];
   inputs: ToolField[];
-  example: Record<string, string | boolean>;
+  example: Record<string, string | boolean | string[]>;
   run: (input: Record<string, unknown>) => Promise<{ sources: RegulationSource[]; data: unknown }>;
 };
 
@@ -80,6 +83,102 @@ const AGENCY_OPTIONS = (Object.keys(INTERPRETATION_AGENCIES) as InterpretationAg
 }));
 
 const TOOLS: ToolDef[] = [
+  {
+    id: "company-check",
+    name: "업체 한 번에 확인",
+    summary: "사업자번호 하나로 영업 상태, 실내건축공사업 등록, 행정처분 이력을 한 장에 확인합니다.",
+    description: "계약 전 업체 검증을 한 번에 합니다. 국세청 사업자 상태와 국토교통부 키스콘 건설업 등록·행정처분 공시를 함께 보고 '계약 보류 / 확인 필요 / 문제 없음'으로 판정합니다.",
+    stages: ["contract"],
+    audience: ["owner", "designer"],
+    tags: ["업체 검증", "면허", "행정처분", "사업자"],
+    dataSources: ["국세청 사업자등록 상태조회", "국토교통부 키스콘 건설업체정보"],
+    status: "beta",
+    requires: ["companyData"],
+    inputs: [{ name: "businessNo", label: "사업자등록번호", type: "text", placeholder: "예: 124-81-00998", required: true }],
+    example: { businessNo: "124-81-00998" },
+    run: companyCheck,
+  },
+  {
+    id: "work-permit",
+    name: "공사 신고·허가 판정기",
+    summary: "공사 항목을 고르면 행위허가인지 신고인지, 입주자 동의가 몇 %인지, 무엇을 준비할지 알려 줍니다.",
+    description: "공동주택관리법 시행령 별표 3(2025. 4. 15. 개정)과 협회 연구자료를 기준으로 발코니 확장, 벽체 철거·신설, 내력벽, 배관 이설, 대피공간 등 항목별 절차를 판정합니다. 주소를 넣으면 건축물대장으로 주용도와 사용승인일도 확인합니다.",
+    stages: ["prep", "contract"],
+    audience: ["designer", "builder", "owner"],
+    tags: ["행위허가", "발코니 확장", "내력벽", "입주자 동의"],
+    dataSources: ["공동주택관리법 시행령 별표 3", "건축법 시행령", "협회 연구자료", "건축물대장"],
+    status: "beta",
+    requires: [],
+    inputs: [
+      { name: "housing", label: "주택 유형", type: "select", options: HOUSING_TYPES.map((h) => ({ ...h })) },
+      { name: "works", label: "공사 항목", type: "multiselect", required: true, options: WORK_ITEMS.map((w) => ({ ...w })), defaults: ["finish"] },
+      { name: "address", label: "현장 주소 (선택)", type: "text", placeholder: "예: 서울 강남구 테헤란로 152", help: "건축물대장으로 주용도·사용승인일을 확인합니다." },
+    ],
+    example: { housing: "apartment", works: ["finish", "balcony", "wall-remove"] },
+    run: workPermit,
+  },
+  {
+    id: "defect-period",
+    name: "하자 책임기간 계산기",
+    summary: "완공일과 공종을 넣으면 공종별 법정 하자담보책임기간과 만료일, 남은 날수를 계산합니다.",
+    description: "건설산업기본법 시행령 별표 4(2021. 8. 3. 개정) 기준입니다. 실내건축·타일 1년, 방수 3년, 설비 2년처럼 공종마다 기간이 다르므로, 하자를 발견하면 어느 공종이 아직 책임기간 안인지 바로 확인할 수 있습니다.",
+    stages: ["quality", "care"],
+    audience: ["owner", "builder"],
+    tags: ["하자보수", "담보책임", "분쟁"],
+    dataSources: ["건설산업기본법 시행령 별표 4", "건설산업기본법 제28조"],
+    status: "stable",
+    requires: [],
+    inputs: [
+      { name: "completedOn", label: "완공일 (또는 입주·사용 시작일 중 빠른 날)", type: "date", required: true },
+      { name: "trades", label: "공종", type: "multiselect", options: DEFECT_TRADES.map((t) => ({ value: t.value, label: `${t.label} (${t.years}년)` })), defaults: ["interior", "plaster-tile", "waterproof", "paint", "window", "mep"] },
+      { name: "asOf", label: "기준일 (비우면 오늘)", type: "date" },
+    ],
+    example: { completedOn: "2025-03-15" },
+    run: async (i) => defectPeriods(i),
+  },
+  {
+    id: "quote-review",
+    name: "견적서 검토기",
+    summary: "견적서를 붙여 넣으면 빠진 공종, 추가 청구가 나기 쉬운 항목, 업체에 물어볼 질문을 정리합니다.",
+    description: "방수 누락, 폐기물·보양비, 부가세 표기, '1식' 일괄 항목, 1,500만 원 이상 공사의 업체 자격을 규칙으로 먼저 점검하고 AI가 총평과 질문을 덧붙입니다. 시세를 단정하지 않고 견적서 구성만 봅니다.",
+    stages: ["contract"],
+    audience: ["owner", "designer"],
+    tags: ["견적", "계약", "누락 항목"],
+    dataSources: ["협회 실무 기준", "건설산업기본법 시행령 제8조", "AI 검토"],
+    status: "beta",
+    requires: [],
+    inputs: [
+      { name: "quote", label: "견적서 내용", type: "textarea", required: true, placeholder: "엑셀·PDF 견적서에서 공종·항목·수량·금액 부분을 복사해 붙여 넣으세요." },
+      { name: "area", label: "공사 면적", type: "text", placeholder: "예: 34평 또는 112㎡" },
+      { name: "scope", label: "공사 범위", type: "text", placeholder: "예: 전체 리모델링, 욕실 2곳, 확장 포함" },
+    ],
+    example: {
+      quote: "철거공사 1식 1,800,000\n설비공사 욕실 2개소 2,400,000\n타일공사 욕실 벽·바닥 3,600,000\n욕실 도기·수전 1식 2,200,000\n목공사 천장·몰딩 1식 4,500,000\n조명 1식 1,600,000\n도배 실크 1,900,000\n강마루 30평 4,200,000\n주방가구 1식 5,500,000\n합계 27,700,000",
+      area: "34평",
+      scope: "전체 리모델링, 욕실 2곳",
+    },
+    run: quoteReview,
+  },
+  {
+    id: "defect-diagnosis",
+    name: "하자 진단",
+    summary: "결로·누수·들뜸·균열 증상을 적거나 사진을 올리면 원인 후보와 확인 순서, 책임 공종을 알려 줍니다.",
+    description: "협회 연구자료와 INDEX 위키에서 같은 증상을 찾아 근거로 쓰고, 원인을 가능성 순으로 정리합니다. 현장을 보지 않은 1차 의견이며, 책임 공종의 법정 하자담보책임기간도 함께 보여 줍니다.",
+    stages: ["quality", "care"],
+    audience: ["owner", "builder", "designer"],
+    tags: ["하자", "누수", "결로", "들뜸"],
+    dataSources: ["협회 연구자료", "INDEX 위키", "AI 진단"],
+    status: "beta",
+    requires: [],
+    inputs: [
+      { name: "location", label: "위치", type: "select", options: DEFECT_LOCATIONS.map((l) => ({ value: l, label: l })) },
+      { name: "symptom", label: "증상", type: "textarea", required: true, placeholder: "예: 욕실 천장 모서리에 물자국이 번지고, 위층에서 물을 쓰면 심해집니다." },
+      { name: "timing", label: "언제부터", type: "select", options: DEFECT_TIMING.map((t) => ({ ...t })) },
+      { name: "photo", label: "사진 (선택)", type: "image" },
+    ],
+    example: { location: "욕실", symptom: "욕실 문틀 아래 마루가 검게 변하고 들뜹니다. 샤워 후에 더 심해요.", timing: "months" },
+    run: (i) => defectDiagnosis(i, async (q) => (await knowledgeRetrieve(q).catch(() => ({ chunks: [] as KnowledgeChunk[] }))).chunks.slice(0, 5)),
+  },
   {
     id: "site-building-check",
     name: "현장 건물 정보 조회",
@@ -331,7 +430,7 @@ async function availability(): Promise<Record<Requirement, boolean>> {
   let wiki = false;
   const token = await knowledgeToken();
   if (token) wiki = Boolean(await fetch(`${knowledgeBase()}/api/wiki/health`, { signal: AbortSignal.timeout(800) }).then((r) => r.ok).catch(() => false));
-  return { law: s.law, building: s.building, landUse: s.landUse, kcsc: s.kcsc, business: s.business, contractors: s.business && isServerFirestoreConfigured(), wiki };
+  return { law: s.law, building: s.building, landUse: s.landUse, kcsc: s.kcsc, business: s.business, contractors: s.business && isServerFirestoreConfigured(), wiki, llm: hasToolModel(), companyData: s.business || isServerFirestoreConfigured() };
 }
 
 const REQUIREMENT_LABEL: Record<Requirement, string> = {
@@ -342,6 +441,8 @@ const REQUIREMENT_LABEL: Record<Requirement, string> = {
   business: "공공데이터 키(국세청 활용신청)",
   contractors: "공공데이터 키 + Firebase 서비스 계정",
   wiki: "INDEX 지식 서버",
+  llm: "AI 모델 키(DEEPSEEK_API_KEY 등)",
+  companyData: "공공데이터 키 또는 Firebase 서비스 계정",
 };
 
 export async function listTools() {

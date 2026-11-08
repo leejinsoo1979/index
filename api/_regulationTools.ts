@@ -25,6 +25,7 @@ import {
 } from "./_regulations.js";
 import { isServerFirestoreConfigured } from "./_firebaseServer.js";
 import { contractorSources, searchContractors } from "./_kiscon.js";
+import { DEFECT_TRADES, defectPeriods, HOUSING_TYPES, WORK_ITEMS, workPermit } from "./_toolsWork.js";
 
 /**
  * AI SDK tools over the public regulation APIs. Only sources whose env key is set are
@@ -319,6 +320,39 @@ export function regulationTools(): ToolSet {
     });
   }
 
+  // Rule-based work tools (no external key): the same engines as the /tools 앱.
+  tools.checkWorkPermit = tool({
+    description:
+      "공사 신고·허가 판정: 공동주택관리법 시행령 별표 3(2025.4.15 개정)과 협회 연구자료 기준으로 공사 항목별 절차(행위허가/신고/관리사무소 신고/불가), 필요한 입주자 동의 비율, 준비 사항을 판정한다. " +
+      "발코니 확장, 벽 철거·신설, 내력벽, 욕실 이동, 대피공간 같은 질문에 쓴다. 주소를 주면 건축물대장으로 주용도·사용승인일도 확인한다.",
+    inputSchema: jsonSchema<{ housing?: string; works: string[]; address?: string }>({
+      type: "object",
+      properties: {
+        housing: { type: "string", enum: HOUSING_TYPES.map((h) => h.value), description: "apartment=주택법 사업승인 공동주택(기본), permit-housing=건축허가 공동주택(주상복합·빌라), detached=단독·다가구" },
+        works: { type: "array", items: { type: "string", enum: WORK_ITEMS.map((w) => w.value) }, description: WORK_ITEMS.map((w) => `${w.value}=${w.label}`).join(", ") },
+        address: { type: "string", description: "현장 주소(선택)" },
+      },
+      required: ["works"],
+      additionalProperties: false,
+    }),
+    execute: (input) => run(() => workPermit(input)),
+  });
+  tools.calculateDefectPeriod = tool({
+    description:
+      "하자담보책임기간 계산: 건설산업기본법 시행령 별표 4(2021.8.3 개정) 기준으로 공종별 법정 기간, 만료일, 남은 날수를 계산한다. 하자 보수 책임이 아직 남았는지 묻는 질문에 쓴다.",
+    inputSchema: jsonSchema<{ completedOn: string; trades?: string[]; asOf?: string }>({
+      type: "object",
+      properties: {
+        completedOn: { type: "string", description: "완공일 또는 사용 시작일 중 빠른 날 (YYYY-MM-DD)" },
+        trades: { type: "array", items: { type: "string", enum: DEFECT_TRADES.map((t) => t.value) }, description: DEFECT_TRADES.map((t) => `${t.value}=${t.label}(${t.years}년)`).join(", ") },
+        asOf: { type: "string", description: "기준일 YYYY-MM-DD (생략 시 오늘)" },
+      },
+      required: ["completedOn"],
+      additionalProperties: false,
+    }),
+    execute: (input) => run(async () => defectPeriods(input)),
+  });
+
   return tools;
 }
 
@@ -347,6 +381,7 @@ export const REGULATION_TOOL_GUIDE = `법규·설계기준·건물 현황 질문
 - 업종 입점·용도변경 가능 여부는 checkLandUseActivity와 관련 법령·조례를 함께 본다.
 - 시공·설계 기준은 KDS/KCS 도구로 확인한다.
 - 업체 확인 요청에는 searchContractorLicense로 건설업 등록 업종·행정처분을 확인하고, 사업자등록번호로 국세청 상태를 조회하고, 사업자등록증 내용(번호·개업일자·대표자명)이 주어지면 진위확인을 한다. 개인정보는 확인 결과에 필요한 만큼만 언급한다.
+- 공동주택 공사 절차(발코니 확장, 벽 철거·신설, 내력벽, 욕실 이동, 대피공간)는 checkWorkPermit으로, 하자 보수 책임기간은 calculateDefectPeriod로 판정한 결과를 근거로 답한다.
 - 답변에는 근거로 쓴 법령명·조문·해석례·기준명을 명시하고, 도구가 돌려준 url이 있으면 링크로 붙인다. 조회하지 않은 조문 번호나 수치를 지어내지 마라.
 - 도구가 오류를 돌려주면 그 사실을 알리고, 일반 지식으로 답할 때는 원문 확인이 필요하다고 밝힌다.
 - 답변 끝에 "법규 정보는 참고용이며, 시행일·지자체 조례·현장 치수·피난 동선 등은 관할 기관과 전문가를 통해 최종 확인이 필요합니다."라는 안내를 한 줄로 붙인다.`;

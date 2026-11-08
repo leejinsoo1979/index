@@ -8,11 +8,21 @@ import "./Tools.css";
 type ToolField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "checkbox";
+  type: "text" | "textarea" | "select" | "checkbox" | "multiselect" | "date" | "image";
   placeholder?: string;
   required?: boolean;
   help?: string;
   options?: { value: string; label: string }[];
+  defaults?: string[];
+};
+type FieldValue = string | boolean | string[];
+type Tone = "ok" | "caution" | "stop" | "info";
+type Report = {
+  kind: "report";
+  headline: string;
+  verdict?: { label: string; tone: Tone };
+  sections: { title: string; rows: { label: string; value: string; tone?: Tone; note?: string }[] }[];
+  notes?: string[];
 };
 type Tool = {
   id: string;
@@ -25,7 +35,7 @@ type Tool = {
   dataSources: string[];
   status: "beta" | "stable";
   inputs: ToolField[];
-  example: Record<string, string | boolean>;
+  example: Record<string, FieldValue>;
   available: boolean;
   missing: string[];
 };
@@ -168,9 +178,13 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
   const navigate = useNavigate();
   const initial = () =>
     Object.fromEntries(
-      tool.inputs.map((f) => [f.name, f.type === "checkbox" ? false : f.type === "select" ? (f.options?.[0]?.value ?? "") : ""]),
-    ) as Record<string, string | boolean>;
-  const [values, setValues] = useState<Record<string, string | boolean>>(initial);
+      tool.inputs.map((f) => [
+        f.name,
+        f.type === "checkbox" ? false : f.type === "multiselect" ? [...(f.defaults ?? [])] : f.type === "select" ? (f.options?.[0]?.value ?? "") : "",
+      ]),
+    ) as Record<string, FieldValue>;
+  const [values, setValues] = useState<Record<string, FieldValue>>(initial);
+  const [fieldError, setFieldError] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
 
@@ -180,11 +194,35 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool.id]);
 
-  const set = (name: string, v: string | boolean) => setValues((cur) => ({ ...cur, [name]: v }));
+  const set = (name: string, v: FieldValue) => setValues((cur) => ({ ...cur, [name]: v }));
+  const toggle = (name: string, option: string) =>
+    setValues((cur) => {
+      const list = Array.isArray(cur[name]) ? (cur[name] as string[]) : [];
+      return { ...cur, [name]: list.includes(option) ? list.filter((v) => v !== option) : [...list, option] };
+    });
+  async function pickImage(name: string, file: File | undefined) {
+    setFieldError("");
+    if (!file) return set(name, "");
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) return setFieldError("사진은 JPG·PNG·WEBP만 올릴 수 있습니다.");
+    if (file.size > 3 * 1024 * 1024) return setFieldError("사진은 3MB 이하로 올려 주세요.");
+    const url = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    set(name, url);
+  }
   const hasExample = Object.keys(tool.example).length > 0;
 
   async function run(e: FormEvent) {
     e.preventDefault();
+    const missingMulti = tool.inputs.find((f) => f.type === "multiselect" && f.required && !(values[f.name] as string[] | undefined)?.length);
+    if (missingMulti) {
+      setFieldError(`${missingMulti.label}을(를) 하나 이상 골라 주세요.`);
+      return;
+    }
+    setFieldError("");
     if (!user) {
       navigate(`/mypage?redirect=${basePath}/${tool.id}`);
       return;
@@ -231,47 +269,63 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
 
       <div className="tool-detail__body">
         <form className="tool-form" onSubmit={run}>
-          {tool.inputs.map((f) => (
-            <label key={f.name} className={`tool-form__field${f.type === "checkbox" ? " is-check" : ""}`}>
-              {f.type === "checkbox" ? (
-                <>
-                  <input type="checkbox" checked={values[f.name] === true} onChange={(e) => set(f.name, e.target.checked)} />
-                  <span>{f.label}</span>
-                </>
-              ) : (
-                <>
-                  <span className="tool-form__label">
-                    {f.label}
-                    {f.required && <em> 필수</em>}
-                  </span>
-                  {f.type === "select" ? (
-                    <CustomSelect
-                      aria-label={f.label}
-                      value={String(values[f.name] ?? "")}
-                      onValueChange={(v) => set(f.name, v)}
-                      options={f.options ?? []}
-                    />
-                  ) : f.type === "textarea" ? (
-                    <textarea
-                      rows={3}
-                      value={String(values[f.name] ?? "")}
-                      placeholder={f.placeholder}
-                      required={f.required}
-                      onChange={(e) => set(f.name, e.target.value)}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={String(values[f.name] ?? "")}
-                      placeholder={f.placeholder}
-                      required={f.required}
-                      onChange={(e) => set(f.name, e.target.value)}
-                    />
-                  )}
-                </>
-              )}
-            </label>
-          ))}
+          {tool.inputs.map((f) =>
+            f.type === "multiselect" ? (
+              <fieldset key={f.name} className="tool-form__field tool-form__multi">
+                <legend className="tool-form__label">
+                  {f.label}
+                  {f.required && <em> 필수</em>}
+                </legend>
+                <div className="tool-form__options">
+                  {(f.options ?? []).map((o) => {
+                    const on = ((values[f.name] as string[] | undefined) ?? []).includes(o.value);
+                    return (
+                      <label key={o.value} className={`tool-form__option${on ? " is-on" : ""}`}>
+                        <input type="checkbox" checked={on} onChange={() => toggle(f.name, o.value)} />
+                        <span>{o.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : (
+              <label key={f.name} className={`tool-form__field${f.type === "checkbox" ? " is-check" : ""}`}>
+                {f.type === "checkbox" ? (
+                  <>
+                    <input type="checkbox" checked={values[f.name] === true} onChange={(e) => set(f.name, e.target.checked)} />
+                    <span>{f.label}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="tool-form__label">
+                      {f.label}
+                      {f.required && <em> 필수</em>}
+                    </span>
+                    {f.type === "select" ? (
+                      <CustomSelect aria-label={f.label} value={String(values[f.name] ?? "")} onValueChange={(v) => set(f.name, v)} options={f.options ?? []} />
+                    ) : f.type === "textarea" ? (
+                      <textarea rows={f.name === "quote" ? 9 : 3} value={String(values[f.name] ?? "")} placeholder={f.placeholder} required={f.required} onChange={(e) => set(f.name, e.target.value)} />
+                    ) : f.type === "image" ? (
+                      <span className="tool-form__image">
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void pickImage(f.name, e.target.files?.[0])} />
+                        {typeof values[f.name] === "string" && values[f.name] ? <img src={String(values[f.name])} alt="올린 사진" /> : null}
+                      </span>
+                    ) : (
+                      <input
+                        type={f.type === "date" ? "date" : "text"}
+                        value={String(values[f.name] ?? "")}
+                        placeholder={f.placeholder}
+                        required={f.required}
+                        onChange={(e) => set(f.name, e.target.value)}
+                      />
+                    )}
+                    {f.help && <small className="tool-form__help">{f.help}</small>}
+                  </>
+                )}
+              </label>
+            ),
+          )}
+          {fieldError && <p className="tool-form__note tool-form__note--error">{fieldError}</p>}
           <div className="tool-form__actions">
             <button type="submit" className="tool-form__run" disabled={running || !tool.available}>
               {!tool.available ? "연결 준비 중" : running ? "조회 중…" : user ? "실행" : "로그인 후 실행"}
@@ -290,12 +344,16 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
 
         <section className="tool-result" aria-live="polite">
           {!result && !running && <p className="tool-result__idle">입력하고 실행하면 결과와 근거가 여기에 나옵니다.</p>}
-          {running && <p className="tool-result__idle">공공 원천에 조회하는 중입니다…</p>}
+          {running && <p className="tool-result__idle">확인하는 중입니다…</p>}
           {result && !result.ok && <p className="tool-result__error">{result.error}</p>}
           {result && result.ok && (
             <>
-              <h2 className="tool-result__title">결과</h2>
-              <DataView value={result.data} />
+              {isReport(result.data) ? <ReportView report={result.data} /> : (
+                <>
+                  <h2 className="tool-result__title">결과</h2>
+                  <DataView value={result.data} />
+                </>
+              )}
               {result.sources.length > 0 && (
                 <>
                   <h2 className="tool-result__title">근거</h2>
@@ -320,6 +378,45 @@ function ToolDetail({ tool, basePath }: { tool: Tool; basePath: string }) {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+const isReport = (v: unknown): v is Report => typeof v === "object" && v !== null && (v as { kind?: string }).kind === "report";
+const TONE_LABEL: Record<Tone, string> = { ok: "문제 없음", caution: "확인", stop: "주의", info: "참고" };
+
+/** Verdict sheet: one-line conclusion, per-item rows with a small status dot, then notes. */
+function ReportView({ report }: { report: Report }) {
+  return (
+    <div className="tool-report">
+      {report.verdict && <span className={`tool-report__verdict is-${report.verdict.tone}`}>{report.verdict.label}</span>}
+      <p className="tool-report__headline">{report.headline}</p>
+      {report.sections.map((section) => (
+        <section key={section.title} className="tool-report__section">
+          <h3>{section.title}</h3>
+          <ul>
+            {section.rows.map((row, i) => (
+              <li key={`${row.label}-${i}`}>
+                <div className="tool-report__row">
+                  <span className="tool-report__label">
+                    {row.tone && <i className={`tool-report__dot is-${row.tone}`} aria-label={TONE_LABEL[row.tone]} />}
+                    {row.label}
+                  </span>
+                  <span className="tool-report__value">{row.value}</span>
+                </div>
+                {row.note && <p className="tool-report__note">{row.note}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {report.notes && report.notes.length > 0 && (
+        <ul className="tool-report__notes">
+          {report.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
