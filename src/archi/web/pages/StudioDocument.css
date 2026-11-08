@@ -277,6 +277,22 @@
   color: var(--wk-text) !important;
 }
 
+/* folded "근거 N개" line under an answer */
+.sd-src-group {
+  color: var(--wk-text-3) !important;
+  font-size: 12px !important;
+}
+
+.sd-src-group summary:hover {
+  color: var(--wk-text) !important;
+}
+
+.sd-src-group li,
+.sd-src-group li a,
+.sd-src-group li span {
+  color: var(--wk-text-2) !important;
+}
+
 .sd-action {
   border-color: var(--wk-line-strong) !important;
   border-radius: 12px !important;

@@ -130,12 +130,15 @@ export async function chat(userId: string, input: z.infer<typeof chatRequestSche
 
   // INDEX 위키(제2의 두뇌): 문서·PDF 원문의 근거 문단을 출처와 함께 붙인다 (server/wiki/retrieval).
   try {
-    const found = await knowledgeRequest<{ chunks: Array<{ id: string; title: string; heading?: string | null; pages?: string | null; trust: string; status: string; text: string }> }>('retrieve', {
+    const found = await knowledgeRequest<{ coverage: string; chunks: Array<{ id: string; title: string; heading?: string | null; pages?: string | null; trust: string; status: string; score: number; text: string }> }>('retrieve', {
       method: 'POST',
-      body: JSON.stringify({ query: input.message, k: 4, includeReview: true }),
+      body: JSON.stringify({ query: input.message, k: 3, includeReview: true }),
     });
     const retrievedAt = new Date().toISOString();
-    const wikiSources: SearchResult[] = found.chunks.map(c => ({
+    // Only passages that actually match the request: writing tasks ("블로그 초안 써줘") would
+    // otherwise pull loosely related wiki pages in as "sources".
+    const relevant = found.coverage === 'ok' ? found.chunks.filter((c) => c.score >= 0.42) : [];
+    const wikiSources: SearchResult[] = relevant.map(c => ({
       id: `wiki_${c.id}`,
       title: sanitizeUntrustedText(`${c.title}${c.heading ? ` › ${c.heading}` : ''}${c.pages ? ` (${c.pages})` : ''}`),
       sourceType: 'knowledge_base',

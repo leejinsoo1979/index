@@ -344,35 +344,24 @@ export function AIChatPanel({
             );
           }
           if (item.kind === 'sources') {
+            // 근거는 한 줄로 접어 두고, 펼치면 제목만 보인다(원문 링크가 있을 때만 링크).
             return (
-              <div key={i} className="mr-4 space-y-2">
-                {item.sources.map((source) => (
-                  <a
-                    key={source.id}
-                    href={source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="sd-src block rounded-xl border border-white/10 bg-white/5 p-3 hover:border-white/40"
-                  >
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">
-                        {source.sourceType === 'official_law'
-                          ? '공식 법령'
-                          : source.sourceType === 'kcsc'
-                            ? 'KCSC'
-                            : source.sourceType === 'public_data'
-                              ? '공공데이터'
-                              : '출처'}
-                      </span>
-                      <span className="text-[11px] text-zinc-400">{source.publisher}</span>
-                    </div>
-                    <p className="text-xs font-semibold text-zinc-100">{source.title}</p>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-zinc-400">
-                      {source.snippet}
-                    </p>
-                  </a>
-                ))}
-              </div>
+              <details key={i} className="sd-src-group mr-4 text-[11px] text-zinc-400">
+                <summary className="cursor-pointer select-none py-1 hover:text-zinc-200">근거 {item.sources.length}개</summary>
+                <ul className="mt-1 space-y-1 pl-3">
+                  {item.sources.map((source) => (
+                    <li key={source.id} className="truncate">
+                      {source.url ? (
+                        <a href={source.url} target="_blank" rel="noreferrer" className="text-zinc-300 underline-offset-2 hover:underline">
+                          {source.title}
+                        </a>
+                      ) : (
+                        <span className="text-zinc-300">{source.title}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             );
           }
           return (
