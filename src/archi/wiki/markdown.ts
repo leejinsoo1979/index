@@ -44,6 +44,27 @@ export function resolvePage(target: string, pages: WikiPage[]) {
     ?? active.find(page => (page.aliases ?? []).some(title => title.normalize('NFC').toLocaleLowerCase() === key));
 }
 
+/** A link to something that only existed in the imported folder ("12_제목_<videoId>.md"), not a real URL. */
+export function isRelativeFileLink(href: string) {
+  return !/^(?:[a-z][a-z0-9+.-]*:|#|\/)/i.test(href);
+}
+
+/** The wiki page behind an imported file link: by the video id in its name, then by its title. */
+export function resolveFileLink(href: string, pages: WikiPage[]) {
+  let file = href;
+  try { file = decodeURIComponent(href); } catch { /* keep the raw name */ }
+  file = (file.split(/[?#]/)[0] ?? '').split('/').pop() ?? '';
+  if (!/\.md$/i.test(file)) return undefined;
+  const video = file.match(/_([\w-]{11})\.md$/i)?.[1];
+  if (video) {
+    const parts = pages.filter(page => page.status !== 'archived' && page.sources?.some(source => source.id === 'youtube-' + video));
+    const first = parts.sort((a, b) => a.title.localeCompare(b.title, 'ko'))[0];
+    if (first) return first;
+  }
+  const title = file.replace(/\.md$/i, '').replace(/^\d+_/, '').replace(/_[\w-]{11}$/, '');
+  return resolvePage(title, pages);
+}
+
 export function searchPages(pages: WikiPage[], query: string) {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return pages;

@@ -871,9 +871,13 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
       const end = after ? clockSecs(after[2]) : 0;
       src = `https://www.youtube-nocookie.com/embed/${yt.id}?autoplay=1&rel=0&start=${start}${end > start ? `&end=${end}` : ''}`;
       kind = 'video';
-    } else {
+    } else if (/^\/wiki-assets\/|^https:\/\/index-wiki\.uable\.co\.kr\/|\.pdf(?:[?#]|$)/i.test(href)) {
       src = href;
       kind = 'page';
+    } else {
+      // most sites (YouTube channel pages, law.go.kr) refuse to load in a frame and only show an error
+      window.open(href, '_blank', 'noopener');
+      return;
     }
     mediaTitle.textContent = a.textContent.replace(/\s*↗$/, '').trim() || href;
     mediaOut.href = href;
@@ -886,12 +890,6 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     f.referrerPolicy = 'strict-origin-when-cross-origin';
     if (kind === 'page') f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
     mediaFrame.appendChild(f);
-    if (kind === 'page') {
-      const note = document.createElement('p');
-      note.className = 'rmedia-note';
-      note.textContent = '화면이 비어 있으면 그 사이트가 미리보기를 막은 것입니다. 오른쪽 위 ‘새 창’으로 열어 주세요.';
-      mediaFrame.appendChild(note);
-    }
     media.hidden = false;
     rootEl.classList.add('has-media');
   }

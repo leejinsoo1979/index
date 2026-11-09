@@ -98,7 +98,7 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
 
       <section id="gx-hero" aria-labelledby="gx-hero-h">
         <p className="kick">{owner ? `${owner}의 지식 전체를 하나의 그래프로` : 'INDEX 지식 전체를 하나의 그래프로'}</p>
-        <h1 id="gx-hero-h">{owner ? `${owner}의 지식 은하` : '주거 실내건축 전문가의 지식 은하'}</h1>
+        <h1 id="gx-hero-h">{owner ? `${owner}의 지식 은하` : 'INDEX 지식 wiki'}</h1>
         <p className="lede">{owner ? `${owner}이(가) 직접 올리고 다듬어 온 자료와 문서, 용어의 연결입니다. 개인 AI는 이 지식을 근거로 답합니다.` : '설계·공간, 시공·자재, 법규·하자, 현장·협업의 문서와 용어, 그리고 INDEX AI 도구까지. 협회가 검수하며 쌓아 가는 지식입니다.'}</p>
         <p className="lede2">문서, 용어, 도구가 하나하나 버블입니다. 선은 문서 사이의 실제 연결입니다. 하나를 누르면 무엇에 기대고 있는지 보입니다.</p>
         <div className="paths" id="gx-paths" />

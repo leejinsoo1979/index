@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { rewriteWikiLinks, resolvePage } from '../../../wiki/markdown';
+import { isRelativeFileLink, resolveFileLink, rewriteWikiLinks, resolvePage } from '../../../wiki/markdown';
 import type { WikiPage } from '../../../wiki/types';
 
 type MarkdownNode = { type: string; depth?: number; position?: { start: { line: number } }; data?: { hProperties?: Record<string, unknown> }; children?: MarkdownNode[] };
@@ -25,6 +25,10 @@ export function WikiMarkdown({ content, pages, onNavigate, onCreate }: { content
           try { target = decodeURIComponent(href.slice(6)); } catch { return <span>{children}</span>; }
           const page = resolvePage(target, pages);
           return <button className={'wk-wikilink' + (page ? '' : ' is-missing')} onClick={() => page ? onNavigate(page.id) : onCreate(target)} title={page ? '문서 열기' : '아직 없는 문서 · 새로 작성'}>{children}{!page && <sup>+</sup>}</button>;
+        }
+        if (href && isRelativeFileLink(href)) {
+          const page = resolveFileLink(href, pages);
+          return page ? <button className="wk-wikilink" onClick={() => onNavigate(page.id)} title="문서 열기">{children}</button> : <span>{children}</span>;
         }
         return <a href={href} target={href?.startsWith('#') ? undefined : '_blank'} rel="noopener noreferrer">{children}</a>;
       },

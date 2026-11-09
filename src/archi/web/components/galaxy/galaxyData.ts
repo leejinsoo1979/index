@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
-import { plainText, resolvePage, wikiLinks } from '../../../wiki/markdown';
+import { isRelativeFileLink, plainText, resolveFileLink, resolvePage, wikiLinks } from '../../../wiki/markdown';
 import type { WikiPage } from '../../../wiki/types';
 
 /**
@@ -84,6 +84,13 @@ function pageHtml(md: string, pages: WikiPage[]) {
   let html = DOMPurify.sanitize(micromark(linked, { extensions: [gfm()], htmlExtensions: [gfmHtml()] }));
   html = html.replace(/<a href="#wk:([\w-]+)">/g, '<a class="wiki" data-go="$1" role="link" tabindex="0">');
   html = html.replace(/<a href="(https?:[^"]+)">/g, '<a class="ext" href="$1" target="_blank" rel="noopener">');
+  // links to files of the imported folder ("12_제목_<videoId>.md") go to the wiki page, or become plain text
+  html = html.replace(/<a href="([^"]+)">([\s\S]*?)<\/a>/g, (all, href: string, label: string) => {
+    const url = href.replace(/&amp;/g, '&');
+    if (!isRelativeFileLink(url)) return all;
+    const page = resolveFileLink(url, pages);
+    return page ? `<a class="wiki" data-go="${page.id}" role="link" tabindex="0">${label}</a>` : label;
+  });
   let n = 0;
   html = html.replace(/<h2>([\s\S]*?)<\/h2>/g, (_m, inner: string) => {
     const id = `h-${++n}`;
