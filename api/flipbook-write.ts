@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const original = text(body.text);
       const instruction = text(body.instruction, 300);
       if (!original.trim() || !instruction.trim()) return res.status(400).json({ error: "고칠 글과 요청을 입력해 주세요." });
-      return res.status(200).json({ text: await rewriteText(original, instruction) });
+      return res.status(200).json({ text: await rewriteText(original, instruction, text(body.context) || undefined) });
     }
 
     const images = bookImages(body.images);

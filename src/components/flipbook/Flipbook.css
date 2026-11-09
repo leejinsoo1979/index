@@ -86,6 +86,12 @@
 /* The book */
 .fb-book { position: relative; flex: none; transform: translateX(var(--shift, 0)); touch-action: pan-y; cursor: grab; user-select: none; }
 .fb-book.is-turning { cursor: grabbing; }
+.fb-paper-book { flex: none; transform: translateX(var(--paper-shift,0)); filter: drop-shadow(0 7px 15px #0003); }
+.fb-paper-page { background: #fff; overflow: hidden; }
+.fb-paper-blank { background: transparent; pointer-events: none; }
+.fb-paper-book .opf-page--flat.opf-page--left .fb-page::after,
+.fb-paper-book .opf-page--flat.opf-page--right .fb-page::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg,#00000010,transparent 4%); }
+.fb-paper-book .opf-page--flat.opf-page--left .fb-page::after { background: linear-gradient(270deg,#00000010,transparent 4%); }
 .fb-sheet, .fb-leaf { position: absolute; top: 0; height: 100%; width: var(--page-w); }
 .fb-sheet--left { left: 0; }
 .fb-sheet--right { left: var(--page-w); }
@@ -101,6 +107,15 @@
 .fb-leaf { left: var(--page-w); z-index: 3; transform-origin: left center; transform: rotateY(calc(var(--p, 0) * -180deg)); transform-style: preserve-3d; pointer-events: none; will-change: transform; }
 .fb-face { position: absolute; inset: 0; overflow: hidden; background: #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .fb-face--back { transform: rotateY(180deg); }
+.fb-book--hardcover .fb-face { outline: 2px solid rgba(255,255,255,.5); box-shadow: 0 0 0 3px #2a252255; }
+.fb-book--hardcover .fb-face::after { opacity: .25; }
+.fb-book--hardcover .fb-leaf { filter: drop-shadow(-6px 5px 5px #0004); }
+.fb-transition { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.fb-transition__from,.fb-transition__to { position: absolute; inset: 0; }
+.fb-book--slide .fb-transition__from { transform: translateX(calc(var(--p,0) * -100%)); }
+.fb-book--slide .fb-transition__to { transform: translateX(calc((1 - var(--p,0)) * 100%)); }
+.fb-book--fade .fb-transition__from { opacity: calc(1 - var(--p,0)); }
+.fb-book--fade .fb-transition__to { opacity: var(--p,0); }
 .fb-face > .fb-page::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, calc(var(--shade, 0) * .08)); }
 /* The shadow the turning sheet drops on the pages under it. */
 .is-turning .fb-sheet > .fb-page::before { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, calc(var(--shade, 0) * .1)); }
@@ -108,6 +123,11 @@
 /* Viewer */
 .fbv { position: fixed; inset: 0; display: flex; color: #fff; overflow: hidden; }
 .fbv__stage { position: absolute; inset: 28px 88px 74px; display: flex; align-items: center; justify-content: center; }
+.fbv__stage { touch-action: pan-x pan-y; }
+.fbv__zoom { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; transform-origin: center; }
+.fbv__zoom.is-zoomed { cursor: grab; touch-action: none; }
+.fbv__zoom.is-zoomed:active { cursor: grabbing; }
+.fbv__bar .fbv__zoomvalue { width: 50px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fbv__arrow { position: absolute; top: 50%; z-index: 6; display: grid; place-items: center; width: 46px; height: 46px; margin-top: -30px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); font-size: 24px; color: #fff; cursor: pointer; transition: background .15s, opacity .15s; }
 .fbv__arrow:hover { background: rgba(255, 255, 255, .24); }
 .fbv__arrow:disabled { opacity: .25; cursor: default; }

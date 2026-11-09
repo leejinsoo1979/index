@@ -11,6 +11,7 @@
  */
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firebaseAuth, firebaseDb, isFirebaseConfigured } from "./firebase";
+import type { BookReaderSettings } from "./book-reader";
 
 export type BookAction =
   | { kind: "url"; url: string }
@@ -137,6 +138,8 @@ export type Flipbook = {
   height: number;
   /** Colour behind the book in the viewer. */
   background: string;
+  /** Reader defaults; omitted in older books. */
+  reader?: Partial<BookReaderSettings>;
   pages: BookPage[];
   /** Files uploaded to this book, offered again in the image and video panels. */
   assets: { url: string; kind: "image" | "video" | "audio" }[];

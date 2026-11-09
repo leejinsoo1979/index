@@ -120,6 +120,8 @@ function FilePlayer({ src, start = 0, end, autoPlay, muted, controls = true, cro
 }
 
 const YOUTUBE_ENDED = 0;
+const YOUTUBE_PLAYING = 1;
+const YOUTUBE_PAUSED = 2;
 
 /** hqdefault.jpg has black bars baked in, so use the 16:9 sizes; not every video has the large one. */
 function YouTubeThumb({ id, crop }: { id: string; crop?: VideoCrop }) {
@@ -141,18 +143,25 @@ function YouTubePlayer({ source, start, end, autoStart, muted, controls, crop }:
   const frame = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(Boolean(autoStart));
   const [pressed, setPressed] = useState(false);
+  const resumeAt = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!playing) return;
+    let started = false;
+    let at = resumeAt.current ?? start ?? source.urlStart ?? 0;
     const onMessage = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || typeof event.data !== "string") return;
-      let data: { event?: string; info?: number | { playerState?: number } };
+      let data: { event?: string; info?: number | { playerState?: number; currentTime?: number } };
       try { data = JSON.parse(event.data); } catch { return; }
+      if (typeof data.info === "object" && typeof data.info?.currentTime === "number") at = data.info.currentTime;
       const state = data.event === "onStateChange" ? data.info : data.event === "infoDelivery" && typeof data.info === "object" ? data.info?.playerState : undefined;
-      if (state === YOUTUBE_ENDED) setPlaying(false);
+      if (state === YOUTUBE_PLAYING) started = true;
+      if (state === YOUTUBE_ENDED) { resumeAt.current = undefined; setPlaying(false); }
+      // Paused, YouTube covers the picture with its "more videos" row; our poster resumes from the same spot.
+      if (state === YOUTUBE_PAUSED && started && !controls) { resumeAt.current = at; setPlaying(false); }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [playing]);
+  }, [playing, controls, start, source.urlStart]);
   const startListening = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "https://www.youtube-nocookie.com");
   if (!playing) {
     return (
@@ -161,7 +170,7 @@ function YouTubePlayer({ source, start, end, autoStart, muted, controls, crop }:
       </button>
     );
   }
-  return <FillFrame ratio={source.vertical ? 9 / 16 : 16 / 9} crop={crop}><iframe ref={frame} className="fb-frame" src={videoEmbedUrl(source, { start, end, autoPlay: true, muted: muted && !pressed, controls })} title="영상" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen onLoad={startListening} /></FillFrame>;
+  return <FillFrame ratio={source.vertical ? 9 / 16 : 16 / 9} crop={crop}><iframe ref={frame} className="fb-frame" src={videoEmbedUrl(source, { start: resumeAt.current ?? start, end, autoPlay: true, muted: muted && !pressed, controls })} title="영상" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen onLoad={startListening} /></FillFrame>;
 }
 
 /** A video from any supported source, limited to the chosen range; also used by the popup. `autoStart` plays at once. */
@@ -358,6 +367,8 @@ export function ElementBody({ element, still, runtime, pageId }: { element: Book
     case "map":
       return <Frame still={still} title="지도" label={`지도 · ${element.address || "주소를 입력하세요"}`} src={element.address.trim() ? `https://maps.google.com/maps?q=${encodeURIComponent(element.address)}&output=embed` : null} />;
     case "embed": {
+      // YouTube and Vimeo refuse their normal pages inside a frame, so their links play as a video.
+      if (videoSource(element.url)) return <Video element={{ ...element, type: "video", src: element.url } as VideoElement} still={still} />;
       const url = safeUrl(element.url);
       return <Frame still={still} title="외부 콘텐츠" label={element.url || "임베드 주소를 입력하세요"} src={url?.startsWith("http") ? url : null} />;
     }

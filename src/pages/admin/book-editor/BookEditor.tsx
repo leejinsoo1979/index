@@ -69,6 +69,7 @@ export default function BookEditor() {
   edRef.current = ed;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('[role="dialog"]'))) return;
       const api = edRef.current;
       const command = event.metaKey || event.ctrlKey;
       if (command && event.key.toLowerCase() === "s") { event.preventDefault(); void api.flush(); return; }

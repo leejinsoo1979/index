@@ -101,11 +101,13 @@ JSON 형식: {"kicker":"6~12자의 작은 머리말","title":"시선을 끄는 �
 
 const normalise = (article: Article): Article => ({ kicker: String(article.kicker ?? ""), title: String(article.title ?? ""), lead: String(article.lead ?? ""), body: String(article.body ?? ""), caption: String(article.caption ?? "") });
 
-/** Rewrites one text box on the page as asked, keeping its facts. */
-export async function rewriteText(text: string, instruction: string): Promise<string> {
-  const system = `너는 한국어 매거진 교열 에디터다. 요청대로 글을 고친다. 원문에 없는 사실을 더하지 않는다.
+/** Rewrites a text box, or one selected part of it (the rest is given as context and left alone). */
+export async function rewriteText(text: string, instruction: string, context?: string): Promise<string> {
+  const system = `너는 한국어 매거진 교열 에디터다. 요청대로 글을 고친다. 길게 쓰라는 요청이어도 원문에 없는 사실, 수치, 브랜드를 지어내지 않고 이미 있는 내용을 더 풀어 쓴다.
 ${VOICE}
+${context ? "고칠 부분만 돌려준다. 앞뒤 문맥과 자연스럽게 이어져야 한다." : ""}
 JSON 형식: {"text":"고친 글"}`;
-  const result = await askJson<{ text: string }>(system, `원문:\n${text}\n\n요청: ${instruction}`, 1800);
+  const around = context ? `전체 글(문맥 참고용, 고치지 않는다):\n${context}\n\n` : "";
+  const result = await askJson<{ text: string }>(system, `${around}고칠 글:\n${text}\n\n요청: ${instruction}`, 1800);
   return String(result.text ?? "");
 }

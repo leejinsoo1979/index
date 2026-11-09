@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { FiLoader, FiRefreshCw, FiX } from "react-icons/fi";
 import { CustomSelect } from "../../../components/ui/custom-select";
 import { adminRequest, buildSpreads, spreadOfPage, uid, type BookElement, type BookPage, type Flipbook, type TextElement } from "../../../lib/flipbooks";
@@ -238,32 +239,83 @@ export function AiWriterPanel({ ed, onClose }: { ed: BookEditorApi; onClose: () 
   );
 }
 
-const TEXT_EDITS = ["더 짧게", "더 세련되게", "더 쉽게", "맞춤법 교정"];
+const TEXT_EDITS = ["더 세련되게", "더 짧게", "더 길게", "더 쉽게", "더 전문적으로", "맞춤법 교정"];
+const CONTINUE = "원문은 그대로 두고 같은 문체로 두세 문장을 이어 써서 전체를 돌려줘";
 
-/** AI edits for one text box on the page; undo brings the earlier text back. */
-export function TextAiTools({ ed, element }: { ed: BookEditorApi; element: TextElement }) {
+type Draft = { text: string; ask: string; base: string; target: [number, number] | null };
+
+/**
+ * AI right where the text is, in the style of Notion and Canva: a button under the selected box (or the
+ * sentence dragged over while editing), the result previewed in place, and nothing changes until 적용.
+ */
+export function InlineTextAi({ ed, element, range }: { ed: BookEditorApi; element: TextElement; range: [number, number] | null }) {
+  const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
-  const rewrite = async (ask: string) => {
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [error, setError] = useState("");
+  const target = range && range[1] > range[0] ? range : null;
+
+  const run = async (ask: string, on: [number, number] | null = target) => {
+    if (!element.text.trim()) { setError("먼저 글을 입력해 주세요."); return; }
     setBusy(true);
+    setError("");
     try {
-      const result = await adminRequest<{ text: string }>("/api/flipbook-write", { action: "rewrite", text: element.text, instruction: ask });
-      if (result.text.trim()) ed.updateElement(element.id, { text: result.text });
+      const piece = on ? element.text.slice(on[0], on[1]) : element.text;
+      const result = await adminRequest<{ text: string }>("/api/flipbook-write", { action: "rewrite", text: piece, instruction: ask, context: on ? element.text : undefined });
+      setDraft({ text: result.text, ask, base: element.text, target: on });
       setInstruction("");
     } catch (failure) {
-      ed.setNotice(errorText(failure, "AI로 고치지 못했습니다."));
+      setError(errorText(failure, "AI로 고치지 못했습니다."));
     } finally {
       setBusy(false);
     }
   };
+  const apply = () => {
+    if (!draft) return;
+    if (draft.base !== element.text) { setError("그 사이 글이 바뀌었습니다. 다시 실행해 주세요."); setDraft(null); return; }
+    const text = draft.target ? `${element.text.slice(0, draft.target[0])}${draft.text}${element.text.slice(draft.target[1])}` : draft.text;
+    ed.updateElement(element.id, { text });
+    setDraft(null);
+    setOpen(false);
+  };
+
+  const below = element.y + element.h <= 66;
+  const position = {
+    left: `min(${element.x}%, calc(100% - 320px))`,
+    ...(below ? { top: `calc(${element.y + element.h}% + 10px)` } : { bottom: `calc(${100 - element.y}% + 10px)` }),
+  };
+  const stop = { onPointerDown: (event: React.PointerEvent) => event.stopPropagation(), onDoubleClick: (event: React.MouseEvent) => event.stopPropagation() };
+
+  if (!open) {
+    return <button type="button" className="be-inlineai__pill" style={position} {...stop} onClick={() => setOpen(true)}><Sparkles size={14} />{target ? "선택한 문장 AI" : "AI로 고치기"}</button>;
+  }
   return (
-    <section>
-      <h4>AI로 다듬기</h4>
-      <div className="be-aichips">{TEXT_EDITS.map((item) => <button key={item} type="button" disabled={busy} onClick={() => void rewrite(item)}>{item}</button>)}</div>
-      <div className="be-row">
-        <input className="be-input" placeholder="원하는 수정을 적어 주세요" value={instruction} onChange={(event) => setInstruction(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && instruction.trim() && !busy) void rewrite(instruction); event.stopPropagation(); }} />
-        <button type="button" className="be-btn be-btn--line" disabled={!instruction.trim() || busy} onClick={() => void rewrite(instruction)}>{busy ? "…" : "고치기"}</button>
-      </div>
-    </section>
+    <div className="be-inlineai" style={position} {...stop} role="dialog" aria-label="AI로 고치기">
+      <header><Sparkles size={14} /><strong>{(draft?.target ?? target) ? "선택한 문장" : "이 글 전체"}</strong><button type="button" aria-label="닫기" onClick={() => { setOpen(false); setDraft(null); setError(""); }}><FiX /></button></header>
+      {draft ? (
+        <>
+          <textarea className="be-input be-area" rows={5} style={{ height: "auto" }} aria-label="AI 결과" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} onKeyDown={(event) => event.stopPropagation()} />
+          <div className="be-inlineai__actions">
+            <button type="button" className="be-btn be-btn--primary" disabled={busy} onClick={apply}>적용</button>
+            <button type="button" className="be-btn be-btn--line" disabled={busy} onClick={() => void run(draft.ask, draft.target)}><FiRefreshCw />다시 쓰기</button>
+            <button type="button" className="be-btn be-btn--line" disabled={busy} onClick={() => setDraft(null)}>취소</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="be-aichips">
+            {TEXT_EDITS.map((item) => <button key={item} type="button" disabled={busy} onClick={() => void run(item)}>{item}</button>)}
+            {!target && <button type="button" disabled={busy} onClick={() => void run(CONTINUE, null)}>이어 쓰기</button>}
+          </div>
+          <div className="be-row">
+            <input className="be-input" placeholder="원하는 수정을 적어 주세요" value={instruction} onChange={(event) => setInstruction(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && instruction.trim() && !busy) void run(instruction); event.stopPropagation(); }} />
+            <button type="button" className="be-btn be-btn--line" disabled={!instruction.trim() || busy} onClick={() => void run(instruction)}>실행</button>
+          </div>
+        </>
+      )}
+      {busy && <p className="be-aibusy" role="status"><FiLoader />글을 다듬는 중…</p>}
+      {error && <p className="be-aierror" role="alert">{error}</p>}
+    </div>
   );
 }

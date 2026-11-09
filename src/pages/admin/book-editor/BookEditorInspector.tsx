@@ -3,7 +3,7 @@ import { FiAlignCenter, FiAlignJustify, FiAlignLeft, FiAlignRight, FiArrowDown, 
 import { CustomSelect } from "../../../components/ui/custom-select";
 import { BOOK_GRADIENTS, BOOK_GRIDS, BOOK_SHAPES, IMAGE_PRESETS } from "../../../components/flipbook/graphics";
 import { BOOK_FONTS, type BookAction, type BookAnimation, type BookElement, type ChartElement, type Flipbook, type GridElement, type ImageElement, type SlideshowElement, type TableElement, type VideoElement, cropRect, formatTime, parseTime, uid, videoSource } from "../../../lib/flipbooks";
-import { TextAiTools } from "./BookEditorAi";
+import BookReaderSettings from "./BookReaderSettings";
 import { FilePickButton, GridTile, addFavourite } from "./BookEditorPanels";
 import type { BookEditorApi } from "./useBookEditor";
 
@@ -139,6 +139,7 @@ function PageSettings({ ed }: { ed: BookEditorApi }) {
         <h4>뷰어 배경</h4>
         <Colour label="책 뒤에 보이는 색" value={book.background} onChange={(background) => ed.commit((open) => ({ ...open, background }), "viewer-bg")} />
       </section>
+      <BookReaderSettings ed={ed} />
     </div>
   );
 }
@@ -481,7 +482,6 @@ function ElementSettings({ element, ed, onOpenAi }: { element: BookElement; ed: 
         </section>
       )}
       {(element.type === "grid" || element.type === "image") && <section><button type="button" className="be-btn be-btn--primary be-btn--wide" onClick={onOpenAi}>이 사진으로 AI 글쓰기</button></section>}
-      {element.type === "text" && <TextAiTools ed={ed} element={element} />}
       {element.type === "grid" && <GridEditor element={element} ed={ed} patch={patch} />}
       {element.type === "image" && <PhotoEditor element={element} patch={patch} />}
       {element.type === "image" && (
@@ -523,7 +523,7 @@ function ElementSettings({ element, ed, onOpenAi }: { element: BookElement; ed: 
       )}
       {element.type === "table" && <TableEditor element={element} patch={patch} />}
       {element.type === "map" && <section><h4>지도</h4><input className="be-input" placeholder="주소 또는 장소 이름" value={element.address} onChange={(event) => patch({ address: event.target.value }, "address")} /><p className="be-hint">동작 미리보기나 공개 링크에서 지도가 열립니다.</p></section>}
-      {element.type === "embed" && <section><h4>타사 임베드</h4><input className="be-input" placeholder="https://" value={element.url} onChange={(event) => patch({ url: event.target.value }, "url")} /><p className="be-hint">일부 사이트는 다른 페이지 안에 표시되는 것을 막아 두었습니다.</p></section>}
+      {element.type === "embed" && <section><h4>타사 임베드</h4><input className="be-input" placeholder="https://" value={element.url} onChange={(event) => patch({ url: event.target.value }, "url")} /><p className="be-hint">유튜브·비메오 링크는 영상으로 재생됩니다. 일부 사이트는 다른 페이지 안에 표시되는 것을 막아 두었습니다.</p></section>}
       {element.type === "tooltip" && <section><h4>툴팁</h4><textarea className="be-input be-area" value={element.text} onChange={(event) => patch({ text: event.target.value }, "text")} /><Colour label="아이콘 색상" value={element.color} onChange={(color) => patch({ color }, "color")} /></section>}
       {element.type === "pagenumber" && <section><h4>페이지 매김</h4><Num label="크기" value={element.size} onChange={(size) => { if (size > 0) patch({ size }, "size"); }} /><Colour label="색상" value={element.color} onChange={(color) => patch({ color }, "color")} /><label className="be-check"><input type="checkbox" checked={element.showTotal} onChange={(event) => patch({ showTotal: event.target.checked })} />전체 쪽수도 표시</label></section>}
       {element.type === "toc" && <section><h4>자동 목차</h4><Num label="크기" value={element.size} onChange={(size) => { if (size > 0) patch({ size }, "size"); }} /><Colour label="색상" value={element.color} onChange={(color) => patch({ color }, "color")} /><p className="be-hint">각 페이지의 이름이나 첫 글을 자동으로 모읍니다. 페이지 이름은 빈 곳을 누르면 나오는 설정에서 바꿉니다.</p></section>}

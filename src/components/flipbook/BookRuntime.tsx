@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiExternalLink, FiX } from "react-icons/fi";
-import { safeUrl, type BookAction, type Flipbook } from "../../lib/flipbooks";
+import { safeUrl, videoSource, type BookAction, type Flipbook } from "../../lib/flipbooks";
 import { VideoPlayer } from "./BookPageView";
 import "./Flipbook.css";
 
@@ -78,7 +78,9 @@ export function BookPopup({ action, onClose }: { action: PopupAction; onClose: (
         </div>
         {action.kind === "popupImage" && action.src && <img src={action.src} alt="" />}
         {action.kind === "popupMessage" && <div className="fb-popup__message"><h3>{action.title}</h3><p>{action.body}</p></div>}
-        {web && <iframe src={web} title="웹페이지" />}
+        {web && (videoSource(web)
+          ? <div className="fb-popup__video"><VideoPlayer src={web} autoStart controls /></div>
+          : <iframe src={web} title="웹페이지" />)}
         {action.kind === "popupVideo" && action.src && <div className="fb-popup__video"><VideoPlayer src={action.src} start={action.start} end={action.end} autoStart controls /></div>}
       </div>
     </div>

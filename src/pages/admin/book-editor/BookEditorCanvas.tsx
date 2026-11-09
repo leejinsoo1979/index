@@ -4,6 +4,7 @@ import { BookPageView, ElementBody, VideoPlayer, elementBox, textStyle, useShare
 import { CustomSelect } from "../../../components/ui/custom-select";
 import type { BookRuntime } from "../../../components/flipbook/BookRuntime";
 import { BOOK_FONTS, type BookElement, type GridElement, type ImageElement, type TextElement } from "../../../lib/flipbooks";
+import { InlineTextAi } from "./BookEditorAi";
 import type { BookEditorApi } from "./useBookEditor";
 
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
@@ -51,6 +52,7 @@ export function PageCanvas({ ed, index, width, height, preview, runtime }: { ed:
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const shared = useSharedElements(page.id);
   // A video can be tried right on the canvas; selecting anything else puts it back to its still.
+  const [textRange, setTextRange] = useState<[number, number] | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   useEffect(() => {
     if (playingId && !ed.selectedIds.includes(playingId)) setPlayingId(null);
@@ -251,6 +253,7 @@ export function PageCanvas({ ed, index, width, height, preview, runtime }: { ed:
       {editing && (
         <textarea
           className="be-textedit"
+          onSelect={(event) => setTextRange([event.currentTarget.selectionStart, event.currentTarget.selectionEnd])}
           autoFocus
           style={{ ...elementBox(editing), ...textStyle(editing), color: editing.color, backgroundImage: "none", background: "rgba(255, 255, 255, .55)" }}
           value={editing.text}
@@ -259,6 +262,8 @@ export function PageCanvas({ ed, index, width, height, preview, runtime }: { ed:
           onKeyDown={(event) => { if (event.key === "Escape") setEditingId(null); event.stopPropagation(); }}
         />
       )}
+
+      {selected?.type === "text" && !selected.locked && <InlineTextAi key={selected.id} ed={ed} element={selected} range={editing ? textRange : null} />}
 
       {selectedHere.length > 1 && selectedHere.map((element) => (
         <div key={element.id} className="be-selection be-selection--multi" style={elementBox({ ...element, opacity: 1 })} onPointerDown={(event) => startMove(event, element)} />
