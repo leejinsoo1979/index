@@ -29,7 +29,11 @@ export function localApi(): Plugin {
         if (typeof mod.default !== "function") return next();
 
         const chunks: Buffer[] = [];
-        for await (const chunk of req) chunks.push(chunk as Buffer);
+        try {
+          for await (const chunk of req) chunks.push(chunk as Buffer);
+        } catch {
+          return; // the browser cancelled mid-request; nothing to answer, and it must not kill the dev server
+        }
         const raw = Buffer.concat(chunks).toString("utf8");
         let body: unknown = raw;
         if ((req.headers["content-type"] ?? "").includes("application/json") && raw) {

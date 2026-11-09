@@ -60,6 +60,14 @@ export function markSignupInProgress(value: boolean) {
   signupInProgress = value;
 }
 
+/** Operator's Telegram alert for a brand-new account (api/signup-notify.ts decides if it really is new). Never blocks sign-up. */
+export function notifySignup(user: User, memberType: string, company?: string): void {
+  void user
+    .getIdToken()
+    .then((token) => fetch("/api/signup-notify", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ memberType, company }) }))
+    .catch(() => undefined);
+}
+
 /**
  * Keep the signed-in member's own name/email/last login current. Members who signed up before
  * records existed (or via Google) get a record on their next sign-in, as 일반회원.
@@ -74,6 +82,7 @@ export async function syncMemberProfile(user: User): Promise<void> {
     if (signupInProgress) return; // Signup.tsx writes the full record (memberType, company…)
     const provider = user.providerData.some((p) => p.providerId === "google.com") ? "Google" : "이메일";
     await setDoc(ref, { memberType: "일반회원", name, email, provider, createdAt: serverTimestamp(), lastLoginAt: serverTimestamp() });
+    notifySignup(user, "일반회원");
     return;
   }
   await updateDoc(ref, { name: snap.data().name || name, email, lastLoginAt: serverTimestamp() });

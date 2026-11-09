@@ -1,4 +1,4 @@
-import { markSignupInProgress } from "../lib/members";
+import { markSignupInProgress, notifySignup } from "../lib/members";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "../components/icons";
@@ -117,6 +117,7 @@ export default function Signup() {
         })
           .catch((error: unknown) => console.error("[signup] member profile save failed", error))
           .finally(() => markSignupInProgress(false));
+        notifySignup(created, isAssociation ? "사업자회원" : "일반회원", isAssociation ? company : undefined);
       } else {
         markSignupInProgress(false);
       }
