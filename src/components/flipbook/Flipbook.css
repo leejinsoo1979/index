@@ -1,0 +1,131 @@
+/* A page. Text sizes use container units so the same layout scales in the editor, viewer and thumbnails. */
+.fb-page { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; color: #16181d; container-type: size; }
+.fb-page__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+
+.fb-el { position: absolute; }
+.fb-el__in { width: 100%; height: 100%; }
+.fb-el--tooltip, .fb-el--tooltip .fb-el__in { overflow: visible; }
+.fb-el--action { cursor: pointer; }
+.fb-el--link.fb-el--action:hover { background: rgba(35, 110, 255, .16); box-shadow: inset 0 0 0 1px rgba(35, 110, 255, .5); }
+.fb-el--button.fb-el--action:hover .fb-button { filter: brightness(1.08); }
+.fb-el img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.fb-text { width: 100%; height: 100%; overflow: hidden; line-height: 1.32; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
+.fb-shape, .fb-chart, .fb-icon { display: block; width: 100%; height: 100%; overflow: visible; }
+.fb-grid { position: relative; width: 100%; height: 100%; }
+.fb-grid__cell { position: absolute; box-sizing: border-box; }
+.fb-grid__slot { display: grid; place-items: center; width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; font-size: 4cqw; color: #9aa2b1; }
+.fb-grid__slot.is-empty { background: #e3e6ec; }
+.fb-grid__slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.fb-imgbox { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.fb-maskdefs { position: absolute; width: 0; height: 0; }
+.fb-line { display: flex; align-items: center; width: 100%; height: 100%; }
+.fb-line i { flex: 1; height: 0; }
+.fb-line b { flex: none; width: 0; height: 0; }
+.fb-button { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 0 3cqw; font-size: 2.6cqw; font-weight: 650; text-align: center; white-space: nowrap; overflow: hidden; }
+.fb-text--vertical { writing-mode: vertical-rl; }
+.fb-table { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+.fb-table th, .fb-table td { padding: .6cqw 1cqw; border: 1px solid rgba(0, 0, 0, .18); overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; vertical-align: middle; }
+.fb-table th { color: #fff; font-weight: 700; }
+.fb-toc { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+.fb-toc button, .fb-toc span { display: flex; justify-content: space-between; gap: 2cqw; padding: .8cqw 0; border: 0; border-bottom: 1px solid rgba(0, 0, 0, .14); background: none; font: inherit; color: inherit; text-align: left; }
+.fb-toc button { cursor: pointer; }
+.fb-toc button:hover { opacity: .65; }
+.fb-pagenumber { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-variant-numeric: tabular-nums; }
+.fb-tip { position: relative; display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; font-size: 3.4cqw; font-weight: 700; color: #fff; cursor: help; }
+.fb-tip__text { position: absolute; left: 50%; bottom: calc(100% + 1cqw); width: 42cqw; padding: 1.4cqw 1.8cqw; border-radius: 1cqw; background: rgba(20, 22, 28, .92); font-size: 2.4cqw; font-weight: 400; line-height: 1.5; color: #fff; text-align: left; white-space: pre-wrap; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity .15s; }
+.fb-tip--below .fb-tip__text { top: calc(100% + 1cqw); bottom: auto; }
+.fb-tip:hover .fb-tip__text, .fb-tip:focus .fb-tip__text { opacity: 1; }
+.fb-empty { display: flex; align-items: center; justify-content: center; gap: 1cqw; width: 100%; height: 100%; background: #e7e9ee; font-size: 2.4cqw; color: #6b7079; }
+.fb-frame { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+.fb-fill { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; container-type: size; }
+.fb-fill--crop .fb-frame { --shown-w: calc(max(100cqw, calc(100cqh * var(--video-ratio))) * var(--video-zoom)); --shown-h: calc(max(100cqh, calc(100cqw / var(--video-ratio))) * var(--video-zoom)); position: absolute; left: calc((100cqw - var(--shown-w)) * var(--video-x)); top: calc((100cqh - var(--shown-h)) * var(--video-y)); width: var(--shown-w); height: var(--shown-h); }
+.fb-video-still { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
+.fb-video-poster { display: block; padding: 0; border: 0; cursor: pointer; }
+.fb-video-poster:hover span { background: rgba(0, 0, 0, .72); }
+.fb-video-still img, .fb-video-still video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.fb-video-still span { position: absolute; top: 50%; left: 50%; display: grid; place-items: center; width: 11cqw; height: 11cqw; border-radius: 50%; background: rgba(0, 0, 0, .55); font-size: 5cqw; color: #fff; transform: translate(-50%, -50%); }
+.fb-audio { display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 50%; font-size: 4cqw; color: #fff; cursor: pointer; }
+
+.fb-slides { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.fb-slides__track { display: flex; height: 100%; transition: transform .45s ease; }
+.fb-slides__item { flex: 0 0 100%; height: 100%; }
+.fb-slides--peek .fb-slides__item { flex-basis: 75%; padding: 0 1.2cqw; transform: scale(.88); opacity: .6; transition: transform .45s ease, opacity .45s ease; }
+.fb-slides--peek .fb-slides__item.is-on { transform: none; opacity: 1; }
+.fb-slides__item img { object-fit: cover; }
+.fb-slides__arrow { position: absolute; top: 50%; display: grid; place-items: center; width: 6cqw; height: 6cqw; margin-top: -3cqw; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .34); font-size: 3.6cqw; color: #fff; cursor: pointer; }
+.fb-slides__arrow--prev { left: 1.4cqw; }
+.fb-slides__arrow--next { right: 1.4cqw; }
+.fb-slides__dots { position: absolute; left: 0; right: 0; bottom: 1.6cqw; display: flex; justify-content: center; gap: .9cqw; }
+.fb-slides__dots i { width: 1cqw; height: 1cqw; border-radius: 50%; background: rgba(255, 255, 255, .55); }
+.fb-slides__dots i.is-on { background: #fff; }
+
+.fb-anim { animation: .7s cubic-bezier(.2, .7, .25, 1) both; }
+.fb-anim--fade { animation-name: fb-fade; }
+.fb-anim--up { animation-name: fb-up; }
+.fb-anim--left { animation-name: fb-left; }
+.fb-anim--zoom { animation-name: fb-zoom; }
+@keyframes fb-fade { from { opacity: 0; } }
+@keyframes fb-up { from { opacity: 0; transform: translateY(14%); } }
+@keyframes fb-left { from { opacity: 0; transform: translateX(-14%); } }
+@keyframes fb-zoom { from { opacity: 0; transform: scale(.72); } }
+@media (prefers-reduced-motion: reduce) { .fb-anim { animation: none; } }
+
+.fb-popup { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: rgba(8, 10, 14, .68); }
+.fb-popup__box { position: relative; display: flex; max-width: min(1040px, 100%); max-height: 100%; border-radius: 12px; background: #fff; color: #16181d; overflow: hidden; }
+.fb-popup__box img, .fb-popup__box video { display: block; max-width: 100%; max-height: calc(100dvh - 48px); object-fit: contain; }
+.fb-popup__box iframe { display: block; width: min(1040px, calc(100vw - 48px)); height: min(680px, calc(100dvh - 48px)); border: 0; }
+.fb-popup__box--popupVideo iframe { height: min(585px, calc((100vw - 48px) * .5625)); background: #000; }
+.fb-popup__video { width: min(1040px, calc(100vw - 48px)); aspect-ratio: 16 / 9; max-height: calc(100dvh - 48px); background: #000; }
+.fb-popup__video iframe, .fb-popup__video video { width: 100%; height: 100%; max-height: none; }
+.fb-popup__tools { position: absolute; top: 10px; right: 10px; z-index: 2; display: flex; gap: 6px; }
+.fb-popup__tools a, .fb-popup__tools button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .55); font-size: 17px; color: #fff; cursor: pointer; }
+.fb-popup__message { width: min(440px, calc(100vw - 48px)); padding: 30px 28px; }
+.fb-popup__message h3 { margin: 0 44px 10px 0; font-size: 19px; font-weight: 700; }
+.fb-popup__message p { margin: 0; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+
+/* The book */
+.fb-book { position: relative; flex: none; transform: translateX(var(--shift, 0)); touch-action: pan-y; cursor: grab; user-select: none; }
+.fb-book.is-turning { cursor: grabbing; }
+.fb-sheet, .fb-leaf { position: absolute; top: 0; height: 100%; width: var(--page-w); }
+.fb-sheet--left { left: 0; }
+.fb-sheet--right { left: var(--page-w); }
+.fb-book--single .fb-sheet--right, .fb-book--single .fb-leaf { left: 0; }
+.fb-sheet:not(:empty) { box-shadow: 0 18px 44px rgba(0, 0, 0, .34); }
+
+/* Soft fold where the paper curves into the spine. */
+.fb-sheet--left:not(:empty)::after, .fb-face--back::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to left, rgba(0, 0, 0, .15), rgba(0, 0, 0, .04) 7%, transparent 16%); }
+.fb-sheet--right:not(:empty)::after, .fb-face--front::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, rgba(0, 0, 0, .15), rgba(0, 0, 0, .04) 7%, transparent 16%); }
+.fb-book--single .fb-sheet--right::after, .fb-book--single .fb-face--front::after { display: none; }
+
+/* The sheet being turned, hinged on the spine. */
+.fb-leaf { left: var(--page-w); z-index: 3; transform-origin: left center; transform: rotateY(calc(var(--p, 0) * -180deg)); transform-style: preserve-3d; pointer-events: none; will-change: transform; }
+.fb-face { position: absolute; inset: 0; overflow: hidden; background: #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.fb-face--back { transform: rotateY(180deg); }
+.fb-face > .fb-page::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, calc(var(--shade, 0) * .08)); }
+/* The shadow the turning sheet drops on the pages under it. */
+.is-turning .fb-sheet > .fb-page::before { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, calc(var(--shade, 0) * .1)); }
+
+/* Viewer */
+.fbv { position: fixed; inset: 0; display: flex; color: #fff; overflow: hidden; }
+.fbv__stage { position: absolute; inset: 28px 88px 74px; display: flex; align-items: center; justify-content: center; }
+.fbv__arrow { position: absolute; top: 50%; z-index: 6; display: grid; place-items: center; width: 46px; height: 46px; margin-top: -30px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); font-size: 24px; color: #fff; cursor: pointer; transition: background .15s, opacity .15s; }
+.fbv__arrow:hover { background: rgba(255, 255, 255, .24); }
+.fbv__arrow:disabled { opacity: .25; cursor: default; }
+.fbv__arrow--prev { left: 22px; }
+.fbv__arrow--next { right: 22px; }
+.fbv__bar { position: absolute; left: 50%; bottom: 18px; z-index: 6; display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-radius: 12px; background: rgba(0, 0, 0, .42); transform: translateX(-50%); backdrop-filter: blur(10px); }
+.fbv__bar button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; font-size: 17px; color: #fff; cursor: pointer; }
+.fbv__bar button:hover { background: rgba(255, 255, 255, .16); }
+.fbv__count { min-width: 78px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
+
+.fbv-grid { position: absolute; inset: 0; z-index: 7; padding: 26px; overflow-y: auto; background: rgba(10, 12, 16, .9); }
+.fbv-grid__close { position: fixed; top: 14px; right: 16px; z-index: 8; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .16); font-size: 19px; color: #fff; cursor: pointer; }
+.fbv-grid__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; max-width: 1100px; margin: 34px auto 0; }
+.fbv-grid__list button { padding: 0; border: 0; background: none; font-size: 12.5px; color: #cfd3da; cursor: pointer; content-visibility: auto; contain-intrinsic-size: auto 210px; }
+.fbv-grid__list button > div { margin-bottom: 6px; overflow: hidden; pointer-events: none; }
+.fbv-message { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; background: #1d2026; font-size: 15px; color: #c6cad2; text-align: center; }
+
+@media (max-width: 760px) {
+  .fbv__stage { inset: 14px 14px 70px; }
+  .fbv__arrow { display: none; }
+}

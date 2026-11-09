@@ -25,6 +25,7 @@ import AdminPages from "./pages/admin/AdminPages";
 import AdminFloorPlans from "./pages/admin/AdminFloorPlans";
 import AdminFloorPlanMap from "./pages/admin/AdminFloorPlanMap";
 import AdminFloorPlanManage from "./pages/admin/AdminFloorPlanManage";
+import AdminBooks from "./pages/admin/AdminBooks";
 import { menuRouteLabels, useNavigation } from "./lib/navigation";
 
 // ARCHI Agent Studio (ported from inshow_agent): large, so it is code-split.
@@ -34,6 +35,8 @@ const ExpertSettings = lazy(() => import('./pages/ExpertSettings'));
 const ExpertWiki = lazy(() => import('./pages/ExpertWiki'));
 const ExpertConversations = lazy(() => import('./pages/ExpertConversations'));
 const StudioApp = lazy(() => import("./archi/StudioApp"));
+const BookViewer = lazy(() => import("./pages/BookViewer"));
+const BookEditor = lazy(() => import("./pages/admin/book-editor/BookEditor"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
 /** Any path without a page: if an admin put it in a menu (/admin/menus), show "준비 중" under that menu name. */
@@ -74,6 +77,7 @@ export default function App() {
         <Route path="/experts/:personId/wiki" element={<Suspense fallback={null}><ExpertWiki/></Suspense>} />
         <Route path="/experts/:personId/conversations" element={<Suspense fallback={null}><ExpertConversations/></Suspense>} />
         <Route path="/about/organization" element={<Team />} />
+        <Route path="/book/:id" element={<Suspense fallback={null}><BookViewer /></Suspense>} />
         <Route
           path="/agent-studio/*"
           element={
@@ -90,6 +94,8 @@ export default function App() {
           <Route path="floorplan-map" element={<AdminFloorPlanMap />} />
           <Route path="floorplan-manage" element={<AdminFloorPlanManage />} />
           <Route path="floorplans" element={<AdminFloorPlans />} />
+          <Route path="books" element={<AdminBooks />} />
+          <Route path="books/:id" element={<Suspense fallback={null}><BookEditor /></Suspense>} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="curriculum" element={<AdminCurriculum />} />

@@ -41,6 +41,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Interactive flipbooks: the link works once published; admins make and preview them.
+    match /flipbooks/{bookId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Seminars: public when published; admins edit everything except the seat counter,
     // which changes only together with an application (see seminarApplications).
     match /seminars/{seminarId} {

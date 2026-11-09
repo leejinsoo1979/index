@@ -78,6 +78,7 @@ const NAV = [
   { to: "/admin/floorplan-map", label: "평면도 찾기", icon: <FiMap /> },
   { to: "/admin/floorplan-manage", label: "도면 관리", icon: <FiLayers /> },
   { to: "/admin/floorplans", label: "도면 내력벽 검수", icon: <BoardIcon /> },
+  { to: "/admin/books", label: "인터랙션 북", icon: <BoardIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/curriculum", label: "커리큘럼 빌더", icon: <BoardIcon /> },

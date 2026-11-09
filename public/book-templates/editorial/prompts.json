@@ -1,0 +1,65 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "key": "living",
+      "prompt": "Photorealistic editorial architecture photograph for a sophisticated Korean residential interiors magazine. A serene contemporary living room with pale limewashed walls, warm natural oak joinery, low ivory linen sofa, sculptural walnut coffee table, travertine floor, large window with sheer curtains. Carefully balanced negative space, imperfect natural textures, subtle warm daylight and deep realistic shadows. Eye-level 35mm architectural lens, straight verticals, premium print photography, muted cream and tobacco tones. Portrait 3:4 composition with room visible edge to edge; no people, no text, no logos, no graphic design, no collage.",
+      "output": "public/book-templates/editorial/living.jpg"
+    },
+    {
+      "key": "dining",
+      "prompt": "Photorealistic premium interior magazine photograph of a contemporary residential kitchen and dining room. Long monolithic pale stone island, dark walnut cabinetry, a round oak dining table with sculptural timber chairs, one elegant pendant, floor to ceiling glazing and soft morning daylight. Restrained architectural styling, authentic lived-in material texture, strong asymmetrical composition, straight verticals, 35mm architectural photography. Portrait 3:4 framing, warm neutral palette, no people, no text, no brands, no collage, no diagrams.",
+      "output": "public/book-templates/editorial/dining.jpg"
+    },
+    {
+      "key": "chair",
+      "prompt": "Photorealistic high-end furniture catalogue photograph. A single sculptural solid walnut lounge chair with an ivory woven upholstered seat, alongside a small cylindrical travertine side table holding one simple ceramic vessel. Seamless warm sand plaster studio backdrop and floor, softly directional window light from the left creating beautiful long shadows. Art-directed minimal still life, tactile joinery and realistic grain, restrained warm browns and chalk white, portrait 3:4 composition, entire chair visible, ample space around the product. No people, no text, no logos, no collage.",
+      "output": "public/book-templates/editorial/chair.jpg"
+    },
+    {
+      "key": "detail",
+      "prompt": "Photorealistic editorial interior detail photograph, extreme attention to tactile surfaces. Close-up of natural walnut kitchen cabinet joinery meeting a honed ivory travertine countertop, brushed bronze minimal faucet partly visible, an understated off-white ceramic bowl and a folded natural linen cloth. Architectural still life with diagonal morning sunlight and soft shadows, warm muted tones, premium analogue magazine aesthetic, portrait 3:4 composition. No people, no text, no logos, no collage.",
+      "output": "public/book-templates/editorial/detail.jpg"
+    },
+    {
+      "key": "bedroom",
+      "prompt": "Photorealistic editorial photograph for an elegant residential interiors magazine: a quiet contemporary bedroom with a low platform oak bed, beautifully rumpled ivory linen, warm plaster walls, a small dark sculptural bedside table, paper pendant and tall window. Gentle early sunlight across the natural wood floor, sophisticated minimal styling, tactile materials, premium analogue architectural photography with straight verticals. Portrait 3:4 frame, no people, no text, no brand, no collage.",
+      "output": "public/book-templates/editorial/bedroom.jpg"
+    },
+    {
+      "key": "moody",
+      "prompt": "Photorealistic editorial architecture photograph of a refined urban apartment living room at blue hour, dark walnut wall panelling, low caramel leather lounge sofa, sculptural stainless-steel floor lamp, large grey stone coffee table, tall windows with distant city light and dim warm accent lighting. Deep muted charcoal, cognac and bronze, confident contemporary interior architecture, 35mm lens with straight verticals and rich shadow detail. Portrait 3:4 magazine photograph, no people, no text, no brand, no collage.",
+      "output": "public/book-templates/editorial/moody.jpg"
+    },
+    {
+      "key": "white-loft",
+      "prompt": "Photorealistic editorial architectural photograph for an exceptionally refined contemporary interior design magazine. A double height white residential loft with a sculptural curved white stair, polished pale grey floor, one low black leather sofa and one steel side table. Cool indirect daylight, restrained black and white palette, strong geometric composition, authentic tactile plaster and straight architectural verticals. Wide landscape 4:3 framing. No text, no typography, no logos, no people, not a collage.",
+      "output": "public/book-templates/editorial/white-loft.jpg"
+    },
+    {
+      "key": "terracotta-objects",
+      "prompt": "Photorealistic avant-garde furniture catalogue photograph, a sculptural red-brown solid wood stool and an off-white upholstered rounded lounge chair arranged on a deep terracotta plaster cyclorama. Bold but restrained art direction, beautiful offset directional studio shadows, tactile rough plaster, carefully detailed timber joinery, analogue print quality, an elegant still life. Portrait 3:4 framing with the complete furniture visible and ample margin. No text, no typography, no logos, no people, not a collage.",
+      "output": "public/book-templates/editorial/terracotta-objects.jpg"
+    },
+    {
+      "key": "chrome-chair",
+      "prompt": "Photorealistic high-end contemporary furniture editorial photograph: a tubular chrome lounge chair with a woven cognac leather sling seat and a small brushed aluminium side table, placed in a cobalt blue gallery corner. Striking graphic modernist art direction, side window light creating angular shadows, authentic reflective metal, design collectible catalogue aesthetic, clean precise geometry. Portrait 3:4 framing, entire chair visible. No text, no logos, no people, not a collage.",
+      "output": "public/book-templates/editorial/chrome-chair.jpg"
+    },
+    {
+      "key": "concrete-house",
+      "prompt": "Photorealistic black and white architectural photography for a residential architecture portfolio. A carefully proportioned low concrete courtyard house facade with deep rectangular openings, a single sculptural tree and a long reflecting pool, photographed in raking afternoon light. Rich silver-gelatin tonal range, material texture, severe geometric composition, perfectly straight verticals, premium architecture journal photograph. Landscape 4:3 framing. No people, no typography, no logos, no collage.",
+      "output": "public/book-templates/editorial/concrete-house.jpg"
+    },
+    {
+      "key": "city-kitchen",
+      "prompt": "Photorealistic contemporary interior editorial photograph of a characterful compact urban apartment kitchen: deep burgundy lacquer cabinetry, a pale pink travertine counter, brushed steel shelves, one green glass vase, a round cream dining table and timber chairs. Large side window, honest natural daylight, rich yet restrained red, pink and olive palette, lived-in sophistication and authentic material textures, 35mm architectural lens with straight verticals. Portrait 3:4 framing. No people, no text, no logos, no collage.",
+      "output": "public/book-templates/editorial/city-kitchen.jpg"
+    },
+    {
+      "key": "green-bath",
+      "prompt": "Photorealistic high-end residential interior detail photography, a refined bathroom with vertically veined dark green marble, a sculptural ivory stone basin, aged brass tap and one linen hand towel, close view of the stone joinery and wall. Moody directional natural light, cinematic but realistic materials, premium architectural magazine aesthetic with deep emerald, ivory and brass tones. Portrait 3:4 framing. No people, no text, no logos, no collage.",
+      "output": "public/book-templates/editorial/green-bath.jpg"
+    }
+  ]
+}
