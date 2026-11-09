@@ -1315,3 +1315,15 @@ a.ab-together__w:focus-visible { outline: 2px solid #fff; outline-offset: 4px; b
   .ab-together__track > [aria-hidden="true"] { display: none; }
 }
 @media (max-width: 700px) { .ab-together__lead { margin-bottom: 36px; } }
+
+/* /ai footer: same dark footer as the main site (src/components/Footer.css) */
+.ab .ai-foot {
+  border-top: 0;
+  background: var(--footer);
+  color: var(--footer-link);
+}
+.ab .ai-foot__brand { color: #fff; }
+.ab .ai-foot__brand span { color: var(--accent-soft, #93a8fb); }
+.ab .ai-foot__inner nav a { color: var(--footer-link); transition: color 0.15s ease; }
+.ab .ai-foot__inner nav a:hover { color: #fff; }
+.ab .ai-foot__bottom { border-top-color: rgba(255, 255, 255, 0.07); color: #6b7280; }

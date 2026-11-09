@@ -8,18 +8,19 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { useStudioTheme } from '../../../../studioTheme';
 
 export type StageStatus = 'published' | 'ready' | 'unsourced' | 'broken' | 'draft';
 export type StageDoc = { id: string; title: string; status: StageStatus; links: string[] };
 export type StagePanel = { key: string; label: string; docs: StageDoc[] };
 export type StageGate = { key: string; label: string; panels: StagePanel[] };
 
-export const STAGE_STATUS: Record<StageStatus, { label: string; en: string; color: number; css: string; pulse: number }> = {
-  published: { label: '검수 완료', en: 'DONE', color: 0x2ee6a8, css: '#2ee6a8', pulse: 0 },
-  broken: { label: '깨진 링크', en: 'FIX', color: 0xffb020, css: '#ffb020', pulse: 2.6 },
-  ready: { label: '검토 대기', en: 'REVIEW', color: 0x38c6f4, css: '#38c6f4', pulse: 1.3 },
-  unsourced: { label: '출처 없음', en: 'NO SRC', color: 0x9d86f5, css: '#9d86f5', pulse: 0.7 },
-  draft: { label: '초안', en: 'DRAFT', color: 0x2f6390, css: '#35618a', pulse: 0 },
+export const STAGE_STATUS: Record<StageStatus, { label: string; en: string; color: number; css: string; lightColor: number; lightCss: string; pulse: number }> = {
+  published: { label: '검수 완료', en: 'DONE', color: 0x2ee6a8, css: '#2ee6a8', lightColor: 0x16a673, lightCss: '#0f8058', pulse: 0 },
+  broken: { label: '깨진 링크', en: 'FIX', color: 0xffb020, css: '#ffb020', lightColor: 0xe58a00, lightCss: '#a8670f', pulse: 2.6 },
+  ready: { label: '검토 대기', en: 'REVIEW', color: 0x38c6f4, css: '#38c6f4', lightColor: 0x1a93d6, lightCss: '#0f6fa6', pulse: 1.3 },
+  unsourced: { label: '출처 없음', en: 'NO SRC', color: 0x9d86f5, css: '#9d86f5', lightColor: 0x7a5fe0, lightCss: '#5b42c4', pulse: 0.7 },
+  draft: { label: '초안', en: 'DRAFT', color: 0x2f6390, css: '#35618a', lightColor: 0x9db2c6, lightCss: '#5d7286', pulse: 0 },
 };
 
 type Props = {
@@ -46,23 +47,24 @@ const BOOT_DUR = 2600;
 const FONT_KO = "'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', sans-serif";
 const FONT_MONO = "'IBM Plex Mono', ui-monospace, monospace";
 
-function panelTexture(panel: StagePanel, dominant: StageStatus, wPx: number, hPx: number, labelFrac: number) {
+function panelTexture(panel: StagePanel, dominant: StageStatus, wPx: number, hPx: number, labelFrac: number, light: boolean) {
   const c = document.createElement('canvas');
   c.width = wPx;
   c.height = hPx;
   const x = c.getContext('2d')!;
   const s = STAGE_STATUS[dominant];
-  x.fillStyle = 'rgba(8,16,26,0.94)';
+  const tone = light ? s.lightCss : s.css;
+  x.fillStyle = light ? 'rgba(255,255,255,0.97)' : 'rgba(8,16,26,0.94)';
   x.fillRect(0, 0, wPx, hPx);
   const grad = x.createLinearGradient(0, 0, 0, hPx);
-  grad.addColorStop(0, 'rgba(56,198,244,0.10)');
+  grad.addColorStop(0, light ? 'rgba(40,110,170,0.06)' : 'rgba(56,198,244,0.10)');
   grad.addColorStop(0.25, 'rgba(56,198,244,0)');
   x.fillStyle = grad;
   x.fillRect(0, 0, wPx, hPx);
-  x.strokeStyle = 'rgba(56,198,244,0.35)';
+  x.strokeStyle = light ? 'rgba(30,60,90,0.2)' : 'rgba(56,198,244,0.35)';
   x.lineWidth = 2;
   x.strokeRect(1, 1, wPx - 2, hPx - 2);
-  x.strokeStyle = s.css;
+  x.strokeStyle = tone;
   x.lineWidth = 4;
   const k = 26;
   x.beginPath();
@@ -74,17 +76,17 @@ function panelTexture(panel: StagePanel, dominant: StageStatus, wPx: number, hPx
   x.lineTo(wPx - 1, hPx - k);
   x.stroke();
   const lh = hPx * labelFrac;
-  x.fillStyle = 'rgba(56,198,244,0.07)';
+  x.fillStyle = light ? 'rgba(40,110,170,0.07)' : 'rgba(56,198,244,0.07)';
   x.fillRect(2, 2, wPx - 4, lh - 6);
   x.font = `600 24px ${FONT_MONO}`;
-  x.fillStyle = s.css;
+  x.fillStyle = tone;
   x.fillText(s.en, 20, lh * 0.62);
   x.font = `700 27px ${FONT_KO}`;
-  x.fillStyle = '#d7e6f2';
+  x.fillStyle = light ? '#1c2730' : '#d7e6f2';
   x.fillText(panel.label, 150, lh * 0.62);
   x.font = `700 30px ${FONT_MONO}`;
   x.textAlign = 'right';
-  x.fillStyle = '#ffb020';
+  x.fillStyle = light ? '#a8670f' : '#ffb020';
   x.fillText(String(panel.docs.length), wPx - 20, lh * 0.63);
   x.textAlign = 'left';
   const t = new THREE.CanvasTexture(c);
@@ -93,25 +95,25 @@ function panelTexture(panel: StagePanel, dominant: StageStatus, wPx: number, hPx
   return t;
 }
 
-function headerTexture(index: number, gate: StageGate) {
+function headerTexture(index: number, gate: StageGate, light: boolean) {
   const c = document.createElement('canvas');
   c.width = 1024;
   c.height = 148;
   const x = c.getContext('2d')!;
-  x.fillStyle = 'rgba(10,20,32,0.96)';
+  x.fillStyle = light ? 'rgba(255,255,255,0.98)' : 'rgba(10,20,32,0.96)';
   x.fillRect(0, 0, 1024, 148);
-  x.fillStyle = 'rgba(255,176,32,0.9)';
+  x.fillStyle = light ? 'rgba(201,138,11,0.9)' : 'rgba(255,176,32,0.9)';
   x.fillRect(0, 138, 1024, 10);
   x.font = `700 64px ${FONT_MONO}`;
-  x.fillStyle = '#ffb020';
+  x.fillStyle = light ? '#a8670f' : '#ffb020';
   x.fillText(String(index + 1).padStart(2, '0'), 26, 92);
   x.font = `800 58px ${FONT_KO}`;
-  x.fillStyle = '#e8f4fd';
+  x.fillStyle = light ? '#16161a' : '#e8f4fd';
   x.fillText(gate.label, 128, 92);
   const total = gate.panels.reduce((n, p) => n + p.docs.length, 0);
   x.font = `600 34px ${FONT_MONO}`;
   x.textAlign = 'right';
-  x.fillStyle = '#38c6f4';
+  x.fillStyle = light ? '#0f6fa6' : '#38c6f4';
   x.fillText(`${total} DOC`, 1000, 90);
   const t = new THREE.CanvasTexture(c);
   t.anisotropy = 4;
@@ -142,12 +144,18 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
   const hostRef = useRef<HTMLDivElement>(null);
   const api = useRef<{ focus: (key: string | null) => void; route: (doc: string | null) => void } | null>(null);
   const cb = useLatest({ onFocusGate, onSelectDoc, overviewRoute });
+  const [studioTheme] = useStudioTheme();
+  const light = studioTheme === 'light';
 
   // Build (or rebuild when the wiki changes) the whole scene.
   useEffect(() => {
     const host = hostRef.current;
     if (!host || gates.length === 0) return;
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    // Additive glow vanishes on a bright background, so the light scene blends normally with deeper colours.
+    const blending = light ? THREE.NormalBlending : THREE.AdditiveBlending;
+    const SKY = light ? 0xeef2f7 : 0x04070c;
+    const ink = (dark: number, lite: number) => (light ? lite : dark);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -156,8 +164,8 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x04070c);
-    scene.fog = new THREE.Fog(0x04070c, 30, 115);
+    scene.background = new THREE.Color(SKY);
+    scene.fog = new THREE.Fog(SKY, 30, 115);
     const camera = new THREE.PerspectiveCamera(50, size().w / size().h, 0.1, 200);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(o: T) => (disposables.push(o), o);
@@ -174,7 +182,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
 
     const glowTex = track(glowTexture());
     const glowGeo = track(new THREE.PlaneGeometry(TILE * 2.2, TILE * 2.2));
-    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
+    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: light ? 0.2 : 1, blending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
     const glows = new THREE.InstancedMesh(glowGeo, glowMat, TOTAL);
     glows.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(TOTAL * 3), 3);
     scene.add(glows);
@@ -207,7 +215,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         const tally = new Map<StageStatus, number>();
         p.docs.forEach((d) => tally.set(d.status, (tally.get(d.status) ?? 0) + 1));
         const dominant = ([...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'draft') as StageStatus;
-        const tex = track(panelTexture(p, dominant, wPx, hPx, LABEL_H / ph));
+        const tex = track(panelTexture(p, dominant, wPx, hPx, LABEL_H / ph, light));
         const mat = track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
         const geo = track(new THREE.PlaneGeometry(PANEL_W, ph));
         const panel = new THREE.Mesh(geo, mat);
@@ -236,7 +244,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         y += ph + PANEL_GAP;
       });
 
-      const headerTex = track(headerTexture(gi, g));
+      const headerTex = track(headerTexture(gi, g, light));
       const headerMat = track(new THREE.MeshBasicMaterial({ map: headerTex, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
       const headerGeo = track(new THREE.PlaneGeometry(PANEL_W, (PANEL_W * 148) / 1024));
       const header = new THREE.Mesh(headerGeo, headerMat);
@@ -255,7 +263,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       });
 
       const poolGeo = track(new THREE.PlaneGeometry(PANEL_W * 1.5, 3.4));
-      const poolMat = track(new THREE.MeshBasicMaterial({ map: glowTex, color: 0x11405e, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const poolMat = track(new THREE.MeshBasicMaterial({ map: glowTex, color: ink(0x11405e, 0xa9c6de), transparent: true, opacity: light ? 0.4 : 0.55, blending, depthWrite: false }));
       const pool = new THREE.Mesh(poolGeo, poolMat);
       pool.rotation.x = -Math.PI / 2;
       pool.position.set(Math.sin(ang) * (R - 1.2), 0.01, -Math.cos(ang) * (R - 1.2));
@@ -264,7 +272,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
 
     // hover outline (panels) + tile marker
     const hoverGeo = track(new THREE.PlaneGeometry(1, 1));
-    const hoverMat = track(new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const hoverMat = track(new THREE.MeshBasicMaterial({ color: ink(0xffb020, 0xe58a00), transparent: true, opacity: 0, side: THREE.DoubleSide, blending, depthWrite: false }));
     const hover = new THREE.Mesh(hoverGeo, hoverMat);
     scene.add(hover);
 
@@ -273,9 +281,9 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       const c = document.createElement('canvas');
       c.width = c.height = 512;
       const x = c.getContext('2d')!;
-      x.fillStyle = '#04070c';
+      x.fillStyle = light ? '#eef2f7' : '#04070c';
       x.fillRect(0, 0, 512, 512);
-      x.strokeStyle = 'rgba(56,198,244,0.10)';
+      x.strokeStyle = light ? 'rgba(40,90,140,0.16)' : 'rgba(56,198,244,0.10)';
       x.lineWidth = 1;
       for (let i = 0; i <= 512; i += 32) {
         x.beginPath();
@@ -306,7 +314,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       }
       const geo = track(new THREE.BufferGeometry());
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      scene.add(new THREE.Points(geo, track(new THREE.PointsMaterial({ color: 0x38c6f4, size: 0.045, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }))));
+      scene.add(new THREE.Points(geo, track(new THREE.PointsMaterial({ color: ink(0x38c6f4, 0x8fb0cc), size: 0.045, transparent: true, opacity: 0.35, blending, depthWrite: false }))));
     }
 
     // ── route (흐름): thin gold/cyan lines between linked documents, with pulses travelling along them ──
@@ -371,13 +379,13 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
       streams.push({ map, speed: reduceMotion ? 0 : speed });
       const mesh = new THREE.Mesh(
         new THREE.TubeGeometry(curve, 96, radius, 5, false),
-        new THREE.MeshBasicMaterial({ color, map, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+        new THREE.MeshBasicMaterial({ color, map, transparent: true, opacity, blending, depthWrite: false, toneMapped: false }),
       );
       scene.add(mesh);
       routeObjs.push(mesh);
     };
     const dot = (at: THREE.Vector3, color: number, scale: number, opacity = 1) => {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending, depthWrite: false }));
       s.position.copy(at);
       s.scale.setScalar(scale);
       scene.add(s);
@@ -397,7 +405,7 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     const ring = (at: { p: THREE.Vector3; n: THREE.Vector3 }) => {
       const mesh = new THREE.Mesh(
         new THREE.RingGeometry(TILE * 0.62, TILE * 0.78, 32),
-        new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
+        new THREE.MeshBasicMaterial({ color: ink(0xffd76a, 0xc98a0b), transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
       );
       mesh.position.copy(at.p).add(at.n.clone().multiplyScalar(0.01));
       mesh.lookAt(at.p.clone().add(at.n));
@@ -416,9 +424,9 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
           const to = anchor(target);
           if (!to) return;
           const curve = flowCurve(from, to, gateOf.get(selected) === gateOf.get(target));
-          line(curve, 0xffc94d, 1, 0.02, 0.7);
-          dot(to.p, 0xffd76a, 0.32);
-          pulse(curve, 0xfff1c4, 0.22);
+          line(curve, ink(0xffc94d, 0xc98a0b), 1, 0.02, 0.7);
+          dot(to.p, ink(0xffd76a, 0xc98a0b), 0.32);
+          pulse(curve, ink(0xfff1c4, 0xa8670f), 0.22);
         });
         docs
           .filter((d) => d.doc.links.includes(selected))
@@ -426,9 +434,9 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
             const src = anchor(d.doc.id);
             if (!src) return;
             const curve = flowCurve(src, from, gateOf.get(d.doc.id) === gateOf.get(selected));
-            line(curve, 0x38c6f4, 0.85, 0.015, 0.55);
-            dot(src.p, 0x38c6f4, 0.26);
-            pulse(curve, 0xc9f1ff, 0.18);
+            line(curve, ink(0x38c6f4, 0x1a93d6), 0.85, 0.015, 0.55);
+            dot(src.p, ink(0x38c6f4, 0x1a93d6), 0.26);
+            pulse(curve, ink(0xc9f1ff, 0x0f6fa6), 0.18);
           });
         return;
       }
@@ -437,10 +445,10 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         const to = anchor(b!);
         if (!from || !to) return;
         const curve = flowCurve(from, to, gateOf.get(a!) === gateOf.get(b!));
-        line(curve, 0xffc94d, 0.8, 0.016, 0.4);
-        dot(from.p, 0xffd76a, 0.3, 0.8);
-        dot(to.p, 0xffd76a, 0.3, 0.8);
-        pulse(curve, 0xfff1c4, 0.12);
+        line(curve, ink(0xffc94d, 0xc98a0b), 0.8, 0.016, 0.4);
+        dot(from.p, ink(0xffd76a, 0xc98a0b), 0.3, 0.8);
+        dot(to.p, ink(0xffd76a, 0xc98a0b), 0.3, 0.8);
+        pulse(curve, ink(0xfff1c4, 0xa8670f), 0.12);
       });
     };
     drawRoute(null);
@@ -543,7 +551,8 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     // ── animate ──
     const clock = new THREE.Clock();
     const tmp = new THREE.Color();
-    const white = new THREE.Color(0xffffff);
+    // Hover and boot flash: toward white on the dark wall, toward deep ink on the light one.
+    const white = new THREE.Color(ink(0xffffff, 0x10202c));
     const bootT0 = performance.now();
     let frame = 0;
     let lastT = 0;
@@ -560,11 +569,11 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
         const d = inst[i]!;
         const s = STAGE_STATUS[d.st];
         if (d.boot >= lit) {
-          tmp.setScalar(0.012);
+          tmp.setScalar(light ? 0.86 : 0.012);
           setTile(i, tmp, 0);
           continue;
         }
-        tmp.setHex(s.color);
+        tmp.setHex(light ? s.lightColor : s.color);
         let g = 0.8;
         if (s.pulse > 0 && !reduceMotion) {
           const w = 0.72 + 0.38 * Math.sin(t * s.pulse + d.phase);
@@ -642,15 +651,15 @@ export default function WarroomStage({ gates, focusedGate, selectedDoc, overview
     };
     // overviewRoute is read through cb on rebuild; gates drive the rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gates]);
+  }, [gates, light]);
 
   useEffect(() => {
     api.current?.focus(focusedGate);
-  }, [focusedGate, gates]);
+  }, [focusedGate, gates, light]);
 
   useEffect(() => {
     api.current?.route(selectedDoc);
-  }, [selectedDoc, gates, overviewRoute]);
+  }, [selectedDoc, gates, overviewRoute, light]);
 
   return <div ref={hostRef} className="wr-stage" aria-label="분야별 지식 탑과 문서 흐름 (3D)" role="img" />;
 }

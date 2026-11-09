@@ -9,6 +9,7 @@ import { knowledgeRequest } from '@/lib/knowledgeServer';
 import { WIKI_CATEGORIES, WIKI_STATUS, type WikiPage } from '../../../../wiki/types';
 import { resolvePage, wikiLinks } from '../../../../wiki/markdown';
 import WarroomStage, { STAGE_STATUS, type StageGate, type StageStatus } from './WarroomStage';
+import { useStudioTheme } from '../../../../studioTheme';
 import './WikiWarroom.css';
 
 export type WikiWarroomProps = {
@@ -190,6 +191,8 @@ function useCountUp(target: number) {
 }
 
 export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, onImport, serverEnabled = true }: WikiWarroomProps) {
+  const [studioTheme] = useStudioTheme();
+  const light = studioTheme === 'light';
   const data = useMemo(() => analyze(pages), [pages]);
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -359,7 +362,7 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
               const n = stageGates.reduce((sum, g) => sum + g.panels.reduce((m, p) => m + p.docs.filter((d) => d.status === k).length, 0), 0);
               return (
                 <span key={k}>
-                  <i className="wr-tone" style={{ background: STAGE_STATUS[k].css, boxShadow: `0 0 6px ${STAGE_STATUS[k].css}` }} />
+                  <i className="wr-tone" style={{ background: light ? STAGE_STATUS[k].lightCss : STAGE_STATUS[k].css, boxShadow: light ? 'none' : `0 0 6px ${STAGE_STATUS[k].css}` }} />
                   {STAGE_STATUS[k].label} {n}
                 </span>
               );
@@ -586,11 +589,13 @@ export default function WikiWarroom({ pages, onNavigate, onGraph, onRegistry, on
 function DocDetail({ page, links, backlinks, broken, onSelect, onNavigate }: { page: WikiPage; links: WikiPage[]; backlinks: WikiPage[]; broken: boolean; onSelect: (id: string) => void; onNavigate: (id: string) => void }) {
   const status: StageStatus = broken ? 'broken' : page.status === 'published' ? 'published' : page.status === 'review' ? ((page.sources ?? []).length ? 'ready' : 'unsourced') : 'draft';
   const s = STAGE_STATUS[status];
+  const [studioTheme] = useStudioTheme();
+  const tone = studioTheme === 'light' ? s.lightCss : s.css;
   return (
     <>
       <div className="wr-d-gate">DOC · {fieldOf(page)}</div>
       <div className="wr-d-name">{page.title}</div>
-      <span className="wr-d-st" style={{ color: s.css, borderColor: s.css }}>
+      <span className="wr-d-st" style={{ color: tone, borderColor: tone }}>
         {s.en} · {s.label}
       </span>
       <p className="wr-d-meta">

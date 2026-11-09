@@ -1046,3 +1046,17 @@ button.wr-cell:hover {
   font-size: 11px;
   letter-spacing: 0.04em;
 }
+
+/* ── Studio light theme: the --wr-* palette follows the tokens; these are the spots drawn for the dark wall. ── */
+html[data-studio-theme="light"] .wk-warroom { color-scheme: light; }
+html[data-studio-theme="light"] .wk-warroom.is-stage { background: #eef2f7; }
+html[data-studio-theme="light"] .wk-warroom button.wr-cell,
+html[data-studio-theme="light"] .wk-warroom .wr-cell { background: rgba(255, 255, 255, 0.9); }
+html[data-studio-theme="light"] .wk-warroom .wr-rail,
+html[data-studio-theme="light"] .wk-warroom .wr-detail,
+html[data-studio-theme="light"] .wk-warroom .wr-route { background: rgba(255, 255, 255, 0.86); }
+html[data-studio-theme="light"] .wk-warroom .wr-bottom { background: linear-gradient(0deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.86)); }
+html[data-studio-theme="light"] .wk-warroom .wr-links button.is-on { color: #a8670f !important; }
+html[data-studio-theme="light"] .wk-warroom .wr-d-open { background: rgba(217, 153, 40, 0.1); color: #a8670f; }
+html[data-studio-theme="light"] .wk-warroom .wr-d-open:hover { border-color: #a8670f; }
+html[data-studio-theme="light"] .wk-warroom [class*="wr-"] { text-shadow: none; }
