@@ -46,7 +46,8 @@ export function ExpertConversation({profile,canManage=false,compact=false}:{prof
   useEffect(()=>{setRooms([]);setMessages([]);setError('');generation.current++;if(user)refreshRooms();return()=>{generation.current++;abort.current?.abort();};},[user?.uid,profile.id]);
   useEffect(()=>{if(sending)return;if(!user||!roomId){setMessages([]);return;}const controller=new AbortController();setLoadingRoom(true);setError('');expertRequest<ExpertRoom>('room',{roomId},controller.signal).then(r=>{if(r.personId!==profile.id)throw new Error('다른 인물의 대화방입니다.');setMessages(r.messages??[]);bottom.current=true;}).catch(e=>{if(e.name!=='AbortError')setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setLoadingRoom(false);});return()=>controller.abort();},[roomId,user?.uid,profile.id]);
   useEffect(()=>{if(!scroll.current)return;if(!messages.length&&!sending)scroll.current.scrollTop=0;else if(bottom.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[messages,live,sending,loadingRoom]);
-  useEffect(()=>{if(loading||!pendingQuestion.current)return;const question=pendingQuestion.current;pendingQuestion.current=null;if(user){void submit(question);}else{setDraft(question);setParams({},{replace:true});}
+  // Deferred so it runs after the mount effects settle; submit() must not capture a generation they are about to bump (the send would stop silently, spinner on).
+  useEffect(()=>{if(loading||!pendingQuestion.current)return;const timer=window.setTimeout(()=>{const question=pendingQuestion.current;if(!question)return;pendingQuestion.current=null;if(user){void submit(question);}else{setDraft(question);setParams({},{replace:true});}},0);return()=>window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[loading,user?.uid]);
   const selectRoom=(id:string)=>{if(sending)return;setRoomId(id);setHistoryOpen(false);setError('');if(!compact)setParams(id?{room:id}:{},{replace:true});};
