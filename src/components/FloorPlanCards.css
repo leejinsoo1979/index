@@ -4,8 +4,7 @@
   --fp-ink: #ededed; --fp-soft: rgba(255, 255, 255, .6); --fp-faint: rgba(255, 255, 255, .45); --fp-warn: #f2c46d;
   --fp-btn: rgba(255, 255, 255, .08); --fp-primary: #ededed; --fp-primary-ink: #111;
 }
-:root:not([data-app-theme="dark"]) :is(.fp-plans, .fp-danji, .fp-picked, .fp-map-open),
-.expert-conversation :is(.fp-plans, .fp-danji, .fp-picked, .fp-map-open) {
+:root:not([data-app-theme="dark"]) :is(.fp-plans, .fp-danji, .fp-picked, .fp-map-open) {
   --fp-surface: #fff; --fp-hover: #f7f7f8; --fp-line: #e3e5e9; --fp-line-hot: #b9bdc6;
   --fp-ink: #16181d; --fp-soft: #6b7079; --fp-faint: #9a9fa8; --fp-warn: #a8670f;
   --fp-btn: #f1f2f4; --fp-primary: #16181d; --fp-primary-ink: #fff;

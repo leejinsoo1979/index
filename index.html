@@ -39,6 +39,16 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
     />
+    <script>
+      // The saved light/dark choice, before the first paint (src/lib/theme.ts).
+      try {
+        var theme = localStorage.getItem("index-theme") === "dark" ? "dark" : "light";
+        var root = document.documentElement;
+        root.dataset.appTheme = theme;
+        root.dataset.studioTheme = theme;
+        root.classList.toggle("dark", theme === "dark");
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -5,6 +5,10 @@
   --ab-faint: var(--ink-faint, #9ca3af);
   --ab-line: #e6e9f0;
   --ab-tint: #f6f8fc;
+  --ab-page: #fff;
+  --ab-card: #fff;
+  --ab-glass: rgba(255, 255, 255, 0.9);
+  --ab-accent-bg: #eef2ff;
   --ab-accent: var(--accent, #4f6bf6);
   --ab-accent-soft: #b4c1fb;
   --ab-dark: #0f1424;
@@ -14,11 +18,25 @@
   color-scheme: light;
   /* clip (not hidden) so the hero orb is trimmed without breaking the sticky nav */
   overflow-x: clip;
-  background: #ffffff;
+  background: var(--ab-page);
   color: var(--ab-ink);
   /* Korean: wrap between words, not inside them */
   word-break: keep-all;
   overflow-wrap: break-word;
+}
+
+:root[data-app-theme="dark"] .ab-hero__orb { opacity: 0.16; }
+
+:root[data-app-theme="dark"] .ab {
+  --ab-line: rgba(255, 255, 255, 0.1);
+  --ab-tint: #12151d;
+  --ab-accent-soft: #6f85ee;
+  --ab-dark: #262b3b;
+  --ab-page: #0c0e14;
+  --ab-card: #14161d;
+  --ab-glass: rgba(20, 22, 29, 0.9);
+  --ab-accent-bg: rgba(79, 107, 246, 0.2);
+  color-scheme: dark;
 }
 
 /* index's Astryx theme colours h1–h6/p/small directly; inherit the section's colour
@@ -156,7 +174,7 @@
 }
 
 .ab-btn--line:hover {
-  background: #eef2ff;
+  background: var(--ab-accent-bg);
 }
 
 .ab-chip {
@@ -164,7 +182,7 @@
   padding: 4px 10px;
   border: 1px solid var(--ab-line);
   border-radius: 9999px;
-  background: #fff;
+  background: var(--ab-card);
   font-size: 11.5px;
   font-weight: 600;
   color: var(--ab-soft);
@@ -242,7 +260,7 @@
   padding: 20px 22px;
   border: 1px solid var(--ab-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--ab-glass);
   box-shadow: 0 18px 50px rgba(31, 45, 100, 0.08);
   backdrop-filter: blur(8px);
   color: inherit;
@@ -370,7 +388,7 @@ a.ab-float:hover {
   overflow: hidden;
   border: 1px solid var(--ab-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--ab-card);
   color: inherit;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -432,7 +450,7 @@ a.ab-float:hover {
   overflow-x: auto;
   border: 1px solid var(--ab-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--ab-card);
 }
 
 .ab-matrix__row {
@@ -532,7 +550,7 @@ a.ab-float:hover {
   padding: 28px;
   border: 1px solid var(--ab-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--ab-card);
   color: inherit;
   transition: transform 0.2s ease;
 }
@@ -627,7 +645,7 @@ a.ab-float:hover {
   overflow: hidden;
   border: 1px solid var(--ab-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--ab-card);
   color: inherit;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -746,7 +764,7 @@ a.ab-float:hover {
   overflow: hidden;
   border: 1px solid var(--ab-line);
   border-radius: 18px;
-  background: #fff;
+  background: var(--ab-card);
   color: inherit;
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
@@ -965,7 +983,7 @@ a.ab-float:hover {
 
 .ai-nav {
   border-bottom: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--ab-glass);
   backdrop-filter: saturate(160%) blur(14px);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1027,7 +1045,7 @@ a.ab-float:hover {
 }
 
 .ai-nav__links a.is-active {
-  background: #eef2ff;
+  background: var(--ab-accent-bg);
   color: var(--ab-accent);
 }
 
@@ -1084,7 +1102,7 @@ a.ab-float:hover {
   height: 40px;
   border: 1px solid var(--ab-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--ab-card);
 }
 
 .ai-nav__toggle span {
@@ -1132,7 +1150,7 @@ html:has(.ab) {
 .ai-foot {
   padding: 56px 0 40px;
   border-top: 1px solid var(--ab-line);
-  background: #fff;
+  background: var(--ab-card);
   font-size: 13px;
   color: var(--ab-soft);
 }
@@ -1186,7 +1204,7 @@ html:has(.ab) {
     gap: 2px;
     padding: 12px 16px 20px;
     border-bottom: 1px solid var(--ab-line);
-    background: #fff;
+    background: var(--ab-card);
     box-shadow: 0 18px 40px rgba(31, 45, 100, 0.08);
   }
   .ai-top.is-open .ai-nav__links a {

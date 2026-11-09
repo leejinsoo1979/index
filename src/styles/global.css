@@ -107,6 +107,18 @@
 
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.14);
+
+  /* Pages with fixed light colors read these with their light value as the fallback. */
+  --dm-scheme: dark;
+  --dm-on-ink: #17181c;
+  --dm-surface: #171a20;
+  --dm-surface-2: #1f2229;
+  --dm-surface-3: #2a2e36;
+  --dm-glass: rgba(23, 26, 32, 0.9);
+  --dm-ink: #ececf0;
+  --dm-ink-2: #c3c7cf;
+  --dm-ink-3: #a0a5af;
+  --dm-line: rgba(255, 255, 255, 0.12);
 }
 
 /* site-reset layer keeps this below Astryx component styles in the cascade */

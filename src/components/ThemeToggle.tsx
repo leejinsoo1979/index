@@ -1,13 +1,5 @@
-import { useEffect, useState } from "react";
+import { useTheme } from "../lib/theme";
 import "./ThemeToggle.css";
-
-const THEME_KEY = "index-theme";
-
-type ThemeMode = "dark" | "light";
-
-function loadTheme(): ThemeMode {
-  return window.localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
-}
 
 function SunIcon() {
   return (
@@ -27,14 +19,7 @@ function MoonIcon() {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>(loadTheme);
-
-  useEffect(() => {
-    document.documentElement.dataset.appTheme = theme;
-    // Keep shadcn/assistant-ui components in sync (they read the .dark class)
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+  const [theme, toggle] = useTheme();
 
   return (
     <button
@@ -42,7 +27,7 @@ export default function ThemeToggle() {
       className="theme-toggle"
       aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
       title={theme === "dark" ? "라이트 모드" : "다크 모드"}
-      onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+      onClick={toggle}
     >
       {theme === "dark" ? <SunIcon /> : <MoonIcon />}
     </button>

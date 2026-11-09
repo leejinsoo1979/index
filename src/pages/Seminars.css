@@ -812,3 +812,5 @@
 :root[data-app-theme="dark"] .seminar-results__paging button.is-current {
   background: rgba(255, 255, 255, 0.12);
 }
+
+:root[data-app-theme="dark"] .seminar-results__empty button { color: var(--ink); }

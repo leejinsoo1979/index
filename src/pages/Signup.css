@@ -3,7 +3,7 @@
    ───────────────────────────────────────────────────────────── */
 
 .signup-card {
-  color-scheme: light;
+  color-scheme: var(--dm-scheme, light);
   position: relative;
   width: 100%;
   max-width: 620px;
@@ -12,7 +12,7 @@
   align-items: stretch;
   padding: 44px 44px 36px;
   text-align: center;
-  background: #ffffff;
+  background: var(--dm-surface, #ffffff);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 24px;
   box-shadow: 0 40px 90px rgba(0, 0, 0, 0.5);
@@ -28,7 +28,7 @@
   margin: 22px 0 30px;
   font-size: 13px;
   font-weight: 600;
-  color: #a2a9b8;
+  color: var(--dm-ink-3, #a2a9b8);
 }
 
 .signup-steps li {
@@ -42,7 +42,7 @@
   width: 28px;
   height: 1px;
   margin-right: 10px;
-  background: #e0e3ea;
+  background: var(--dm-surface-3, #e0e3ea);
 }
 
 .signup-steps i {
@@ -50,10 +50,10 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid #d4d8e1;
+  border: 1px solid var(--dm-line, #d4d8e1);
   border-radius: 50%;
-  background: #f7f8fa;
-  color: #8b93a5;
+  background: var(--dm-surface-2, #f7f8fa);
+  color: var(--dm-ink-3, #8b93a5);
   font-size: 11px;
   font-style: normal;
   font-weight: 700;
@@ -61,7 +61,7 @@
 }
 
 .signup-steps .is-current {
-  color: #17181c;
+  color: var(--dm-ink, #17181c);
 }
 
 .signup-steps .is-current i {
@@ -72,7 +72,7 @@
 }
 
 .signup-steps .is-done {
-  color: #5b6472;
+  color: var(--dm-ink-2, #5b6472);
 }
 
 .signup-steps .is-done i {
@@ -92,9 +92,9 @@
   display: grid;
   gap: 7px;
   padding: 24px 22px;
-  border: 1px solid #e0e3ea;
+  border: 1px solid var(--dm-line, #e0e3ea);
   border-radius: 16px;
-  background: #fbfbfd;
+  background: var(--dm-surface-2, #fbfbfd);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease,
@@ -103,7 +103,7 @@
 
 .signup-type:hover {
   border-color: rgba(79, 107, 246, 0.65);
-  background: #fff;
+  background: var(--dm-surface, #fff);
   transform: translateY(-2px);
   box-shadow: 0 14px 34px rgba(17, 24, 39, 0.1);
 }
@@ -115,13 +115,13 @@
 
 .signup-type strong {
   font-size: 16px;
-  color: #17181c;
+  color: var(--dm-ink, #17181c);
 }
 
 .signup-type span {
   font-size: 13px;
   line-height: 1.55;
-  color: #6b7280;
+  color: var(--dm-ink-2, #6b7280);
 }
 
 /* ── Step 2: agreements (accordion) ── */
@@ -136,20 +136,20 @@
   align-items: center;
   gap: 10px;
   padding: 15px 18px;
-  border: 1px solid #d4d8e1;
+  border: 1px solid var(--dm-line, #d4d8e1);
   border-radius: 12px;
-  background: #f7f8fa;
+  background: var(--dm-surface-2, #f7f8fa);
   font-size: 14px;
   font-weight: 700;
-  color: #17181c;
+  color: var(--dm-ink, #17181c);
   cursor: pointer;
 }
 
 .signup-agree__item {
   overflow: hidden;
-  border: 1px solid #e0e3ea;
+  border: 1px solid var(--dm-line, #e0e3ea);
   border-radius: 12px;
-  background: #fff;
+  background: var(--dm-surface, #fff);
   transition: border-color 0.16s ease;
 }
 
@@ -170,7 +170,7 @@
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  color: #2b303a;
+  color: var(--dm-ink, #2b303a);
   cursor: pointer;
 }
 
@@ -187,7 +187,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #8b93a5;
+  color: var(--dm-ink-3, #8b93a5);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -195,8 +195,8 @@
 }
 
 .signup-agree__row > button:hover {
-  background: #f1f3f7;
-  color: #17181c;
+  background: var(--dm-surface-2, #f1f3f7);
+  color: var(--dm-ink, #17181c);
 }
 
 .signup-agree__row > button svg {
@@ -228,8 +228,8 @@ input[type="checkbox"] {
   max-height: 280px;
   overflow-y: auto;
   padding: 18px 20px 8px;
-  border-top: 1px solid #eef0f4;
-  background: #fafbfc;
+  border-top: 1px solid var(--dm-line, #eef0f4);
+  background: var(--dm-surface-2, #fafbfc);
   animation: signupDocOpen 0.24s ease both;
   scrollbar-width: thin;
   scrollbar-color: #c9cedb transparent;
@@ -264,14 +264,14 @@ input[type="checkbox"] {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 700;
-  color: #17181c;
+  color: var(--dm-ink, #17181c);
 }
 
 .signup-agree__doc .terms__section p,
 .signup-agree__doc .terms__section li {
   font-size: 12.5px;
   line-height: 1.7;
-  color: #5b6472;
+  color: var(--dm-ink-2, #5b6472);
 }
 
 .signup-agree__doc .terms__section ol {
@@ -294,32 +294,32 @@ input[type="checkbox"] {
   gap: 7px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #5b6472;
+  color: var(--dm-ink-2, #5b6472);
 }
 
 .signup-form input:not([type="radio"]) {
   width: 100%;
   height: 48px;
   padding: 0 16px;
-  border: 1px solid #e0e3ea;
+  border: 1px solid var(--dm-line, #e0e3ea);
   border-radius: 12px;
-  background: #f7f8fa;
-  color: #17181c;
+  background: var(--dm-surface-2, #f7f8fa);
+  color: var(--dm-ink, #17181c);
   font: inherit;
   font-size: 14px;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease,
     box-shadow 0.15s ease;
-  color-scheme: light;
+  color-scheme: var(--dm-scheme, light);
 }
 
 .signup-form input:not([type="radio"])::placeholder {
-  color: #9aa1af;
+  color: var(--dm-ink-3, #9aa1af);
 }
 
 .signup-form input:not([type="radio"]):focus {
   border-color: rgba(79, 107, 246, 0.75);
-  background: #fff;
+  background: var(--dm-surface, #fff);
   box-shadow: 0 0 0 3px rgba(79, 107, 246, 0.18);
 }
 
@@ -328,7 +328,7 @@ input[type="checkbox"] {
   padding: 12px 16px;
   border-style: dashed;
   font-size: 13px;
-  color: #5b6472;
+  color: var(--dm-ink-2, #5b6472);
 }
 
 .signup-form input[type="file"]::file-selector-button {
@@ -336,8 +336,8 @@ input[type="checkbox"] {
   padding: 7px 14px;
   border: 0;
   border-radius: 8px;
-  background: #eef0f4;
-  color: #2b303a;
+  background: var(--dm-surface-2, #eef0f4);
+  color: var(--dm-ink, #2b303a);
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
@@ -345,7 +345,7 @@ input[type="checkbox"] {
 }
 
 .signup-form small {
-  color: #8b93a5;
+  color: var(--dm-ink-3, #8b93a5);
 }
 
 .signup-form__row {
@@ -368,7 +368,7 @@ input[type="checkbox"] {
   margin-bottom: 9px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #5b6472;
+  color: var(--dm-ink-2, #5b6472);
 }
 
 .signup-form__gender label {
@@ -377,7 +377,7 @@ input[type="checkbox"] {
   gap: 7px;
   font-size: 14px;
   font-weight: 500;
-  color: #2b303a;
+  color: var(--dm-ink, #2b303a);
   cursor: pointer;
 }
 
@@ -396,10 +396,10 @@ input[type="checkbox"] {
 .signup-nav button {
   min-width: 112px;
   height: 48px;
-  border: 1px solid #dcdfe7;
+  border: 1px solid var(--dm-line, #dcdfe7);
   border-radius: 12px;
-  background: #fff;
-  color: #454c59;
+  background: var(--dm-surface, #fff);
+  color: var(--dm-ink-2, #454c59);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -408,7 +408,7 @@ input[type="checkbox"] {
 }
 
 .signup-nav button:hover:not(:disabled) {
-  border-color: #b9bfcd;
+  border-color: var(--dm-line, #b9bfcd);
 }
 
 .signup-nav .is-primary {

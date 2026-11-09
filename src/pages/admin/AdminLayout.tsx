@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap, FiLayers } from "react-icons/fi";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import ThemeToggle from "../../components/ThemeToggle";
 import "./Admin.css";
 
 function DashIcon() {
@@ -90,6 +91,13 @@ export default function AdminLayout() {
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Before paint, so the admin colors are in place on the first frame.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("admin-active");
+    return () => root.classList.remove("admin-active");
+  }, []);
+
   // Firebase 미설정(로컬 데모)일 때는 게이트 없이 통과시킨다.
   // 관리자: ADMIN_EMAILS(최고 관리자) + 회원 관리에서 관리자로 지정된 회원.
   const allowed = !configured || (user && isAdmin);
@@ -169,7 +177,7 @@ export default function AdminLayout() {
         <header className="admin__topbar">
           <button type="button" className="admin__menu" onClick={() => setMobileOpen((value) => !value)} aria-label="메뉴 열기">{mobileOpen ? <FiX /> : <FiMenu />}</button>
           <label className="admin__global-search"><FiSearch /><input type="search" placeholder="Search..." aria-label="관리자 전체 검색" /></label>
-          <div className="admin__top-actions"><button type="button" aria-label="알림"><FiBell /><i>2</i></button><button type="button" aria-label="설정"><FiSettings /></button><span className="admin__avatar"><FiUser /></span></div>
+          <div className="admin__top-actions"><ThemeToggle /><button type="button" aria-label="알림"><FiBell /><i>2</i></button><button type="button" aria-label="설정"><FiSettings /></button><span className="admin__avatar"><FiUser /></span></div>
         </header>
         <main className={`admin__main${bleed ? " admin__main--bleed" : ""}`}>
           {!bleed && <div className="admin__breadcrumb"><span>INDEX Admin</span><b>/</b><strong>{current?.label ?? "대시보드"}</strong></div>}

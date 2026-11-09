@@ -9,7 +9,7 @@
   padding: 0 12px;
   border: 1px solid var(--modern-border, #dfe5ef);
   border-radius: 7px;
-  background: #fff;
+  background: var(--modern-surface, #fff);
   color: var(--modern-text, #2a3547);
   font: inherit;
   font-size: 13.5px;
@@ -20,7 +20,7 @@
 }
 
 .cselect__trigger:hover {
-  border-color: #c5cede;
+  border-color: var(--a-line-strong, #c5cede);
 }
 
 .cselect__trigger:focus-visible,
@@ -56,7 +56,7 @@
   overflow: hidden;
   border: 1px solid var(--modern-border, #dfe5ef);
   border-radius: 7px;
-  background: #fff;
+  background: var(--modern-surface, #fff);
   box-shadow: rgb(145 158 171 / 30%) 0 0 2px, rgb(42 53 71 / 16%) 0 12px 24px -4px;
   animation: cselect-in 0.12s ease-out;
 }

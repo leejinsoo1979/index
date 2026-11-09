@@ -6,13 +6,13 @@
 
 .admin-menus__notice {
   margin: 0 0 14px;
-  color: #15803d;
+  color: var(--a-green);
   font-size: 13.5px;
 }
 
 .admin-menus__hint {
   margin: 0 0 14px;
-  color: var(--ink-soft, #6b7280);
+  color: var(--ink-soft, var(--a-ink-3));
   font-size: 13px;
 }
 
@@ -37,7 +37,7 @@
 
 .admin-menus__section-head p {
   margin: 4px 0 0;
-  color: var(--ink-soft, #6b7280);
+  color: var(--ink-soft, var(--a-ink-3));
   font-size: 13px;
   line-height: 1.6;
 }
@@ -60,13 +60,13 @@
 }
 
 .admin-menus__row--head {
-  color: var(--ink-faint, #9ca3af);
+  color: var(--ink-faint, var(--a-ink-4));
   font-size: 12px;
   font-weight: 600;
 }
 
 .admin-menus__row.is-hidden input {
-  color: var(--ink-faint, #9ca3af);
+  color: var(--ink-faint, var(--a-ink-4));
 }
 
 .admin-menus__row input:not([type="checkbox"]),
@@ -74,10 +74,10 @@
   width: 100%;
   height: 38px;
   padding: 0 11px;
-  border: 1px solid var(--line-strong, rgba(17, 24, 39, 0.12));
+  border: 1px solid var(--line-strong, var(--modern-border));
   border-radius: 8px;
-  background: var(--card, #fff);
-  color: var(--ink, #111827);
+  background: var(--card, var(--modern-surface));
+  color: var(--ink, var(--modern-text));
   font: inherit;
   font-size: 14px;
 }
@@ -89,7 +89,7 @@
 .admin-menus__row input:focus,
 .admin-menus__texts input:focus {
   outline: none;
-  border-color: var(--accent, #4f6bf6);
+  border-color: var(--accent, var(--modern-primary));
 }
 
 .admin-menus__row .cselect__trigger {
@@ -104,10 +104,10 @@
 .admin-menus__order button {
   width: 28px;
   height: 30px;
-  border: 1px solid var(--line-strong, rgba(17, 24, 39, 0.12));
+  border: 1px solid var(--line-strong, var(--modern-border));
   border-radius: 6px;
   background: transparent;
-  color: var(--ink-soft, #6b7280);
+  color: var(--ink-soft, var(--a-ink-3));
   cursor: pointer;
 }
 
@@ -124,14 +124,14 @@
 .admin-menus__check input {
   width: 17px;
   height: 17px;
-  accent-color: var(--accent, #4f6bf6);
+  accent-color: var(--modern-primary);
 }
 
 .admin-menus__remove {
   height: 32px;
   border: 0;
   background: transparent;
-  color: #b91c1c;
+  color: var(--a-red);
   font-size: 13px;
   cursor: pointer;
 }
@@ -143,7 +143,7 @@
 
 .admin-menus__column {
   padding: 14px 0;
-  border-top: 1px solid var(--line, rgba(17, 24, 39, 0.07));
+  border-top: 1px solid var(--line, var(--modern-border));
 }
 
 .admin-menus__column-head {
