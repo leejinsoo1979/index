@@ -5,7 +5,9 @@ import { deepseekModel } from "./_deepseek.js";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
 import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_regulationTools.js";
 import { consumeChatQuota, MemberSuspendedError, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
-import { verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { ATTACHMENT_GUIDE, readAttachments, withAttachments, type ChatAttachmentInput } from "./_chatAttachments.js";
+import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { findFloorPlans, FLOORPLAN_GUIDE, FLOORPLAN_MARKER, floorPlanMarker, floorPlansConfigured, floorPlansOfDanji, selectedFloorPlanContext } from "./_floorplans.js";
 import { searchWiki, wikiContext, wikiSources } from "./_wiki.js";
 
 // Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
@@ -18,6 +20,12 @@ interface ChatRequestBody {
   model?: string;
   /** 홈 입력창의 응답 모드: 심층 분석이면 상위 모델. */
   mode?: "fast" | "deep";
+  /** Attached to the latest question (src/lib/chatAttachments.ts). */
+  attachments?: ChatAttachmentInput[];
+  /** The floor plan picked in this conversation. */
+  floorPlanId?: string;
+  /** A complex picked from the card list: answered with its plans, without the model. */
+  floorPlanDanji?: string;
 }
 
 const ALLOWED_MODELS = new Set(["gpt-5.4-nano", "gpt-5.4-mini", "gpt-5.4"]);
@@ -29,7 +37,7 @@ function normalizeMessages(input: ChatRequestBody["messages"]): ModelMessage[] {
     .slice(-40)
     .map((message) => ({
       role: message.role as "user" | "assistant",
-      content: message.content!.slice(0, 12_000),
+      content: message.content!.replace(FLOORPLAN_MARKER, "[도면 선택 카드를 표시함]").slice(0, 12_000),
     }));
 }
 
@@ -49,8 +57,12 @@ const HEAVY_QUESTION =
 /** "방법", "공법", "기법" … contain 법 but aren't about law. */
 const isHeavyQuestion = (question: string) => HEAVY_QUESTION.test(question.replace(/(?<!소)(?:방|해|용|요|수|비|문|작|기|공|편|마)법/g, ""));
 
-function chatModel(question: string, requested?: string, deep = false) {
-  if (process.env.CHAT_AI_PROVIDER === "deepseek") return deepseekModel(requested ?? (deep ? "deepseek-v4-pro" : undefined));
+function chatModel(question: string, requested?: string, deep = false, hasImages = false) {
+  if (process.env.CHAT_AI_PROVIDER === "deepseek") {
+    // Of DeepSeek's models only deepseek-flash accepts images; deepseek-v4-pro does not.
+    if (hasImages) return deepseekModel("deepseek-flash");
+    return deepseekModel(requested ?? (deep ? "deepseek-v4-pro" : undefined));
+  }
   const baseURL = process.env.CHAT_LLM_BASE_URL?.trim();
   if (baseURL) {
     const local = createOpenAI({ baseURL, apiKey: process.env.CHAT_LLM_API_KEY || "local", name: "local" });
@@ -91,10 +103,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const messages = normalizeMessages(body.messages);
     const memoryMessages = normalizeMessages(body.memoryMessages);
     const messagesForMemory = memoryMessages.length ? memoryMessages : messages;
+    const attachments = readAttachments(body.attachments);
+    const hasAttachments = attachments.images.length > 0 || attachments.files.length > 0;
     const lastUserMessage = [...messagesForMemory].reverse().find((message) => message.role === "user");
 
     if (!lastUserMessage || typeof lastUserMessage.content !== "string") {
       res.status(400).json({ error: "At least one user message is required" });
+      return;
+    }
+
+    // Floor plans are admin-only until the rights to the collection are confirmed.
+    const floorPlansOn = floorPlansConfigured() && (await memberAccess(user)).admin;
+    if (floorPlansOn && typeof body.floorPlanDanji === "string") {
+      const cards = await floorPlansOfDanji(body.floorPlanDanji);
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.status(200).end(cards ? `사시는 집의 타입을 골라 주세요.${floorPlanMarker(cards)}` : "해당 단지의 도면을 찾지 못했습니다.");
       return;
     }
 
@@ -166,22 +189,61 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
         },
       });
     }
+    const pendingCards: string[] = [];
+    if (floorPlansOn) {
+      tools.findFloorPlans = tool({
+        description: "아파트 단지의 평면도를 찾아 화면에 선택 카드로 보여 준다. 사용자가 자기 집 단지명이나 동네를 말했을 때 사용한다.",
+        inputSchema: jsonSchema<{ query: string; areaM2?: number }>({
+          type: "object",
+          properties: {
+            query: { type: "string", description: "단지명과 동네 (예: '풍동 숲속마을 8단지')" },
+            areaM2: { type: "number", description: "사용자가 말한 면적(㎡). 평수만 말했으면 3.3을 곱한다. 없으면 생략" },
+          },
+          required: ["query"],
+          additionalProperties: false,
+        }),
+        execute: async ({ query, areaM2 }) => {
+          let cards;
+          try {
+            cards = await findFloorPlans(query, areaM2);
+          } catch (error) {
+            console.error("[chat] floor plan search failed", error);
+            return { status: "unavailable" };
+          }
+          if (!cards) return { status: "none" };
+          pendingCards.push(floorPlanMarker(cards));
+          return cards.kind === "plans"
+            ? { status: "shown", kind: "타입 선택 카드", danji: cards.danji.name, types: cards.plans.map((plan) => plan.type) }
+            : { status: "shown", kind: "단지 선택 카드", danji: cards.items.map((item) => `${item.dong} ${item.name}`) };
+        },
+      });
+    }
+    const floorPlanContext =
+      floorPlansOn && typeof body.floorPlanId === "string" && /^\d{1,12}$/.test(body.floorPlanId)
+        ? await selectedFloorPlanContext(body.floorPlanId).catch((error: unknown) => {
+            console.error("[chat] floor plan context failed", error);
+            return null;
+          })
+        : null;
     const hasTools = Object.keys(tools).length > 0;
 
     let answered = false;
     const result = streamText({
-      model: chatModel(lastUserMessage.content, body.model, body.mode === "deep"),
+      model: chatModel(lastUserMessage.content, body.model, body.mode === "deep", attachments.images.length > 0),
       system: [
         system,
         wiki,
         INTERIOR_LAW_MAP,
+        hasAttachments ? ATTACHMENT_GUIDE : "",
+        floorPlansOn ? FLOORPLAN_GUIDE : "",
+        floorPlanContext ?? "",
         hasTools
           ? REGULATION_TOOL_GUIDE
           : "원문 조회 도구가 없으므로 법규 답변에는 관련 법령명을 밝히고, 조문 번호·수치는 국가법령정보센터 원문 확인이 필요하다고 안내한다.",
       ]
         .filter(Boolean)
         .join("\n\n"),
-      messages,
+      messages: withAttachments(messages, attachments),
       ...(hasTools ? { tools, stopWhen: isStepCount(6) } : {}),
       onError: async () => {
         // Nothing reached the member: don't charge the question.
@@ -199,12 +261,17 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
       },
     });
 
-    result.pipeTextStreamToResponse(res, {
-      headers: {
-        "Cache-Control": "no-cache, no-transform",
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-    });
+    res.statusCode = 200;
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    for await (const part of result.fullStream) {
+      if (part.type === "text-delta") res.write(part.text);
+      else if (part.type === "tool-result" && part.toolName === "findFloorPlans") {
+        const marker = pendingCards.shift();
+        if (marker) res.write(marker);
+      }
+    }
+    res.end();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Chat request failed";
     if (quota && !res.headersSent) await refundChatQuota(user).catch(() => undefined);

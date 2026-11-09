@@ -159,7 +159,7 @@ export default function ExpertConversations() {
                   m.role === 'user' ? (
                     <li key={m.id} className="expert-conv__q">
                       <span>회원 질문</span>
-                      <p>{m.content}</p>
+                      <p>{m.content.replace(/<!--floorplan[\s\S]*?-->/g,'')}</p>
                     </li>
                   ) : (
                     <AnswerItem
@@ -226,7 +226,7 @@ function AnswerItem({ personId, roomId, message, question, onChange }: { personI
         <p className="expert-message-error">{message.error || '답변을 완료하지 못했습니다.'}</p>
       ) : (
         <div className="expert-markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content.replace(/<!--floorplan[\s\S]*?-->/g,'')}</ReactMarkdown>
         </div>
       )}
 

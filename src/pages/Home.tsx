@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { CHAT_ATTACHMENT_ACCEPT, MAX_ATTACHMENTS, readChatAttachment, type ChatAttachment } from "../lib/chatAttachments";
+import { FloorPlanCardList, FloorPlanImage, splitFloorPlanCards } from "../components/FloorPlanCards";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -23,6 +25,10 @@ interface ChatEntry {
   content: string;
   /** Response time shown under assistant replies. */
   ms?: number;
+  /** Names only: the content is kept for the open session, not in saved history. */
+  attachments?: Array<{ name: string; kind: ChatAttachment["kind"] }>;
+  /** The floor plan this message picked; later questions in the conversation use it. */
+  floorPlan?: { id: string; label: string };
 }
 
 interface StoredMemory {
@@ -226,6 +232,13 @@ export default function Home() {
   const [memoryError, setMemoryError] = useState("");
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [attachError, setAttachError] = useState("");
+  const [attachDrag, setAttachDrag] = useState(false);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  /** Attachment content per sent message, so follow-up questions can still see it this session. */
+  const sentAttachmentsRef = useRef(new Map<string, ChatAttachment[]>());
   const scrollRef = useRef<HTMLDivElement>(null);
   const [askModel, setAskModel] = useState<(typeof askModels)[number]["name"]>(askModels[0].name);
   const [askModelOpen, setAskModelOpen] = useState(false);
@@ -334,7 +347,35 @@ export default function Home() {
     );
   }
 
-  async function streamAssistantReply(conversationId: string, sourceMessages: ChatEntry[]) {
+  function latestAttachments(entries: ChatEntry[]) {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const sent = sentAttachmentsRef.current.get(entries[index]!.id);
+      if (sent) return sent.map(({ kind, name, dataUrl, text }) => ({ kind, name, dataUrl, text }));
+    }
+    return [];
+  }
+
+  async function addAttachments(list: File[]) {
+    if (!list.length) return;
+    setAttachError("");
+    const room = MAX_ATTACHMENTS - attachments.length;
+    if (list.length > room) setAttachError(`파일은 한 번에 ${MAX_ATTACHMENTS}개까지 첨부할 수 있습니다.`);
+    setAttachBusy(true);
+    try {
+      for (const file of list.slice(0, Math.max(room, 0))) {
+        try {
+          const attachment = await readChatAttachment(file);
+          setAttachments((current) => [...current, attachment]);
+        } catch (error) {
+          setAttachError(error instanceof Error ? error.message : "파일을 읽지 못했습니다.");
+        }
+      }
+    } finally {
+      setAttachBusy(false);
+    }
+  }
+
+  async function streamAssistantReply(conversationId: string, sourceMessages: ChatEntry[], floorPlanDanji?: string) {
     const replyId = createId();
     const controller = new AbortController();
     const startedAt = Date.now();
@@ -350,7 +391,13 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({
-          messages: sourceMessages.map(({ role, content }) => ({ role, content })),
+          messages: sourceMessages.map(({ role, content, attachments: names }) => ({
+            role,
+            content: names?.length ? `${content}\n\n[첨부: ${names.map((item) => item.name).join(", ")}]` : content,
+          })),
+          attachments: latestAttachments(sourceMessages),
+          floorPlanId: [...sourceMessages].reverse().find((entry) => entry.floorPlan)?.floorPlan?.id,
+          ...(floorPlanDanji ? { floorPlanDanji } : {}),
           mode: askModel === "심층 분석" ? "deep" : "fast",
         }),
         signal: controller.signal,
@@ -449,6 +496,10 @@ export default function Home() {
     const field = event.currentTarget;
     const send = () => {
       const text = field.value.trim();
+      if (!text && attachments.length) {
+        handleSubmit("");
+        return;
+      }
       const now = Date.now();
       if (!text || (lastSubmitRef.current.text === text && now - lastSubmitRef.current.at < 800)) return;
       lastSubmitRef.current = { text, at: now };
@@ -458,9 +509,9 @@ export default function Home() {
     else send();
   }
 
-  function handleSubmit(value: string) {
-    const question = (value || message).trim();
-    if (!question || isResponding) return;
+  function handleSubmit(value: string, pick?: { floorPlan?: ChatEntry["floorPlan"]; danji?: string }) {
+    const question = (value || message).trim() || (attachments.length ? "첨부한 자료를 분석해 주세요." : "");
+    if (!question || isResponding || attachBusy) return;
     if (agentExpert) {
       // 개별 대표에게: 그 대표의 개인 대화방으로 가서 같은 질문을 같은 모드로 보낸다.
       setMessage("");
@@ -477,7 +528,16 @@ export default function Home() {
       return;
     }
 
-    const userEntry: ChatEntry = { id: createId(), role: "user", content: question };
+    const userEntry: ChatEntry = {
+      id: createId(),
+      role: "user",
+      content: question,
+      ...(attachments.length ? { attachments: attachments.map(({ name, kind }) => ({ name, kind })) } : {}),
+      ...(pick?.floorPlan ? { floorPlan: pick.floorPlan } : {}),
+    };
+    if (attachments.length) sentAttachmentsRef.current.set(userEntry.id, attachments);
+    setAttachments([]);
+    setAttachError("");
     let conversationId = activeId;
     let sourceMessages: ChatEntry[] = [userEntry];
 
@@ -505,7 +565,7 @@ export default function Home() {
     setMessage("");
     setChatOpen(true);
     setSidebarOpen(false);
-    void streamAssistantReply(conversationId, sourceMessages);
+    void streamAssistantReply(conversationId, sourceMessages, pick?.danji);
   }
 
   function startNewChat() {
@@ -757,6 +817,19 @@ export default function Home() {
                 {(activeConversation?.messages ?? []).map((entry) =>
                   entry.role === "user" ? (
                     <div className="home-chat__msg home-chat__msg--user" key={entry.id}>
+                      {entry.attachments?.length ? (
+                        <div className="home-chat__sent-files">
+                          {entry.attachments.map((item, index) => {
+                            const preview = sentAttachmentsRef.current.get(entry.id)?.[index]?.dataUrl;
+                            return preview ? (
+                              <img key={item.name + index} src={preview} alt={item.name} />
+                            ) : (
+                              <span key={item.name + index}>{item.name}</span>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      {entry.floorPlan && <FloorPlanImage id={entry.floorPlan.id} label={entry.floorPlan.label} authHeaders={authHeaders} />}
                       <div className="home-chat__bubble">{entry.content}</div>
                       <div className="home-chat__msg-actions home-chat__msg-actions--user">
                         <button type="button" aria-label="복사" onClick={() => copyMessage(entry.content)}><CopyIcon /></button>
@@ -767,11 +840,21 @@ export default function Home() {
                     <div className="home-chat__msg home-chat__msg--assistant" key={entry.id}>
                       <div className="home-chat__md">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={ANSWER_COMPONENTS}>
-                          {entry.content}
+                          {splitFloorPlanCards(entry.content).text}
                         </ReactMarkdown>
+                        {splitFloorPlanCards(entry.content).cards.map((cards, index) => (
+                          <FloorPlanCardList
+                            key={index}
+                            cards={cards}
+                            disabled={isResponding}
+                            authHeaders={authHeaders}
+                            onPickPlan={(danji, plan) => handleSubmit(`${danji.name} ${plan.type} 타입이에요.`, { floorPlan: { id: plan.id, label: `${danji.name} ${plan.type}` } })}
+                            onPickDanji={(item) => handleSubmit(`${item.dong} ${item.name}이에요.`, { danji: item.kbId })}
+                          />
+                        ))}
                       </div>
                       <div className="home-chat__msg-actions">
-                        <button type="button" aria-label="복사" onClick={() => copyMessage(entry.content)}><CopyIcon /></button>
+                        <button type="button" aria-label="복사" onClick={() => copyMessage(splitFloorPlanCards(entry.content).text)}><CopyIcon /></button>
                         <button type="button" aria-label="다시 생성" onClick={regenerateReply}><RefreshIcon /></button>
                         <button type="button" aria-label="더 보기"><DotsIcon /></button>
                         {entry.ms != null && <span>{entry.ms}ms</span>}
@@ -811,23 +894,72 @@ export default function Home() {
             </div>
 
             <form
-              className="home-chat__composer-box"
+              className={`home-chat__composer-box${attachDrag ? " is-dragging" : ""}`}
               onSubmit={(event) => {
                 event.preventDefault();
                 handleSubmit(message);
               }}
+              onDragOver={(event) => {
+                if (!user || !event.dataTransfer.types.includes("Files")) return;
+                event.preventDefault();
+                setAttachDrag(true);
+              }}
+              onDragLeave={() => setAttachDrag(false)}
+              onDrop={(event) => {
+                if (!user || !event.dataTransfer.files.length) return;
+                event.preventDefault();
+                setAttachDrag(false);
+                void addAttachments([...event.dataTransfer.files]);
+              }}
             >
+              {(attachments.length > 0 || attachBusy) && (
+                <div className="home-chat__attachments">
+                  {attachments.map((item) => (
+                    <div className="home-chat__attachment" key={item.id} title={item.name}>
+                      {item.dataUrl ? <img src={item.dataUrl} alt="" /> : <span className="home-chat__attachment-type">{item.name.split(".").pop()?.toUpperCase()}</span>}
+                      <span className="home-chat__attachment-name">{item.name}</span>
+                      <button type="button" aria-label={`${item.name} 첨부 취소`} onClick={() => setAttachments((current) => current.filter((other) => other.id !== item.id))}>×</button>
+                    </div>
+                  ))}
+                  {attachBusy && <span className="home-chat__attachment-busy">파일을 읽는 중…</span>}
+                </div>
+              )}
+              {attachError && <p className="home-chat__attach-error" role="alert">{attachError}</p>}
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={submitOnEnter}
+                onPaste={(event) => {
+                  const pasted = [...event.clipboardData.files];
+                  if (!user || !pasted.length) return;
+                  event.preventDefault();
+                  void addAttachments(pasted);
+                }}
                 placeholder={user ? "메시지를 입력하세요..." : "로그인 후 질문할 수 있습니다"}
                 rows={1}
                 aria-label="메시지 입력"
               />
               <div className="home-chat__composer-row">
                 <div className="home-chat__composer-left">
-                  <button type="button" className="home-chat__tool" aria-label="첨부 (준비 중)" disabled>
+                  <input
+                    ref={attachInputRef}
+                    type="file"
+                    accept={CHAT_ATTACHMENT_ACCEPT}
+                    multiple
+                    hidden
+                    onChange={(event) => {
+                      void addAttachments([...(event.target.files ?? [])]);
+                      event.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="home-chat__tool"
+                    aria-label="이미지·파일 첨부"
+                    title="이미지, PDF, TXT, Markdown 첨부"
+                    disabled={!user || attachBusy || attachments.length >= MAX_ATTACHMENTS}
+                    onClick={() => attachInputRef.current?.click()}
+                  >
                     <PlusIcon />
                   </button>
                   <button type="button" className="home-chat__model" disabled>
@@ -838,7 +970,7 @@ export default function Home() {
                   <button type="button" className={`home-chat__tool${listening ? " is-listening" : ""}`} aria-label="음성 입력" onClick={toggleMic}>
                     <MicIcon />
                   </button>
-                  <button type="submit" className="home-chat__send" aria-label="보내기" disabled={!message.trim() || isResponding}>
+                  <button type="submit" className="home-chat__send" aria-label="보내기" disabled={(!message.trim() && !attachments.length) || isResponding || attachBusy}>
                     <ArrowUpIcon />
                   </button>
                 </div>
