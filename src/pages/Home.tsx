@@ -402,6 +402,7 @@ export default function Home() {
           })),
           attachments: latestAttachments(sourceMessages),
           floorPlanId: [...sourceMessages].reverse().find((entry) => entry.floorPlan)?.floorPlan?.id,
+          floorPlanMirrored: [...sourceMessages].reverse().find((entry) => entry.floorPlan)?.floorPlan?.label.includes("대칭형") ?? false,
           ...(floorPlanDanji ? { floorPlanDanji } : {}),
           mode: askModel === "심층 분석" ? "deep" : "fast",
         }),
@@ -855,7 +856,7 @@ export default function Home() {
                             cards={cards}
                             disabled={isResponding}
                             authHeaders={authHeaders}
-                            onPickPlan={(danji, plan) => handleSubmit(`${danji.name} ${plan.type} 타입이에요.`, { floorPlan: { id: plan.id, label: `${danji.name} ${plan.type}` } })}
+                            onPickPlan={(danji, plan, mirrored) => handleSubmit(`${danji.name} ${plan.type}${mirrored ? " 대칭형" : ""} 타입이에요.`, { floorPlan: { id: plan.id, label: `${danji.name} ${plan.type}${mirrored ? " 대칭형" : ""}` } })}
                             onPickDanji={(item) => handleSubmit(`${item.dong} ${item.name}이에요.`, { danji: item.kbId })}
                           />
                         ))}

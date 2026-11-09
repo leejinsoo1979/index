@@ -74,6 +74,7 @@ const NAV = [
   { to: "/agent-studio", label: "INDEX Agent Studio", icon: <AgentIcon />, external: true },
   { to: "/admin/menus", label: "메뉴 관리", icon: <BoardIcon /> },
   { to: "/admin/pages", label: "페이지 관리", icon: <BoardIcon /> },
+  { to: "/admin/floorplans", label: "도면 내력벽 검수", icon: <BoardIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
   { to: "/admin/curriculum", label: "커리큘럼 빌더", icon: <BoardIcon /> },

@@ -7,7 +7,7 @@ import { INTERIOR_LAW_MAP, REGULATION_TOOL_GUIDE, regulationTools } from "./_reg
 import { consumeChatQuota, MemberSuspendedError, QuotaExceededError, refundChatQuota, type ChatQuota } from "./_chatQuota.js";
 import { ATTACHMENT_GUIDE, readAttachments, withAttachments, type ChatAttachmentInput } from "./_chatAttachments.js";
 import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
-import { findFloorPlans, FLOORPLAN_GUIDE, FLOORPLAN_MARKER, floorPlanMarker, floorPlansConfigured, floorPlansOfDanji, selectedFloorPlanContext } from "./_floorplans.js";
+import { findFloorPlans, FLOORPLAN_GUIDE, FLOORPLAN_MARKER, floorPlanMarker, STRUCTURE_SAFETY_GUIDE, floorPlansConfigured, floorPlansOfDanji, selectedFloorPlanContext } from "./_floorplans.js";
 import { searchWiki, wikiContext, wikiSources } from "./_wiki.js";
 
 // Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
@@ -24,6 +24,7 @@ interface ChatRequestBody {
   attachments?: ChatAttachmentInput[];
   /** The floor plan picked in this conversation. */
   floorPlanId?: string;
+  floorPlanMirrored?: boolean;
   /** A complex picked from the card list: answered with its plans, without the model. */
   floorPlanDanji?: string;
 }
@@ -220,7 +221,7 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
     }
     const floorPlanContext =
       floorPlansOn && typeof body.floorPlanId === "string" && /^\d{1,12}$/.test(body.floorPlanId)
-        ? await selectedFloorPlanContext(body.floorPlanId).catch((error: unknown) => {
+        ? await selectedFloorPlanContext(body.floorPlanId, body.floorPlanMirrored === true).catch((error: unknown) => {
             console.error("[chat] floor plan context failed", error);
             return null;
           })
@@ -235,6 +236,7 @@ ${memories ? `- ${memories}` : "관련 기억 없음"}`;
         wiki,
         INTERIOR_LAW_MAP,
         hasAttachments ? ATTACHMENT_GUIDE : "",
+        STRUCTURE_SAFETY_GUIDE,
         floorPlansOn ? FLOORPLAN_GUIDE : "",
         floorPlanContext ?? "",
         hasTools

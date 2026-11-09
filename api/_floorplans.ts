@@ -160,8 +160,54 @@ async function readPlanFacts(id: string): Promise<PlanFacts | null> {
   return reconcileCounts(facts);
 }
 
+/** Bearing walls drawn by a reviewer over one plan: fractions of the image size, kept in R2. */
+export type WallSegment = { x1: number; y1: number; x2: number; y2: number };
+export type WallRecord = { planId: string; status: "draft" | "approved"; walls: WallSegment[]; reviewer: string; evidence: string; updatedBy: string; updatedAt: string; label?: string };
+
+export async function readWalls(id: string): Promise<WallRecord | null> {
+  const stored = await r2("GET", `walls/${id}.json`);
+  return stored.ok ? ((await stored.json()) as WallRecord) : null;
+}
+
+/** Only reviewed marks are ever shown to members. */
+export async function approvedWalls(ids: string[]): Promise<Record<string, WallRecord>> {
+  const records = await Promise.all(ids.map((id) => readWalls(id).catch(() => null)));
+  return Object.fromEntries(records.filter((record): record is WallRecord => record?.status === "approved").map((record) => [record.planId, record]));
+}
+
+export async function reviewedWallList(): Promise<WallRecord[]> {
+  const stored = await r2("GET", "walls/_list.json");
+  return stored.ok ? ((await stored.json()) as WallRecord[]) : [];
+}
+
+async function planLabel(id: string): Promise<string | null> {
+  const index = await loadIndex();
+  for (const row of index.danji) {
+    const plan = row[4].find((item) => item[0] === id);
+    if (plan) return `${index.regions[row[0]] ?? ""} ${row[2]} ${row[1]} ${plan[2]}`;
+  }
+  return null;
+}
+
+export async function saveWalls(id: string, input: { status?: unknown; walls?: unknown; reviewer?: unknown; evidence?: unknown }, updatedBy: string): Promise<WallRecord> {
+  const label = await planLabel(id);
+  if (!label) throw Object.assign(new Error("도면을 찾지 못했습니다."), { status: 404 });
+  const inRange = (value: unknown): value is number => typeof value === "number" && value >= 0 && value <= 1;
+  const walls = (Array.isArray(input.walls) ? input.walls : []).slice(0, 300).filter((w): w is WallSegment => inRange(w?.x1) && inRange(w?.y1) && inRange(w?.x2) && inRange(w?.y2));
+  const status = input.status === "approved" ? "approved" : "draft";
+  const reviewer = String(input.reviewer ?? "").trim().slice(0, 80);
+  const evidence = String(input.evidence ?? "").trim().slice(0, 500);
+  if (status === "approved" && (!walls.length || !reviewer || !evidence)) throw Object.assign(new Error("검수 완료로 저장하려면 내력벽 표시, 검수자, 근거 자료가 모두 필요합니다."), { status: 400 });
+  const record: WallRecord = { planId: id, status, walls, reviewer, evidence, updatedBy, updatedAt: new Date().toISOString(), label };
+  const saved = await r2("PUT", `walls/${id}.json`, JSON.stringify(record), "application/json");
+  if (!saved.ok) throw new Error(`저장하지 못했습니다 (${saved.status}).`);
+  const list = (await reviewedWallList().catch(() => [])).filter((item) => item.planId !== id);
+  await r2("PUT", "walls/_list.json", JSON.stringify([{ ...record, walls: [] }, ...list].slice(0, 2000)), "application/json");
+  return record;
+}
+
 /** System-prompt block for the plan the member picked; null when the id is unknown. */
-export async function selectedFloorPlanContext(id: string): Promise<string | null> {
+export async function selectedFloorPlanContext(id: string, mirrored = false): Promise<string | null> {
   const index = await loadIndex();
   for (const row of index.danji) {
     const plan = row[4].find((item) => item[0] === id);
@@ -171,11 +217,16 @@ export async function selectedFloorPlanContext(id: string): Promise<string | nul
       console.error("[floorplans] reading failed", error);
       return null;
     });
+    const walls = await readWalls(id).catch(() => null);
     return [
       "[사용자가 고른 평면도 — 사용자는 화면에서 이 도면을 보고 있다]",
       `단지: ${info.region} ${info.dong} ${info.name} / 타입: ${plan[2]} / 공급 ${plan[3]}㎡(${plan[1]}평) / 전용 ${plan[4]}㎡ / 기본형 기준`,
+      mirrored ? "사용자의 집은 이 도면의 대칭형(좌우 반전)이다. 왼쪽과 오른쪽은 도면과 반대이며, 방향이 확실하지 않으면 좌우를 말하지 않는다." : "",
       facts ? `도면에서 읽은 사실: ${JSON.stringify(facts)}` : "도면 판독 결과가 없다. 면적 정보만 근거로 답하고, 구조는 사용자에게 물어본다.",
       "규칙: 위 사실과 면적만 도면 근거로 쓴다. 주방 형태, 현관 위치, 동선, 배치처럼 위에 없는 내용은 단정하지 말고 사용자에게 확인을 구한다. 도면에서 읽은 숫자는 AI가 읽은 추정치라고 한 번 밝힌다. 확장 여부는 알 수 없으므로 기본형 기준임을 알린다.",
+      walls?.status === "approved"
+        ? `이 도면의 붉은 선은 협회 검수자(${walls.reviewer})가 ${walls.evidence}을(를) 근거로 표시한 내력벽이다. 표시되지 않은 벽은 확인되지 않은 벽이지 비내력벽이 아니다.`
+        : "이 도면에는 검수된 내력벽 표시가 없다. 어느 벽이 내력벽인지 말하지 않는다.",
       plan[5] === 1 ? "주의: 이 도면은 같은 단지의 면적이 다른 타입과 이미지가 같아 다른 타입의 도면일 수 있다. 답변 첫머리에 이 점을 알린다." : "",
     ].filter(Boolean).join("\n");
   }
@@ -185,7 +236,7 @@ export async function selectedFloorPlanContext(id: string): Promise<string | nul
 export const FLOORPLAN_GUIDE = `자기 집의 인테리어(내 집 주방·수납·확장·동선·이사 등)를 묻는 대화이고 집 구조에 따라 답이 달라지면, 사는 아파트의 단지명이나 동네를 한 번만 물어본다. 동·호수는 묻지 않는다. 법규·자재·공법 같은 일반 질문에는 묻지 않고 바로 답한다. 사용자가 답하지 않거나 원치 않으면 재촉하지 않고 일반적인 조언을 한다. 이미 평면도를 고른 대화에서는 다시 묻지 않는다.
 단지명을 알게 되면 findFloorPlans 도구를 호출한다. 결과가 카드로 화면에 표시되므로 목록을 글로 반복하지 말고 "사시는 집의 타입을 골라 주세요" 정도로 한 문장만 쓴다.
 도구 결과 status가 unavailable이면 "도면 조회가 잠시 안 되고 있어요. 잠시 뒤 다시 시도해 주세요"라고만 말하고, 오류 번호나 내부 사정은 말하지 않으며 도면이 없다고 단정하지 않는다.
-도구 결과 status가 none이면 도면이 없다고 말하고, 가지고 있는 평면도나 분양 안내문 이미지, 집 사진을 첨부해 달라고 한 번 요청한다. 사용자가 도면 이미지를 첨부하면 그 도면을 기준으로 상담하되, 도면에 보이는 사실만 근거로 쓰고 보이지 않는 구조와 치수는 단정하지 않는다.`;
+도구 결과 status가 none이면 도면이 없다고 말하고, 그 단지의 면적·평형·구조를 기억으로 지어내지 말고, 가지고 있는 평면도나 분양 안내문 이미지, 집 사진을 첨부해 달라고 한 번 요청한다. 사용자가 도면 이미지를 첨부하면 그 도면을 기준으로 상담하되, 도면에 보이는 사실만 근거로 쓰고 보이지 않는 구조와 치수는 단정하지 않는다.`;
 
 /** Cards travel inside the text stream as an HTML comment the chat UI turns into a picker. */
 export const floorPlanMarker = (cards: FloorPlanCards) => `\n\n<!--floorplans ${JSON.stringify(cards).replace(/--/g, "\\u002d\\u002d")}-->\n\n`;
@@ -193,10 +244,13 @@ export const FLOORPLAN_MARKER = /<!--floorplans [\s\S]*?-->/g;
 
 /** Stored on a member's message when they pick a plan, so the choice survives reloads. */
 export const FLOORPLAN_PICK = /<!--floorplan-pick (\d{1,12})\|[^>]*?-->/g;
-export function pickedFloorPlanId(contents: string[]): string | null {
+export function pickedFloorPlan(contents: string[]): { id: string; mirrored: boolean } | null {
   for (let index = contents.length - 1; index >= 0; index -= 1) {
     const found = [...contents[index]!.matchAll(FLOORPLAN_PICK)].at(-1);
-    if (found) return found[1]!;
+    if (found) return { id: found[1]!, mirrored: found[0].includes("대칭형") };
   }
   return null;
 }
+
+/** Applies to every chat, with or without a floor plan. */
+export const STRUCTURE_SAFETY_GUIDE = `벽 철거·이동·개구부에 관한 답변 규칙: 어떤 벽도 "철거해도 된다", "비내력벽이다"라고 단정하지 않는다. 일반 평면도나 사진만으로는 내력벽을 판별할 수 없다고 밝힌다. 외벽, 세대 경계벽, 계단실·승강기 주변 벽은 구조체일 가능성이 높다는 일반론까지만 말하고, 세대 안쪽 벽은 벽식 구조에서 내력벽인 경우가 많아 구조도면 확인과 구조 검토, 관리주체 절차가 필요하다고 안내한다. 관리사무소에서 구조도면을 볼 수 있다고 단정하지 말고 단지마다 다르니 문의해 보라고 한다. 사용자가 내력벽이 표기된 구조도면 이미지를 첨부하면 도면에 실제로 표기된 범례와 해치만 읽어 설명하고, 표기가 없으면 판단할 수 없다고 답한다. 협회 검수 표시가 있어도 실제 철거 전에는 현장 구조 검토가 필요하다고 함께 말한다.`;

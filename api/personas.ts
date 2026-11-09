@@ -12,7 +12,7 @@ import { regulationTools } from './_regulationTools.js';
 import { forwardPersonalReply } from './_personaStream.js';
 import type { ExpertSource } from '../src/types/personas.js';
 import { ATTACHMENT_GUIDE,readAttachments,withAttachments } from './_chatAttachments.js';
-import { findFloorPlans,FLOORPLAN_GUIDE,FLOORPLAN_MARKER,FLOORPLAN_PICK,floorPlanMarker,floorPlansConfigured,floorPlansOfDanji,pickedFloorPlanId,selectedFloorPlanContext } from './_floorplans.js';
+import { findFloorPlans,FLOORPLAN_GUIDE,FLOORPLAN_MARKER,FLOORPLAN_PICK,floorPlanMarker,floorPlansConfigured,floorPlansOfDanji,pickedFloorPlan,selectedFloorPlanContext,STRUCTURE_SAFETY_GUIDE } from './_floorplans.js';
 export const config={maxDuration:180};
 const ACTIONS=new Set(['directory','profile','settings','saveProfile','saveVoice','pages','savePage','history','source','rooms','createRoom','room','deleteRoom','importDraft','original','ownerRooms','ownerRoom','correctAnswer','deleteCorrection']);
 type Prepared={profile:{id:string;name:string;voice:string;principles:string;version:number};context:{voice:string;styleVersion?:string;sources:ExpertSource[]};messages:ModelMessage[];requestId:string;roomId:string};
@@ -55,7 +55,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
         prepared=await personaService<Prepared>({action:'begin',actor,roomId:body.roomId,question:body.question,requestId:body.requestId});
         const floorPlansOn=floorPlansConfigured()&&actor.admin;
         const textOf=(m:ModelMessage)=>typeof m.content==='string'?m.content:'';
-        const pickedPlan=floorPlansOn?pickedFloorPlanId(prepared.messages.filter(m=>m.role==='user').map(textOf)):null;
+        const pickedPlan=floorPlansOn?pickedFloorPlan(prepared.messages.filter(m=>m.role==='user').map(textOf)):null;
         prepared.messages=prepared.messages.map(m=>typeof m.content==='string'?{...m,content:m.content.replace(FLOORPLAN_MARKER,'[도면 선택 카드를 표시함]').replace(FLOORPLAN_PICK,'')} as ModelMessage:m);
         const danjiCards=floorPlansOn&&typeof body.floorPlanDanji==='string'?await floorPlansOfDanji(body.floorPlanDanji):null;
         const direct=danjiCards?`사는 집 타입을 골라 줘.${floorPlanMarker(danjiCards)}`:directPersonalReply(prepared.profile.id,String(body.question));
@@ -76,8 +76,8 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
         let personalHits=-1;const tools=personalWikiTools(<T,>(data:Record<string,unknown>)=>personaService<T>({...data,roomId:current.roomId,actor}),current.profile,remember,hits=>{personalHits=hits;}),reg=regulationTools(),allTools:Record<string,unknown>={...tools,...(reg.checkWorkPermit?{checkWorkPermit:reg.checkWorkPermit}:{}),...(reg.calculateDefectPeriod?{calculateDefectPeriod:reg.calculateDefectPeriod}:{})},permitQuestion=PERMIT_QUESTION.test(String(body.question))&&Boolean(reg.checkWorkPermit);
         const pendingCards:string[]=[];
         if(floorPlansOn)allTools.findFloorPlans=tool({description:'아파트 단지의 평면도를 찾아 화면에 선택 카드로 보여 준다. 사용자가 자기 집 단지명이나 동네를 말했을 때 사용한다.',inputSchema:jsonSchema<{query:string;areaM2?:number}>({type:'object',properties:{query:{type:'string',description:"단지명과 동네 (예: '풍동 숲속마을 8단지')"},areaM2:{type:'number',description:'사용자가 말한 면적(㎡). 평수만 말했으면 3.3을 곱한다. 없으면 생략'}},required:['query'],additionalProperties:false}),execute:async({query,areaM2})=>{let cards;try{cards=await findFloorPlans(query,areaM2);}catch(e){console.error('[personas] floor plan search failed',e);return {status:'unavailable'};}if(!cards)return {status:'none'};pendingCards.splice(0,pendingCards.length,floorPlanMarker(cards));return cards.kind==='plans'?{status:'shown',kind:'타입 선택 카드',danji:cards.danji.name,types:cards.plans.map(p=>p.type)}:{status:'shown',kind:'단지 선택 카드',danji:cards.items.map(i=>`${i.dong} ${i.name}`)};}});
-        const planContext=pickedPlan?await selectedFloorPlanContext(pickedPlan).catch(e=>{console.error('[personas] floor plan context failed',e);return null;}):null;
-        const extraSystem=[hasAttachments?ATTACHMENT_GUIDE:'',floorPlansOn?FLOORPLAN_GUIDE:'',planContext??''].filter(Boolean).join('\n\n');
+        const planContext=pickedPlan?await selectedFloorPlanContext(pickedPlan.id,pickedPlan.mirrored).catch(e=>{console.error('[personas] floor plan context failed',e);return null;}):null;
+        const extraSystem=[STRUCTURE_SAFETY_GUIDE,hasAttachments?ATTACHMENT_GUIDE:'',floorPlansOn?FLOORPLAN_GUIDE:'',planContext??''].filter(Boolean).join('\n\n');
         const result=streamText({model,system:expertSystem(prepared)+(extraSystem?'\n\n'+extraSystem:''),messages:withAttachments(prepared.messages,attachments),tools:allTools as Parameters<typeof streamText>[0]['tools'],stopWhen:isStepCount(5),prepareStep:({stepNumber})=>stepNumber===0?{toolChoice:{type:'tool',toolName:'searchPersonalWiki'}}:stepNumber===1&&permitQuestion?{toolChoice:{type:'tool',toolName:'checkWorkPermit'}}:stepNumber===1&&personalHits===0?{toolChoice:{type:'tool',toolName:'searchIndexWiki'}}:stepNumber>=4?{toolChoice:'none'}:{},abortSignal:AbortSignal.any([abort.signal,AbortSignal.timeout(160000)]),maxOutputTokens:/자세히|상세|길게|단계별|목록|표로|구체적으로/.test(String(body.question))?1600:900});
         res.statusCode=200;res.setHeader('Content-Type','application/x-ndjson; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store, no-transform');res.setHeader('X-Accel-Buffering','no');res.flushHeaders();
         // Emit visible text immediately, before completion and database persistence.

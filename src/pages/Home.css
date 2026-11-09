@@ -1834,3 +1834,11 @@
 .home-chat__sent-files { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
 .home-chat__sent-files img { max-width: 240px; max-height: 200px; border-radius: 12px; object-fit: cover; }
 .home-chat__sent-files span { padding: 6px 11px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; font-size: 12.5px; color: #cfcfcf; }
+:root:not([data-app-theme="dark"]) .home-chat__composer-box.is-dragging { border-color: #9aa0ab; background: #f7f7f8; }
+:root:not([data-app-theme="dark"]) .home-chat__attachment { border-color: #e3e5e9; background: #f4f5f7; color: #16181d; }
+:root:not([data-app-theme="dark"]) .home-chat__attachment-type { background: #e6e8ec; color: #4b5563; }
+:root:not([data-app-theme="dark"]) .home-chat__attachment button { color: #6b7079; }
+:root:not([data-app-theme="dark"]) .home-chat__attachment button:hover { background: rgba(0, 0, 0, .06); color: #16181d; }
+:root:not([data-app-theme="dark"]) .home-chat__attachment-busy { color: #6b7079; }
+:root:not([data-app-theme="dark"]) .home-chat__attach-error { color: #b42318; }
+:root:not([data-app-theme="dark"]) .home-chat__sent-files span { border-color: #e3e5e9; color: #4b5563; }
