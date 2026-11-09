@@ -1,8 +1,6 @@
 /** Tools for the selected element, pinned to the top of the canvas (text has its own TextToolbar). */
-import { useState } from "react";
-import { BringToFront, Copy, Eraser, FlipHorizontal2, FlipVertical2, Lock, Minus, Plus, RotateCcw, RotateCw, SendToBack, Trash2, Undo2, Unlock } from "lucide-react";
-import { removeBackground } from "../../../lib/backgroundRemoval";
-import { uploadBookFile, type BookElement, type ImageElement } from "../../../lib/flipbooks";
+import { BringToFront, Copy, FlipHorizontal2, FlipVertical2, Lock, Minus, Plus, RotateCcw, RotateCw, SendToBack, Trash2, Unlock } from "lucide-react";
+import type { BookElement } from "../../../lib/flipbooks";
 import type { BookEditorApi } from "./useBookEditor";
 import "./BookElementToolbar.css";
 
@@ -13,7 +11,6 @@ const turn = (angle: number) => ((Math.round(angle) % 360) + 360) % 360;
 export default function BookElementToolbar({ ed, element }: { ed: BookEditorApi; element: BookElement }) {
   const patch = (next: Partial<BookElement>, key?: string) => ed.updateElement(element.id, next, key ? `${key}:${element.id}` : undefined);
   const stopPointer = { onPointerDown: (event: React.PointerEvent) => event.stopPropagation() };
-  const [cutoutStatus, setCutoutStatus] = useState("");
 
   if (element.locked) {
     return (
@@ -33,30 +30,10 @@ export default function BookElementToolbar({ ed, element }: { ed: BookEditorApi;
   };
   const rotation = element.rotation ?? 0;
 
-  async function cutOut(image: ImageElement) {
-    if (cutoutStatus) return;
-    setCutoutStatus("준비 중…");
-    try {
-      const cutout = await removeBackground(image.src, setCutoutStatus);
-      setCutoutStatus("저장 중…");
-      const result = await uploadBookFile(ed.book!.id, cutout);
-      ed.updateElement(image.id, { src: result, cutout: { original: image.src, result } });
-    } catch (error) {
-      ed.setNotice(error instanceof Error ? error.message : "배경을 지우지 못했습니다.");
-    } finally {
-      setCutoutStatus("");
-    }
-  }
-  const restorable = element.type === "image" && element.cutout?.result === element.src ? element.cutout : null;
-
   return (
     <div className="be-floatbar" {...stopPointer}>
       {element.type === "image" && (
         <>
-          {restorable
-            ? <button type="button" className="be-floatbar__text" title="배경 제거 전 사진으로" onClick={() => patch({ src: restorable.original, cutout: undefined })}><Undo2 size={15} />원본으로</button>
-            : element.src && <button type="button" className="be-floatbar__text" disabled={Boolean(cutoutStatus)} onClick={() => void cutOut(element)}><Eraser size={15} />{cutoutStatus || "배경 제거"}</button>}
-          <i className="be-floatbar__sep" />
           <button type="button" aria-label="좌우 반전" title="좌우 반전" className={element.flipX ? "is-on" : ""} onClick={() => patch({ flipX: !element.flipX })}><FlipHorizontal2 size={16} /></button>
           <button type="button" aria-label="상하 반전" title="상하 반전" className={element.flipY ? "is-on" : ""} onClick={() => patch({ flipY: !element.flipY })}><FlipVertical2 size={16} /></button>
           <i className="be-floatbar__sep" />

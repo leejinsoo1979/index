@@ -1,5 +1,3 @@
 /* Additions to .be-floatbar (BookEditor.css) for BookElementToolbar. */
 .be-floatbar__sep { width: 1px; height: 20px; margin: 0 5px; background: #e3e5e9; }
 .be-floatbar__angle { width: 48px; height: 28px; padding: 0 2px 0 6px; border: 1px solid #d7dae0; border-radius: 6px; background: #fff; font: inherit; font-size: 13px; color: inherit; text-align: center; font-variant-numeric: tabular-nums; }
-.be-floatbar > button.be-floatbar__text { display: inline-flex; align-items: center; gap: 5px; width: auto; padding: 0 9px; font-size: 13px; }
-.be-floatbar > button.be-floatbar__text:disabled { color: #7a808b; cursor: default; }

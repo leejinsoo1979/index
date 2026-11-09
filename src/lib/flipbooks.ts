@@ -59,8 +59,6 @@ export type ImageElement = Box & {
   radius?: number;
   /** Photo frame: a shape name from graphics.ts. */
   mask?: string;
-  /** Set by 배경 제거, so the original can be restored while this cutout is still the picture. */
-  cutout?: { original: string; result: string };
   brightness?: number;
   contrast?: number;
   saturate?: number;
