@@ -11,7 +11,7 @@
 .fpx-panel__head p { margin: 3px 0 0; font-size: 12.5px; color: #6b7079; }
 
 .fpx-types { display: flex; flex-wrap: wrap; gap: 6px; }
-.fpx-types button { display: inline-flex; align-items: baseline; gap: 5px; height: 32px; padding: 0 11px; border: 1px solid #e3e5e9; border-radius: 9px; background: #fff; font: inherit; font-size: 13px; font-weight: 650; color: #16181d; cursor: pointer; }
+.fpx-types button { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 11px; border: 1px solid #e3e5e9; border-radius: 9px; background: #fff; font: inherit; font-size: 13px; font-weight: 650; color: #16181d; cursor: pointer; }
 .fpx-types button small { font-size: 11.5px; font-weight: 500; color: #6b7079; }
 .fpx-types button:hover { border-color: #b9bdc6; }
 .fpx-types button[aria-selected="true"] { border-color: #16181d; background: #16181d; color: #fff; }
