@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap } from "react-icons/fi";
+import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap, FiLayers } from "react-icons/fi";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import "./Admin.css";
@@ -75,6 +75,7 @@ const NAV = [
   { to: "/admin/menus", label: "메뉴 관리", icon: <BoardIcon /> },
   { to: "/admin/pages", label: "페이지 관리", icon: <BoardIcon /> },
   { to: "/admin/floorplan-map", label: "평면도 찾기", icon: <FiMap /> },
+  { to: "/admin/floorplan-manage", label: "도면 관리", icon: <FiLayers /> },
   { to: "/admin/floorplans", label: "도면 내력벽 검수", icon: <BoardIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },

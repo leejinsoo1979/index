@@ -7,13 +7,13 @@ import { useEffect, useState } from "react";
 import { Dialog } from "radix-ui";
 import type { DanjiInfo, FloorPlanCards, PlanCard } from "./FloorPlanCards";
 import { FloorPlanZoom, PlanFigure, WallNotice, useFloorPlanUrls } from "./FloorPlanFigure";
-import { FloorPlanMap } from "./FloorPlanMap";
+import { FloorPlanMap, type MapAddress } from "./FloorPlanMap";
 import "./FloorPlanExplorer.css";
 
 type AuthHeaders = () => Promise<Record<string, string>>;
 type PlansCards = Extract<FloorPlanCards, { kind: "plans" }>;
 
-function DanjiPanel({ kbId, authHeaders, actionLabel, actionDisabled, onAction, onClose }: { kbId: string; authHeaders: AuthHeaders; actionLabel: string; actionDisabled?: boolean; onAction: (danji: DanjiInfo, plan: PlanCard, mirrored: boolean) => void; onClose: () => void }) {
+function DanjiPanel({ kbId, address, authHeaders, actionLabel, actionDisabled, onAction, onClose }: { kbId: string; address: MapAddress | null; authHeaders: AuthHeaders; actionLabel: string; actionDisabled?: boolean; onAction: (danji: DanjiInfo, plan: PlanCard, mirrored: boolean) => void; onClose: () => void }) {
   const [cards, setCards] = useState<PlansCards | null>(null);
   const [error, setError] = useState("");
   const [picked, setPicked] = useState(0);
@@ -54,7 +54,8 @@ function DanjiPanel({ kbId, authHeaders, actionLabel, actionDisabled, onAction, 
         <>
           <header className="fpx-panel__head">
             <h3>{cards.danji.name}</h3>
-            <p>{cards.danji.region} {cards.danji.dong}</p>
+            <p>{address?.road || address?.lot || `${cards.danji.region} ${cards.danji.dong}`}</p>
+            {address && ((address.road && address.lot) || address.zip) ? <p className="fpx-panel__sub">{[address.road && address.lot ? `지번 ${address.lot}` : "", address.zip ? `우편번호 ${address.zip}` : ""].filter(Boolean).join(" · ")}</p> : null}
           </header>
 
           <div className="fpx-types" role="tablist" aria-label="평면도 타입">
@@ -92,15 +93,16 @@ function DanjiPanel({ kbId, authHeaders, actionLabel, actionDisabled, onAction, 
 
 export function FloorPlanExplorer({ authHeaders, focus, openId, actionLabel, actionDisabled, onAction }: { authHeaders: AuthHeaders; focus?: string[]; openId?: string; actionLabel: string; actionDisabled?: boolean; onAction: (danji: DanjiInfo, plan: PlanCard, mirrored: boolean) => void }) {
   const [current, setCurrent] = useState<string | null>(openId ?? null);
+  const [address, setAddress] = useState<MapAddress | null>(null);
   useEffect(() => {
     if (openId) setCurrent(openId);
   }, [openId]);
 
   return (
     <div className="fpx">
-      {current && <DanjiPanel kbId={current} authHeaders={authHeaders} actionLabel={actionLabel} actionDisabled={actionDisabled} onAction={onAction} onClose={() => setCurrent(null)} />}
+      {current && <DanjiPanel kbId={current} address={address} authHeaders={authHeaders} actionLabel={actionLabel} actionDisabled={actionDisabled} onAction={onAction} onClose={() => setCurrent(null)} />}
       <div className="fpx__map">
-        <FloorPlanMap authHeaders={authHeaders} focus={focus} activeId={current ?? undefined} onSelect={(spot) => setCurrent(spot.kbId)} />
+        <FloorPlanMap authHeaders={authHeaders} focus={focus} activeId={current ?? undefined} onSelect={(spot) => setCurrent(spot.kbId)} onActiveAddress={setAddress} />
       </div>
     </div>
   );

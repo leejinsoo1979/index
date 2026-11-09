@@ -11,6 +11,7 @@ type PlanRow = [id: string, pyeong: number, type: string, supply: number, exclus
 type DanjiRow = [region: number, name: string, dong: string, kbId: string, plans: PlanRow[]];
 type FloorPlanIndex = { v: 1; regions: string[]; danji: DanjiRow[] };
 
+export type { PlanRow };
 export type PlanCard = { id: string; type: string; pyeong: number; supply: number; exclusive: number; suspect: boolean };
 export type DanjiInfo = { kbId: string; name: string; region: string; dong: string; count: number };
 export type FloorPlanCards =
@@ -30,7 +31,7 @@ const hmac = (key: string | Buffer, value: string) => createHmac("sha256", key).
 const signingKey = (secret: string, day: string) => hmac(hmac(hmac(hmac(`AWS4${secret}`, day), "auto"), "s3"), "aws4_request");
 const amzDate = () => new Date().toISOString().replace(/[-:]|\.\d{3}/g, "");
 
-async function r2(method: "GET" | "PUT" | "DELETE", key: string, body?: Buffer | string, contentType?: string) {
+export async function r2(method: "GET" | "PUT" | "DELETE", key: string, body?: Buffer | string, contentType?: string) {
   const { account, accessKey, secret, bucket } = env();
   const host = `${account}.r2.cloudflarestorage.com`;
   const path = `/${bucket}/${key}`;
@@ -91,33 +92,129 @@ function signedUrl(key: string, expires = 900): string {
   return `https://${host}${path}?${query}&X-Amz-Signature=${signature}`;
 }
 
-let cached: { at: number; index: FloorPlanIndex } | null = null;
-async function loadIndex(): Promise<FloorPlanIndex> {
-  if (cached && Date.now() - cached.at < 3_600_000) return cached.index;
+/** What admins changed in /admin/floorplan-manage. The collected index stays as it was built. */
+type DanjiEdit = { name?: string; region?: string; dong?: string; hidden?: boolean; lat?: number; lng?: number };
+type PlanEdit = { type?: string; pyeong?: number; supply?: number; exclusive?: number; hidden?: boolean; notSuspect?: boolean; surveyed?: boolean };
+export type AddedDanji = { kbId: string; name: string; region: string; dong: string };
+export type AddedPlan = { id: string; kbId: string; type: string; pyeong: number; supply: number; exclusive: number };
+export type FloorPlanEdits = { danji: Record<string, DanjiEdit>; plans: Record<string, PlanEdit>; addedDanji: AddedDanji[]; addedPlans: AddedPlan[] };
+
+const EDITS_KEY = "index/edits.json";
+const noEdits = (): FloorPlanEdits => ({ danji: {}, plans: {}, addedDanji: [], addedPlans: [] });
+
+let cachedBase: { at: number; index: FloorPlanIndex } | null = null;
+async function loadBaseIndex(): Promise<FloorPlanIndex> {
+  if (cachedBase && Date.now() - cachedBase.at < 3_600_000) return cachedBase.index;
   const response = await r2("GET", "index/index.json");
   if (!response.ok) throw new Error(`평면도 목록을 불러오지 못했습니다 (${response.status}).`);
   const index = (await response.json()) as FloorPlanIndex;
-  cached = { at: Date.now(), index };
+  cachedBase = { at: Date.now(), index };
   return index;
+}
+
+/** Throws unless the bucket really answered, so a failed read can never overwrite the edits with nothing. */
+async function fetchEdits(): Promise<{ text: string; edits: FloorPlanEdits }> {
+  const response = await r2("GET", EDITS_KEY);
+  if (response.status === 404) return { text: "", edits: noEdits() };
+  if (!response.ok) throw new Error(`도면 수정 내용을 읽지 못했습니다 (${response.status}).`);
+  const text = await response.text();
+  return { text, edits: { ...noEdits(), ...(JSON.parse(text) as Partial<FloorPlanEdits>) } };
+}
+
+// Short lived: other function instances must pick up an admin's change quickly.
+let cachedEdits: { at: number; text: string; edits: FloorPlanEdits } | null = null;
+async function loadEdits(): Promise<FloorPlanEdits> {
+  if (cachedEdits && Date.now() - cachedEdits.at < 5_000) return cachedEdits.edits;
+  try {
+    const { text, edits } = await fetchEdits();
+    cachedEdits = { at: Date.now(), text, edits: cachedEdits?.text === text ? cachedEdits.edits : edits };
+    return cachedEdits.edits;
+  } catch (error) {
+    console.error("[floorplans] edits", error);
+    return cachedEdits?.edits ?? noEdits();
+  }
+}
+
+export async function mutateEdits<T>(change: (edits: FloorPlanEdits) => T): Promise<T> {
+  const { edits } = await fetchEdits();
+  const result = change(edits);
+  const text = JSON.stringify(edits);
+  const saved = await r2("PUT", EDITS_KEY, text, "application/json");
+  if (!saved.ok) throw new Error(`저장하지 못했습니다 (${saved.status}).`);
+  cachedEdits = { at: Date.now(), text, edits };
+  return result;
+}
+
+export type MergedPlan = { row: PlanRow; hidden: boolean; added: boolean; surveyed: boolean };
+export type MergedDanji = { kbId: string; name: string; region: string; dong: string; hidden: boolean; added: boolean; plans: MergedPlan[] };
+
+/** The collected index with admin edits applied; hidden entries are kept and flagged. */
+export function mergeEdits(base: FloorPlanIndex, edits: FloorPlanEdits): MergedDanji[] {
+  const addedPlans = new Map<string, AddedPlan[]>();
+  for (const plan of edits.addedPlans) addedPlans.set(plan.kbId, [...(addedPlans.get(plan.kbId) ?? []), plan]);
+  const plan = (row: PlanRow, added: boolean): MergedPlan => {
+    const edit = edits.plans[row[0]] ?? {};
+    return { row: [row[0], edit.pyeong ?? row[1], edit.type ?? row[2], edit.supply ?? row[3], edit.exclusive ?? row[4], edit.notSuspect ? 0 : row[5]], hidden: Boolean(edit.hidden), added, surveyed: Boolean(edit.surveyed) };
+  };
+  const build = (kbId: string, name: string, region: string, dong: string, rows: PlanRow[], added: boolean): MergedDanji => {
+    const edit = edits.danji[kbId] ?? {};
+    const plans = [...rows.map((row) => plan(row, false)), ...(addedPlans.get(kbId) ?? []).map((item) => plan([item.id, item.pyeong, item.type, item.supply, item.exclusive, 0], true))];
+    plans.sort((a, b) => a.row[4] - b.row[4] || a.row[1] - b.row[1]);
+    return { kbId, name: edit.name ?? name, region: edit.region ?? region, dong: edit.dong ?? dong, hidden: Boolean(edit.hidden), added, plans };
+  };
+  return [...edits.addedDanji.map((item) => build(item.kbId, item.name, item.region, item.dong, [], true)), ...base.danji.map((row) => build(row[3], row[1], base.regions[row[0]] ?? "", row[2], row[4], false))];
+}
+
+let merged: { base: FloorPlanIndex; edits: FloorPlanEdits; danji: MergedDanji[]; index: FloorPlanIndex } | null = null;
+export async function loadMerged() {
+  const [base, edits] = await Promise.all([loadBaseIndex(), loadEdits()]);
+  if (merged?.base === base && merged.edits === edits) return merged;
+  const danji = mergeEdits(base, edits);
+  const regions: string[] = [];
+  const regionAt = new Map<string, number>();
+  const rows: DanjiRow[] = [];
+  for (const item of danji) {
+    const plans = item.plans.filter((plan) => !plan.hidden).map((plan) => plan.row);
+    if (item.hidden || !plans.length) continue; // a hidden complex, or one with nothing to show yet
+    if (!regionAt.has(item.region)) {
+      regionAt.set(item.region, regions.length);
+      regions.push(item.region);
+    }
+    rows.push([regionAt.get(item.region)!, item.name, item.dong, item.kbId, plans]);
+  }
+  merged = { base, edits, danji, index: { v: 1, regions, danji: rows } };
+  return merged;
+}
+
+async function loadIndex(): Promise<FloorPlanIndex> {
+  return (await loadMerged()).index;
+}
+
+let cachedGeo: { at: number; spots: Map<string, [number, number]> } | null = null;
+export async function loadGeo(): Promise<Map<string, [number, number]>> {
+  if (cachedGeo && Date.now() - cachedGeo.at < 3_600_000) return cachedGeo.spots;
+  const response = await r2("GET", "index/geo.json");
+  if (!response.ok) throw Object.assign(new Error("지도 위치 정보가 아직 준비되지 않았습니다."), { status: 503 });
+  const geo = (await response.json()) as { spots: [string, number, number][] };
+  cachedGeo = { at: Date.now(), spots: new Map(geo.spots.map(([kbId, lat, lng]) => [kbId, [lat, lng]])) };
+  return cachedGeo.spots;
 }
 
 type MapSpot = [kbId: string, lat: number, lng: number, name: string, region: number, dong: string, count: number];
 export type FloorPlanMapData = { regions: string[]; spots: MapSpot[]; total: number };
 
-let cachedMap: { at: number; data: FloorPlanMapData } | null = null;
-/** Every complex with coordinates (index/geo.json, built by scripts/floorplans-geocode.mjs --build). */
+let cachedMap: { index: FloorPlanIndex; geo: Map<string, [number, number]>; data: FloorPlanMapData } | null = null;
+/** Every visible complex with coordinates (index/geo.json from scripts/floorplans-geocode.mjs --build, or set by an admin). */
 export async function floorPlanMap(): Promise<FloorPlanMapData> {
-  if (cachedMap && Date.now() - cachedMap.at < 3_600_000) return cachedMap.data;
-  const [index, response] = await Promise.all([loadIndex(), r2("GET", "index/geo.json")]);
-  if (!response.ok) throw Object.assign(new Error("지도 위치 정보가 아직 준비되지 않았습니다."), { status: 503 });
-  const geo = (await response.json()) as { spots: [string, number, number][] };
-  const rows = new Map(index.danji.map((row) => [row[3], row]));
-  const spots = geo.spots.flatMap(([kbId, lat, lng]): MapSpot[] => {
-    const row = rows.get(kbId);
-    return row ? [[kbId, lat, lng, row[1], row[0], row[2], row[4].length]] : [];
+  const [{ index, edits }, geo] = await Promise.all([loadMerged(), loadGeo()]);
+  if (cachedMap?.index === index && cachedMap.geo === geo) return cachedMap.data;
+  const spots = index.danji.flatMap((row): MapSpot[] => {
+    const edit = edits.danji[row[3]];
+    const at = edit?.lat !== undefined && edit.lng !== undefined ? ([edit.lat, edit.lng] as const) : geo.get(row[3]);
+    return at ? [[row[3], at[0], at[1], row[1], row[0], row[2], row[4].length]] : [];
   });
   const data = { regions: index.regions, spots, total: index.danji.length };
-  cachedMap = { at: Date.now(), data };
+  cachedMap = { index, geo, data };
   return data;
 }
 
@@ -247,6 +344,12 @@ export async function saveWalls(id: string, input: { status?: unknown; walls?: u
 
 const planExists = async (id: string) => Boolean(await planLabel(id));
 
+/** Kept beside the edits so the manage list can filter surveyed plans without opening each one. */
+const markSurveyed = (id: string, surveyed: boolean) =>
+  mutateEdits((edits) => {
+    edits.plans[id] = { ...edits.plans[id], surveyed };
+  }).catch((error: unknown) => console.error("[floorplans] surveyed flag", error));
+
 /** Marks drawn on the old drawing no longer line up, so they go back to 초안 for a fresh review. */
 async function reopenWallReview(id: string, updatedBy: string): Promise<void> {
   const current = await readWalls(id).catch(() => null);
@@ -269,6 +372,7 @@ export async function saveVerifiedImage(id: string, input: { image?: unknown; wi
   const written = await r2("PUT", `verified/${id}.json`, JSON.stringify(record), "application/json");
   if (!written.ok) throw new Error(`저장하지 못했습니다 (${written.status}).`);
   await reopenWallReview(id, uploadedBy);
+  await markSurveyed(id, true);
   return record;
 }
 
@@ -291,6 +395,7 @@ export async function saveVerifiedPdf(id: string, base64: unknown): Promise<Veri
 export async function removeVerified(id: string, updatedBy: string): Promise<void> {
   await r2("DELETE", `verified/${id}.json`);
   await reopenWallReview(id, updatedBy);
+  await markSurveyed(id, false);
 }
 
 /** System-prompt block for the plan the member picked; null when the id is unknown. */

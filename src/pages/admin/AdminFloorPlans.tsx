@@ -8,6 +8,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { CustomSelect } from "../../components/ui/custom-select";
 import type { DanjiInfo, FloorPlanCards, PlanCard, WallRecord, WallSegment } from "../../components/FloorPlanCards";
+import { renderPdfPage } from "../../lib/planFiles";
 import "./AdminFloorPlans.css";
 
 const STATUS = [
@@ -266,32 +267,6 @@ type VerifiedPlan = { planId: string; image: string; pdf: string | null; width: 
 
 /** Original PDFs are kept up to this size: a function request can't carry more. */
 const MAX_PDF_BYTES = 3 * 1024 * 1024;
-
-async function renderPdfPage(data: ArrayBuffer, pageNumber: number) {
-  const [pdfjs, { default: workerUrl }] = await Promise.all([import("pdfjs-dist"), import("pdfjs-dist/build/pdf.worker.min.mjs?url")]);
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(data.slice(0)) }).promise;
-  try {
-    const page = await doc.getPage(Math.min(Math.max(1, pageNumber), doc.numPages));
-    const base = page.getViewport({ scale: 1 });
-    for (const side of [2800, 2200, 1700]) {
-      const viewport = page.getViewport({ scale: side / Math.max(base.width, base.height) });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("PDF를 그리지 못했습니다.");
-      context.fillStyle = "#fff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: context, canvas, viewport }).promise;
-      const image = canvas.toDataURL("image/jpeg", 0.9);
-      if (image.length <= 3_500_000) return { image, width: canvas.width, height: canvas.height, pages: doc.numPages };
-    }
-    throw new Error("도면 페이지가 너무 복잡해서 변환하지 못했습니다.");
-  } finally {
-    await doc.destroy();
-  }
-}
 
 function SurveyedPlan({ id, verified, pdfUrl, hasWalls, call, onChanged }: { id: string; verified: VerifiedPlan | null; pdfUrl: string | null; hasWalls: boolean; call: Call; onChanged: () => void }) {
   const [file, setFile] = useState<File | null>(null);

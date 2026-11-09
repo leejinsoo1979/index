@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { addManagedDanji, addManagedPlan, managedDanjiDetail, managedDanjiList, managedRegionTree, updateManagedDanji, updateManagedPlan } from "./_floorplanManage.js";
 import { approvedWalls, findFloorPlans, floorPlanImageUrl, floorPlanMap, floorPlansConfigured, floorPlansOfDanji, readWalls, removeVerified, reviewedWallList, saveVerifiedImage, saveVerifiedPdf, saveWalls, signedFileUrl } from "./_floorplans.js";
 
 const validId = (id: unknown): id is string => typeof id === "string" && /^\d{1,12}$/.test(id);
@@ -33,6 +34,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(200).json({ cards: await findFloorPlans(String(body.query ?? "")) });
     } else if (body.action === "danji") {
       res.status(200).json({ cards: await floorPlansOfDanji(String(body.kbId ?? "")) });
+    } else if (body.action === "manageList") {
+      res.status(200).json(await managedDanjiList(body));
+    } else if (body.action === "manageRegions") {
+      res.status(200).json(await managedRegionTree());
+    } else if (body.action === "manageDetail" && validId(body.kbId)) {
+      res.status(200).json(await managedDanjiDetail(body.kbId));
+    } else if (body.action === "manageDanji" && validId(body.kbId)) {
+      await updateManagedDanji(body.kbId, body);
+      res.status(200).json({ ok: true });
+    } else if (body.action === "manageAddDanji") {
+      res.status(200).json(await addManagedDanji(body));
+    } else if (body.action === "managePlan" && validId(body.id)) {
+      await updateManagedPlan(body.id, body);
+      res.status(200).json({ ok: true });
+    } else if (body.action === "manageAddPlan" && validId(body.kbId)) {
+      res.status(200).json(await addManagedPlan(body.kbId, body));
     } else if (body.action === "map") {
       res.status(200).json(await floorPlanMap());
     } else if (body.action === "getWalls" && validId(body.id)) {

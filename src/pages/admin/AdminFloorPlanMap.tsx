@@ -3,7 +3,7 @@
  * on the left; the reviewing itself happens in 도면 내력벽 검수 (/admin/floorplans).
  */
 import { useCallback, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { FloorPlanExplorer } from "../../components/FloorPlanExplorer";
 import type { DanjiInfo, FloorPlanCards } from "../../components/FloorPlanCards";
@@ -16,8 +16,11 @@ export default function AdminFloorPlanMap() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<DanjiInfo[]>([]);
-  const [focus, setFocus] = useState<string[]>([]);
-  const [openId, setOpenId] = useState<string | undefined>(undefined);
+  // ?open=<kbId>: arriving from 도면 관리, e.g. right after registering a complex.
+  const [params] = useSearchParams();
+  const linked = params.get("open") ?? undefined;
+  const [focus, setFocus] = useState<string[]>(linked ? [linked] : []);
+  const [openId, setOpenId] = useState<string | undefined>(linked);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const token = await user?.getIdToken();
@@ -65,6 +68,7 @@ export default function AdminFloorPlanMap() {
           <input type="search" value={query} placeholder="단지명과 동네 (예: 풍동 숲속마을 8단지)" aria-label="단지 검색" onChange={(event) => setQuery(event.target.value)} />
           <button type="submit" className="admin-btn admin-btn--primary" disabled={busy}>{busy ? "찾는 중…" : "찾기"}</button>
         </form>
+        <Link to="/admin/floorplan-manage?add=1" className="admin-btn fpf__result">지도에 단지 등록</Link>
         {error && <span className="fpf__error" role="alert">{error}</span>}
         {results.map((item) => (
           <button type="button" key={item.kbId} className="admin-btn fpf__result" onClick={() => { setFocus([item.kbId]); open(item.kbId); }}>{item.dong} {item.name}</button>
