@@ -4,6 +4,7 @@
  * view flips with it. Stored in R2 via api/floorplans.ts.
  */
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { CustomSelect } from "../../components/ui/custom-select";
 import type { DanjiInfo, FloorPlanCards, PlanCard, WallRecord, WallSegment } from "../../components/FloorPlanCards";
@@ -22,6 +23,7 @@ export default function AdminFloorPlans() {
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<{ plan: PlanCard; danji: DanjiInfo } | null>(null);
   const [reviewed, setReviewed] = useState<WallRecord[]>([]);
+  const [params] = useSearchParams();
 
   const call = useCallback(async <T,>(body: Record<string, unknown>): Promise<T> => {
     const token = await user?.getIdToken();
@@ -35,6 +37,20 @@ export default function AdminFloorPlans() {
     void call<{ records: WallRecord[] }>({ action: "reviewed" }).then((r) => setReviewed(r.records)).catch(() => undefined);
   }, [call]);
   useEffect(refreshReviewed, [refreshReviewed]);
+
+  // Arriving from 평면도 찾기 with a plan already chosen.
+  const linkedDanji = params.get("kbId"), linkedPlan = params.get("plan");
+  useEffect(() => {
+    if (!linkedDanji || !linkedPlan) return;
+    let active = true;
+    void call<{ cards: FloorPlanCards | null }>({ action: "danji", kbId: linkedDanji }).then(({ cards: found }) => {
+      if (!active || found?.kind !== "plans") return;
+      setCards(found);
+      const plan = found.plans.find((item) => item.id === linkedPlan);
+      if (plan) setSelected({ plan, danji: found.danji });
+    }).catch((e: unknown) => active && setError(e instanceof Error ? e.message : "도면을 불러오지 못했습니다."));
+    return () => { active = false; };
+  }, [linkedDanji, linkedPlan, call]);
 
   async function run(body: Record<string, unknown>) {
     setBusy(true);
@@ -58,6 +74,7 @@ export default function AdminFloorPlans() {
       <form className="fpr-search" onSubmit={(event) => { event.preventDefault(); if (query.trim()) void run({ action: "search", query }); }}>
         <input type="search" value={query} placeholder="단지명과 동네 (예: 풍동 숲속마을 8단지)" onChange={(event) => setQuery(event.target.value)} />
         <button type="submit" className="admin-btn admin-btn--primary" disabled={busy}>{busy ? "찾는 중…" : "찾기"}</button>
+        <Link to="/admin/floorplan-map" className="admin-btn">지도에서 찾기</Link>
       </form>
       {error && <p className="admin-note admin-note--error" role="alert">{error}</p>}
       {cards === null && <p className="admin-note">찾는 단지가 없습니다.</p>}
@@ -114,20 +131,27 @@ function WallEditor({ id, title, suspect, call, onSaved }: { id: string; title: 
   const [draft, setDraft] = useState<WallSegment | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mirrored, setMirrored] = useState(false);
+  const [verified, setVerified] = useState<VerifiedPlan | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let active = true;
-    void call<{ record: WallRecord | null; url: string }>({ action: "getWalls", id }).then(({ record, url: image }) => {
+    void call<{ record: WallRecord | null; url: string; verified: VerifiedPlan | null; pdfUrl: string | null }>({ action: "getWalls", id }).then(({ record, url: image, verified: surveyed, pdfUrl: pdf }) => {
       if (!active) return;
+      setSize(null);
       setUrl(image);
+      setVerified(surveyed);
+      setPdfUrl(pdf);
       setWalls(record?.walls ?? []);
       setStatus(record?.status ?? "draft");
       setReviewer(record?.reviewer ?? "");
       setEvidence(record?.evidence ?? "");
     }).catch((e: unknown) => setMessage(e instanceof Error ? e.message : "도면을 불러오지 못했습니다."));
     return () => { active = false; };
-  }, [id, call]);
+  }, [id, call, reload]);
 
   const removePicked = useCallback(() => {
     setWalls((current) => current.filter((_, index) => index !== picked));
@@ -145,12 +169,13 @@ function WallEditor({ id, title, suspect, call, onSaved }: { id: string; title: 
     return () => window.removeEventListener("keydown", onKey);
   }, [picked, removePicked]);
 
+  /** Marks are always stored in the plan's own orientation, whichever view the reviewer is drawing on. */
   function toFraction(event: ReactPointerEvent) {
-    const svg = svgRef.current;
-    const matrix = svg?.getScreenCTM();
-    if (!svg || !matrix || !size) return null;
-    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    return { x: Math.min(1, Math.max(0, point.x / size.w)), y: Math.min(1, Math.max(0, point.y / size.h)) };
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || !size) return null;
+    const x = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    const y = Math.min(1, Math.max(0, (event.clientY - box.top) / box.height));
+    return { x: mirrored ? 1 - x : x, y };
   }
 
   /** Walls run straight on these drawings, so a nearly level or plumb stroke snaps. */
@@ -179,7 +204,7 @@ function WallEditor({ id, title, suspect, call, onSaved }: { id: string; title: 
 
   return (
     <section className="admin-card fpr-editor">
-      <div className="fpr-canvas">
+      <div className={`fpr-canvas${mirrored ? " is-mirrored" : ""}`}>
         {url ? <img src={url} alt={`${title} 평면도`} draggable={false} onLoad={(event) => setSize({ w: event.currentTarget.naturalWidth, h: event.currentTarget.naturalHeight })} /> : <div className="fpr-canvas__blank" />}
         {size && (
           <svg
@@ -222,6 +247,11 @@ function WallEditor({ id, title, suspect, call, onSaved }: { id: string; title: 
           <button type="button" className="admin-btn admin-btn--danger" disabled={picked === null} onClick={removePicked}>선택한 선 삭제</button>
           <span>{walls.length}개 구간</span>
         </div>
+        <button type="button" className={`admin-btn${mirrored ? " admin-btn--primary" : ""}`} aria-pressed={mirrored} onClick={() => setMirrored((value) => !value)}>
+          {mirrored ? "대칭형으로 보는 중 · 기본형으로" : "대칭형으로 보기"}
+        </button>
+        {mirrored && <p className="fpr-help">대칭형에서 그린 선은 기본형 기준으로 자동 변환되어 저장됩니다. 두 방향 모두 같은 표시가 나옵니다.</p>}
+        <SurveyedPlan id={id} verified={verified} pdfUrl={pdfUrl} hasWalls={walls.length > 0} call={call} onChanged={() => { setReload((n) => n + 1); onSaved(); }} />
         <label className="fpr-field"><span>상태</span><CustomSelect options={STATUS} value={status} onValueChange={setStatus} /></label>
         <label className="fpr-field"><span>검수자 (이름·자격)</span><input value={reviewer} placeholder="예: 홍길동 구조기술사" onChange={(event) => setReviewer(event.target.value)} /></label>
         <label className="fpr-field"><span>근거 자료</span><textarea rows={3} value={evidence} placeholder="예: 관리사무소 제공 구조평면도 S-101 (2024.5)" onChange={(event) => setEvidence(event.target.value)} /></label>
@@ -229,5 +259,144 @@ function WallEditor({ id, title, suspect, call, onSaved }: { id: string; title: 
         {message && <p className="admin-note" role="status">{message}</p>}
       </aside>
     </section>
+  );
+}
+
+type VerifiedPlan = { planId: string; image: string; pdf: string | null; width: number; height: number; note: string; fileName: string; uploadedBy: string; uploadedAt: string };
+
+/** Original PDFs are kept up to this size: a function request can't carry more. */
+const MAX_PDF_BYTES = 3 * 1024 * 1024;
+
+async function renderPdfPage(data: ArrayBuffer, pageNumber: number) {
+  const [pdfjs, { default: workerUrl }] = await Promise.all([import("pdfjs-dist"), import("pdfjs-dist/build/pdf.worker.min.mjs?url")]);
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(data.slice(0)) }).promise;
+  try {
+    const page = await doc.getPage(Math.min(Math.max(1, pageNumber), doc.numPages));
+    const base = page.getViewport({ scale: 1 });
+    for (const side of [2800, 2200, 1700]) {
+      const viewport = page.getViewport({ scale: side / Math.max(base.width, base.height) });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("PDF를 그리지 못했습니다.");
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: context, canvas, viewport }).promise;
+      const image = canvas.toDataURL("image/jpeg", 0.9);
+      if (image.length <= 3_500_000) return { image, width: canvas.width, height: canvas.height, pages: doc.numPages };
+    }
+    throw new Error("도면 페이지가 너무 복잡해서 변환하지 못했습니다.");
+  } finally {
+    await doc.destroy();
+  }
+}
+
+function SurveyedPlan({ id, verified, pdfUrl, hasWalls, call, onChanged }: { id: string; verified: VerifiedPlan | null; pdfUrl: string | null; hasWalls: boolean; call: Call; onChanged: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(0);
+  const [preview, setPreview] = useState("");
+  const [rendered, setRendered] = useState<{ image: string; width: number; height: number } | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function render(target: File, pageNumber: number) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await renderPdfPage(await target.arrayBuffer(), pageNumber);
+      setPages(result.pages);
+      setRendered(result);
+      setPreview(result.image);
+    } catch (e) {
+      setRendered(null);
+      setPreview("");
+      setMessage(e instanceof Error ? `PDF를 읽지 못했습니다: ${e.message}` : "PDF를 읽지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function upload() {
+    if (!file || !rendered) return;
+    if (!note.trim()) return setMessage("실측자와 실측일을 입력해 주세요.");
+    if (hasWalls && !window.confirm("도면을 바꾸면 기존 내력벽 표시와 위치가 맞지 않습니다. 표시는 초안으로 돌아가며 다시 검수해야 합니다. 계속할까요?")) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await call({ action: "uploadVerified", id, ...rendered, note, fileName: file.name });
+      let kept = false;
+      if (file.size <= MAX_PDF_BYTES) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let raw = "";
+        for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
+        await call({ action: "uploadVerifiedPdf", id, pdf: btoa(raw) });
+        kept = true;
+      }
+      setFile(null);
+      setRendered(null);
+      setPreview("");
+      setNote("");
+      setMessage(kept ? "실측 도면으로 교체했습니다." : "실측 도면으로 교체했습니다. 원본 PDF가 3MB를 넘어 이미지로만 보관했습니다.");
+      onChanged();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "교체하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fpr-survey">
+      <h3>실측 도면</h3>
+      {verified ? (
+        <p className="fpr-help">
+          현재 실측 도면 사용 중 · {verified.note}<br />
+          {verified.fileName} · {verified.uploadedAt.slice(0, 10)}
+          {pdfUrl && <> · <a href={pdfUrl} target="_blank" rel="noreferrer">원본 PDF</a></>}
+        </p>
+      ) : (
+        <p className="fpr-help">지금은 수집된 도면을 쓰고 있습니다. 실측 PDF를 올리면 챗봇과 AI 분석 모두 이 도면을 씁니다.</p>
+      )}
+      <input
+        type="file"
+        accept="application/pdf,.pdf"
+        disabled={busy}
+        onChange={(event) => {
+          const next = event.target.files?.[0] ?? null;
+          setFile(next);
+          setPage(1);
+          if (next) void render(next, 1);
+          else { setRendered(null); setPreview(""); }
+        }}
+      />
+      {preview && <img className="fpr-survey__preview" src={preview} alt="PDF 미리보기" />}
+      {pages > 1 && (
+        <label className="fpr-field"><span>도면이 있는 페이지 (전체 {pages}쪽)</span>
+          <input type="number" min={1} max={pages} value={page} onChange={(event) => { const value = Number(event.target.value) || 1; setPage(value); if (file) void render(file, value); }} />
+        </label>
+      )}
+      {file && (
+        <>
+          <label className="fpr-field"><span>실측자·실측일</span><input value={note} placeholder="예: 홍길동 실측 2026.11.05" onChange={(event) => setNote(event.target.value)} /></label>
+          <button type="button" className="admin-btn admin-btn--primary" disabled={busy || !rendered} onClick={() => void upload()}>{busy ? "처리 중…" : "이 PDF로 도면 교체"}</button>
+        </>
+      )}
+      {verified && !file && (
+        <button
+          type="button"
+          className="admin-btn"
+          disabled={busy}
+          onClick={() => {
+            if (!window.confirm("수집된 도면으로 되돌릴까요? 내력벽 표시는 초안으로 돌아갑니다.")) return;
+            void call({ action: "removeVerified", id }).then(onChanged).catch((e: unknown) => setMessage(e instanceof Error ? e.message : "되돌리지 못했습니다."));
+          }}
+        >수집 도면으로 되돌리기</button>
+      )}
+      {message && <p className="admin-note" role="status">{message}</p>}
+    </div>
   );
 }

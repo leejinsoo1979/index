@@ -1031,3 +1031,9 @@ a.admin-stat:hover{border-color:transparent;box-shadow:0 9px 17.5px rgba(0,0,0,.
   background: #fdf3f3;
   color: #b42318;
 }
+
+/* Full-width pages (평면도 찾기): no gutters, filling the space under the top bar. */
+.admin .admin__main--bleed { width: 100%; height: calc(100dvh - 70px); padding: 0; }
+@media (max-width: 700px) {
+  .admin .admin__main--bleed { height: calc(100dvh - 62px); padding: 0; }
+}

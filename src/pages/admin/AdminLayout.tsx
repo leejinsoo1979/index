@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX } from "react-icons/fi";
+import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap } from "react-icons/fi";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import "./Admin.css";
@@ -74,6 +74,7 @@ const NAV = [
   { to: "/agent-studio", label: "INDEX Agent Studio", icon: <AgentIcon />, external: true },
   { to: "/admin/menus", label: "메뉴 관리", icon: <BoardIcon /> },
   { to: "/admin/pages", label: "페이지 관리", icon: <BoardIcon /> },
+  { to: "/admin/floorplan-map", label: "평면도 찾기", icon: <FiMap /> },
   { to: "/admin/floorplans", label: "도면 내력벽 검수", icon: <BoardIcon /> },
   { to: "/admin/boards", label: "게시판 관리", icon: <BoardIcon /> },
   { to: "/admin/seminars", label: "세미나 관리", icon: <SeminarIcon /> },
@@ -126,6 +127,7 @@ export default function AdminLayout() {
     );
   }
 
+  const bleed = pathname === "/admin/floorplan-map"; // the map runs edge to edge
   const current = NAV.find((item) => item.to === pathname || (!item.end && pathname.startsWith(item.to)));
   const renderItem = (item: (typeof NAV)[number]) => item.external ? (
     <a key={item.to} href={item.to} target="_blank" rel="noreferrer" className="admin__nav-item">
@@ -168,8 +170,8 @@ export default function AdminLayout() {
           <label className="admin__global-search"><FiSearch /><input type="search" placeholder="Search..." aria-label="관리자 전체 검색" /></label>
           <div className="admin__top-actions"><button type="button" aria-label="알림"><FiBell /><i>2</i></button><button type="button" aria-label="설정"><FiSettings /></button><span className="admin__avatar"><FiUser /></span></div>
         </header>
-        <main className="admin__main">
-          <div className="admin__breadcrumb"><span>INDEX Admin</span><b>/</b><strong>{current?.label ?? "대시보드"}</strong></div>
+        <main className={`admin__main${bleed ? " admin__main--bleed" : ""}`}>
+          {!bleed && <div className="admin__breadcrumb"><span>INDEX Admin</span><b>/</b><strong>{current?.label ?? "대시보드"}</strong></div>}
           <Outlet />
         </main>
       </div>

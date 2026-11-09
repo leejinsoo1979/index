@@ -25,3 +25,19 @@
 .fpr-list h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: #17181c; }
 .fpr-list h2 small { margin-left: 4px; font-size: 12px; font-weight: 500; color: #6b7280; }
 @media (max-width: 900px) { .fpr-editor { grid-template-columns: 1fr; } }
+.fpr-canvas.is-mirrored img, .fpr-canvas.is-mirrored svg { transform: scaleX(-1); }
+.fpr-survey { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #e6e8ee; border-radius: 10px; background: #fafbfc; }
+.fpr-survey h3 { margin: 0; font-size: 13.5px; font-weight: 700; color: #17181c; }
+.fpr-survey input[type="file"] { font-size: 12px; }
+.fpr-survey__preview { display: block; width: 100%; border: 1px solid #e6e8ee; border-radius: 8px; background: #fff; }
+.fpr-survey a { color: #4f6bf6; }
+
+/* 평면도 찾기 (/admin/floorplan-map): edge to edge under the top bar. */
+.fpf { display: flex; flex-direction: column; height: 100%; }
+.fpf__bar { display: flex; flex: none; align-items: center; gap: 8px; padding: 10px 14px; overflow-x: auto; border-bottom: 1px solid #e6e8ee; background: #fff; }
+.fpf__bar form { display: flex; flex: none; gap: 8px; }
+.fpf__bar input { width: min(340px, 56vw); height: 38px; padding: 0 14px; border: 1px solid #dcdfe7; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; color: #17181c; }
+.fpf__error { flex: none; font-size: 13px; color: #b42318; }
+.fpf__result { flex: none; white-space: nowrap; }
+.fpf__map { position: relative; flex: 1; min-height: 0; }
+.fpr-search a.admin-btn { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }

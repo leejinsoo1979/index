@@ -30,7 +30,7 @@ const hmac = (key: string | Buffer, value: string) => createHmac("sha256", key).
 const signingKey = (secret: string, day: string) => hmac(hmac(hmac(hmac(`AWS4${secret}`, day), "auto"), "s3"), "aws4_request");
 const amzDate = () => new Date().toISOString().replace(/[-:]|\.\d{3}/g, "");
 
-async function r2(method: "GET" | "PUT", key: string, body?: Buffer | string, contentType?: string) {
+async function r2(method: "GET" | "PUT" | "DELETE", key: string, body?: Buffer | string, contentType?: string) {
   const { account, accessKey, secret, bucket } = env();
   const host = `${account}.r2.cloudflarestorage.com`;
   const path = `/${bucket}/${key}`;
@@ -54,11 +54,28 @@ async function r2(method: "GET" | "PUT", key: string, body?: Buffer | string, co
   });
 }
 
-/** Signed GET URL for one plan image (15 minutes). */
-export function floorPlanImageUrl(id: string, expires = 900): string {
+/** A surveyed drawing an admin registered in place of the collected image. */
+export type VerifiedPlan = { planId: string; image: string; pdf: string | null; width: number; height: number; note: string; fileName: string; uploadedBy: string; uploadedAt: string };
+
+export async function readVerified(id: string): Promise<VerifiedPlan | null> {
+  const stored = await r2("GET", `verified/${id}.json`);
+  return stored.ok ? ((await stored.json()) as VerifiedPlan) : null;
+}
+
+const imageKeyOf = (id: string, verified: VerifiedPlan | null) => verified?.image ?? `plans/${id}.jpg`;
+
+/** Signed GET URL for the drawing currently in use (15 minutes). */
+export async function floorPlanImageUrl(id: string): Promise<{ url: string; verified: VerifiedPlan | null }> {
+  const verified = await readVerified(id).catch(() => null);
+  return { url: signedUrl(imageKeyOf(id, verified)), verified };
+}
+
+export const signedFileUrl = (key: string) => signedUrl(key);
+
+function signedUrl(key: string, expires = 900): string {
   const { account, accessKey, secret, bucket } = env();
   const host = `${account}.r2.cloudflarestorage.com`;
-  const path = `/${bucket}/plans/${id}.jpg`;
+  const path = `/${bucket}/${key}`;
   const amz = amzDate();
   const day = amz.slice(0, 8);
   const scope = `${day}/auto/s3/aws4_request`;
@@ -82,6 +99,26 @@ async function loadIndex(): Promise<FloorPlanIndex> {
   const index = (await response.json()) as FloorPlanIndex;
   cached = { at: Date.now(), index };
   return index;
+}
+
+type MapSpot = [kbId: string, lat: number, lng: number, name: string, region: number, dong: string, count: number];
+export type FloorPlanMapData = { regions: string[]; spots: MapSpot[]; total: number };
+
+let cachedMap: { at: number; data: FloorPlanMapData } | null = null;
+/** Every complex with coordinates (index/geo.json, built by scripts/floorplans-geocode.mjs --build). */
+export async function floorPlanMap(): Promise<FloorPlanMapData> {
+  if (cachedMap && Date.now() - cachedMap.at < 3_600_000) return cachedMap.data;
+  const [index, response] = await Promise.all([loadIndex(), r2("GET", "index/geo.json")]);
+  if (!response.ok) throw Object.assign(new Error("지도 위치 정보가 아직 준비되지 않았습니다."), { status: 503 });
+  const geo = (await response.json()) as { spots: [string, number, number][] };
+  const rows = new Map(index.danji.map((row) => [row[3], row]));
+  const spots = geo.spots.flatMap(([kbId, lat, lng]): MapSpot[] => {
+    const row = rows.get(kbId);
+    return row ? [[kbId, lat, lng, row[1], row[0], row[2], row[4].length]] : [];
+  });
+  const data = { regions: index.regions, spots, total: index.danji.length };
+  cachedMap = { at: Date.now(), data };
+  return data;
 }
 
 const normalize = (value: string) =>
@@ -143,11 +180,13 @@ function reconcileCounts(facts: PlanFacts): PlanFacts {
 }
 
 /** What the plan visibly states, read once and cached so later members cost nothing. */
-async function readPlanFacts(id: string): Promise<PlanFacts | null> {
-  const stored = await r2("GET", `analysis/v2/${id}.json`);
+async function readPlanFacts(id: string, verified: VerifiedPlan | null): Promise<PlanFacts | null> {
+  // A replaced drawing gets its own reading.
+  const cacheKey = verified ? `analysis/v2/${id}-${Date.parse(verified.uploadedAt)}.json` : `analysis/v2/${id}.json`;
+  const stored = await r2("GET", cacheKey);
   if (stored.ok) return reconcileCounts((await stored.json()) as PlanFacts);
   if (!process.env.DEEPSEEK_API_KEY) return null;
-  const image = await r2("GET", `plans/${id}.jpg`);
+  const image = await r2("GET", imageKeyOf(id, verified));
   if (!image.ok) return null;
   const data = Buffer.from(await image.arrayBuffer()).toString("base64");
   const { text } = await generateText({
@@ -156,7 +195,7 @@ async function readPlanFacts(id: string): Promise<PlanFacts | null> {
     messages: [{ role: "user", content: [{ type: "text", text: FACTS_PROMPT }, { type: "file", mediaType: "image/jpeg", data }] }],
   });
   const facts = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim()) as PlanFacts;
-  await r2("PUT", `analysis/v2/${id}.json`, JSON.stringify(facts), "application/json").catch(() => undefined);
+  await r2("PUT", cacheKey, JSON.stringify(facts), "application/json").catch(() => undefined);
   return reconcileCounts(facts);
 }
 
@@ -206,6 +245,54 @@ export async function saveWalls(id: string, input: { status?: unknown; walls?: u
   return record;
 }
 
+const planExists = async (id: string) => Boolean(await planLabel(id));
+
+/** Marks drawn on the old drawing no longer line up, so they go back to 초안 for a fresh review. */
+async function reopenWallReview(id: string, updatedBy: string): Promise<void> {
+  const current = await readWalls(id).catch(() => null);
+  if (current?.status === "approved") await saveWalls(id, { ...current, status: "draft" }, updatedBy);
+}
+
+export async function saveVerifiedImage(id: string, input: { image?: unknown; width?: unknown; height?: unknown; note?: unknown; fileName?: unknown }, uploadedBy: string): Promise<VerifiedPlan> {
+  if (!(await planExists(id))) throw Object.assign(new Error("도면을 찾지 못했습니다."), { status: 404 });
+  const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(input.image ?? ""));
+  const note = String(input.note ?? "").trim().slice(0, 300);
+  if (!match || match[1]!.length > 3_600_000) throw Object.assign(new Error("도면 이미지가 올바르지 않거나 너무 큽니다."), { status: 400 });
+  if (!note) throw Object.assign(new Error("실측자와 실측일을 입력해 주세요."), { status: 400 });
+  const bytes = Buffer.from(match[1]!, "base64");
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw Object.assign(new Error("JPEG 이미지가 아닙니다."), { status: 400 });
+  const stamp = Date.now();
+  const image = `verified/${id}-${stamp}.jpg`;
+  const saved = await r2("PUT", image, bytes, "image/jpeg");
+  if (!saved.ok) throw new Error(`저장하지 못했습니다 (${saved.status}).`);
+  const record: VerifiedPlan = { planId: id, image, pdf: null, width: Number(input.width) || 0, height: Number(input.height) || 0, note, fileName: String(input.fileName ?? "").slice(0, 200), uploadedBy, uploadedAt: new Date(stamp).toISOString() };
+  const written = await r2("PUT", `verified/${id}.json`, JSON.stringify(record), "application/json");
+  if (!written.ok) throw new Error(`저장하지 못했습니다 (${written.status}).`);
+  await reopenWallReview(id, uploadedBy);
+  return record;
+}
+
+export async function saveVerifiedPdf(id: string, base64: unknown): Promise<VerifiedPlan> {
+  const record = await readVerified(id);
+  if (!record) throw Object.assign(new Error("먼저 실측 도면을 등록해 주세요."), { status: 400 });
+  const text = String(base64 ?? "");
+  if (!text || text.length > 4_100_000 || !/^[A-Za-z0-9+/=]+$/.test(text)) throw Object.assign(new Error("PDF 파일이 올바르지 않거나 너무 큽니다."), { status: 400 });
+  const bytes = Buffer.from(text, "base64");
+  if (bytes.subarray(0, 4).toString() !== "%PDF") throw Object.assign(new Error("PDF 파일이 아닙니다."), { status: 400 });
+  const pdf = `verified/${id}-${Date.parse(record.uploadedAt)}.pdf`;
+  const saved = await r2("PUT", pdf, bytes, "application/pdf");
+  if (!saved.ok) throw new Error(`저장하지 못했습니다 (${saved.status}).`);
+  const next = { ...record, pdf };
+  await r2("PUT", `verified/${id}.json`, JSON.stringify(next), "application/json");
+  return next;
+}
+
+/** Back to the collected image. Files stay in the bucket; only the pointer is removed. */
+export async function removeVerified(id: string, updatedBy: string): Promise<void> {
+  await r2("DELETE", `verified/${id}.json`);
+  await reopenWallReview(id, updatedBy);
+}
+
 /** System-prompt block for the plan the member picked; null when the id is unknown. */
 export async function selectedFloorPlanContext(id: string, mirrored = false): Promise<string | null> {
   const index = await loadIndex();
@@ -213,7 +300,8 @@ export async function selectedFloorPlanContext(id: string, mirrored = false): Pr
     const plan = row[4].find((item) => item[0] === id);
     if (!plan) continue;
     const info = danjiInfo(index, row);
-    const facts = await readPlanFacts(id).catch((error: unknown) => {
+    const verified = await readVerified(id).catch(() => null);
+    const facts = await readPlanFacts(id, verified).catch((error: unknown) => {
       console.error("[floorplans] reading failed", error);
       return null;
     });
@@ -227,7 +315,8 @@ export async function selectedFloorPlanContext(id: string, mirrored = false): Pr
       walls?.status === "approved"
         ? `이 도면의 붉은 선은 협회 검수자(${walls.reviewer})가 ${walls.evidence}을(를) 근거로 표시한 내력벽이다. 표시되지 않은 벽은 확인되지 않은 벽이지 비내력벽이 아니다.`
         : "이 도면에는 검수된 내력벽 표시가 없다. 어느 벽이 내력벽인지 말하지 않는다.",
-      plan[5] === 1 ? "주의: 이 도면은 같은 단지의 면적이 다른 타입과 이미지가 같아 다른 타입의 도면일 수 있다. 답변 첫머리에 이 점을 알린다." : "",
+      verified ? `이 도면은 협회가 등록한 실측 도면이다 (${verified.note}).` : "",
+      !verified && plan[5] === 1 ? "주의: 이 도면은 같은 단지의 면적이 다른 타입과 이미지가 같아 다른 타입의 도면일 수 있다. 답변 첫머리에 이 점을 알린다." : "",
     ].filter(Boolean).join("\n");
   }
   return null;

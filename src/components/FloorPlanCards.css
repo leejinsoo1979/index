@@ -1,17 +1,21 @@
 /* Floor plan picker (INDEX AI and personal AI chats). Dark by default; light with the site's light theme. */
-.fp-plans, .fp-danji, .fp-picked {
+.fp-plans, .fp-danji, .fp-picked, .fp-map-open {
   --fp-surface: #181818; --fp-hover: #202020; --fp-line: rgba(255, 255, 255, .12); --fp-line-hot: rgba(255, 255, 255, .4);
   --fp-ink: #ededed; --fp-soft: rgba(255, 255, 255, .6); --fp-faint: rgba(255, 255, 255, .45); --fp-warn: #f2c46d;
   --fp-btn: rgba(255, 255, 255, .08); --fp-primary: #ededed; --fp-primary-ink: #111;
 }
-:root:not([data-app-theme="dark"]) :is(.fp-plans, .fp-danji, .fp-picked),
-.expert-conversation :is(.fp-plans, .fp-danji, .fp-picked) {
+:root:not([data-app-theme="dark"]) :is(.fp-plans, .fp-danji, .fp-picked, .fp-map-open),
+.expert-conversation :is(.fp-plans, .fp-danji, .fp-picked, .fp-map-open) {
   --fp-surface: #fff; --fp-hover: #f7f7f8; --fp-line: #e3e5e9; --fp-line-hot: #b9bdc6;
   --fp-ink: #16181d; --fp-soft: #6b7079; --fp-faint: #9a9fa8; --fp-warn: #a8670f;
   --fp-btn: #f1f2f4; --fp-primary: #16181d; --fp-primary-ink: #fff;
 }
 .fp-plans { margin-top: 14px; }
-.fp-plans__head { margin: 0 0 12px; font-size: 14px; color: var(--fp-soft) !important; }
+.fp-plans__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.fp-plans__head { margin: 0; font-size: 14px; color: var(--fp-soft) !important; }
+.fp-map-open { flex: none; height: 32px; padding: 0 12px; border: 1px solid var(--fp-line); border-radius: 10px; background: var(--fp-btn); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--fp-ink); cursor: pointer; }
+.fp-map-open:disabled { opacity: .5; cursor: default; }
+.fp-danji + .fp-map-open { margin-top: 8px; }
 .fp-plans__head strong { color: var(--fp-ink) !important; font-weight: 650; }
 /* Two large cards per row; an odd last card sits centred so the grid stays symmetrical. */
 .fp-plans__grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
@@ -61,3 +65,4 @@
 .fp-card__verified { align-self: flex-start; margin: 2px 4px 0; padding: 2px 8px; border-radius: 999px; background: rgba(224, 36, 94, .12); font-size: 12px; font-weight: 600; color: #d11a55; }
 .fp-walls-note { margin: 8px 0 0; font-size: 12px; line-height: 1.55; color: var(--fp-soft, #6b7079); }
 .fp-walls-note b { color: #d11a55; font-weight: 650; }
+.fp-card__surveyed { align-self: flex-start; margin: 2px 4px 0; padding: 2px 8px; border-radius: 999px; background: var(--fp-btn); font-size: 12px; font-weight: 600; color: var(--fp-ink); }

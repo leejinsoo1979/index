@@ -2,6 +2,7 @@
  * Upload the apartment floor plan images to the private R2 bucket `floorplan`.
  * Usage: node scripts/floorplans-upload.mjs <apartment-plans dir> [--filter 단지명] [--dry-run]
  *        node scripts/floorplans-upload.mjs --put-index <index.json>
+ *        node scripts/floorplans-upload.mjs --put-geo <geo.json>
  * Reads FLOORPLAN_R2_* and R2_ACCOUNT_ID from .env.local. Object key: plans/<numeric id>.jpg.
  * Resumable: finished ids are appended to ~/.index-floorplans/uploaded.txt (outside the repo).
  */
@@ -11,8 +12,9 @@ import { join } from 'node:path';
 import { createHash, createHmac } from 'node:crypto';
 
 const args = process.argv.slice(2);
-const indexFile = args.includes('--put-index') ? args[args.indexOf('--put-index') + 1] : '';
-const root = args.find((a, i) => !a.startsWith('--') && !['--filter', '--put-index'].includes(args[i - 1]));
+const indexFlag = args.includes('--put-geo') ? '--put-geo' : '--put-index';
+const indexFile = args.includes(indexFlag) ? args[args.indexOf(indexFlag) + 1] : '';
+const root = args.find((a, i) => !a.startsWith('--') && !['--filter', '--put-index', '--put-geo'].includes(args[i - 1]));
 if (!root && !indexFile) throw new Error('apartment-plans 폴더 경로가 필요합니다.');
 const filter = args.includes('--filter') ? args[args.indexOf('--filter') + 1].normalize('NFC') : '';
 const dryRun = args.includes('--dry-run');
@@ -39,7 +41,7 @@ async function s3(method, path, body, contentType = 'image/jpeg') {
 }
 
 if (indexFile) {
-  const r = await s3('PUT', `/${bucket}/index/index.json`, readFileSync(indexFile), 'application/json');
+  const r = await s3('PUT', `/${bucket}/index/${indexFlag === '--put-geo' ? 'geo' : 'index'}.json`, readFileSync(indexFile), 'application/json');
   console.log('index upload', r.status);
   process.exit(r.ok ? 0 : 1);
 }
