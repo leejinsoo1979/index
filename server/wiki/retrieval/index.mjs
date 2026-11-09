@@ -18,7 +18,9 @@ import { join } from 'node:path';
 export const RETRIEVAL_VERSION = 'index-retrieval-v5';
 // Wiki figures served by the site (public/wiki-assets). Kept as markdown in stored chunks so
 // answers can show them; stripped to "(그림: …)" for indexing and for the passage text.
-const SITE_IMAGE = /!\[([^\]]*)\]\((\/wiki-assets\/[^)\s]+)\)/g;
+// Also the R2 bucket that holds page images of large originals (index-wiki).
+const SITE_IMAGE = /!\[([^\]]*)\]\(((?:\/wiki-assets\/|https:\/\/index-wiki\.uable\.co\.kr\/)[^)\s]+)\)/g;
+const isSiteImage = (url) => url.startsWith('/wiki-assets/') || url.startsWith('https://index-wiki.uable.co.kr/');
 const withoutImages = (text) => text.replace(SITE_IMAGE, '(그림: $1)');
 const CHUNK_MAX = 900;
 const CHUNK_MIN = 220;
@@ -102,7 +104,7 @@ function pack(paragraphs) {
 export function chunkMarkdown(content) {
   const clean = content
     .replace(/```index-process[\s\S]*?```/g, '')
-    .replace(/!\[([^\]]*)\]\(([^)\s]*)\)/g, (m, alt, url) => (url.startsWith('/wiki-assets/') ? `\n\n![${alt}](${url})\n\n` : `(그림: ${alt})`))
+    .replace(/!\[([^\]]*)\]\(([^)\s]*)\)/g, (m, alt, url) => (isSiteImage(url) ? `\n\n![${alt}](${url})\n\n` : `(그림: ${alt})`))
     .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1');
   const sections = [];
@@ -275,6 +277,12 @@ export async function ensureFresh(store) {
 /** Figures in this passage, else the first figure elsewhere in the same document. */
 function figuresFor(db, r) {
   const own = [...r.text.matchAll(new RegExp(SITE_IMAGE))];
+  // A guide's source text and its wiki page share page headings ("14쪽"); the page holds that page's image.
+  if (!own.length && r.kind === 'source' && /^\d+쪽$/.test(r.heading || '')) {
+    const twin = db.prepare('SELECT text FROM rt_chunks WHERE doc_key=? AND heading=?').get(`page:source-${r.ref_id.slice(0, 32)}`, r.heading);
+    const images = twin ? [...twin.text.matchAll(new RegExp(SITE_IMAGE))] : [];
+    if (images.length) return images.slice(0, 1).map(m => ({ alt: m[1] || r.heading || r.title, src: m[2] }));
+  }
   const found = own.length ? own : (() => {
     const docKey = r.chunk_id.slice(0, r.chunk_id.lastIndexOf('#'));
     const row = db.prepare("SELECT text FROM rt_chunks WHERE doc_key=? AND text LIKE '%](/wiki-assets/%' ORDER BY ord LIMIT 1").get(docKey);

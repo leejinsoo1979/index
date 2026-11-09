@@ -184,11 +184,11 @@ function MemoryIcon() {
 
 /**
  * Answers are markdown. Images are shown only from the INDEX wiki's own figures
- * (/wiki-assets/…); any other image URL the model writes is shown as its caption.
+ * (/wiki-assets/…, or the index-wiki R2 bucket); any other image URL the model writes is shown as its caption.
  */
 const ANSWER_COMPONENTS: Components = {
   img: ({ src, alt }) =>
-    typeof src === "string" && src.startsWith("/wiki-assets/") ? (
+    typeof src === "string" && (src.startsWith("/wiki-assets/") || src.startsWith("https://index-wiki.uable.co.kr/")) ? (
       <figure className="home-chat__figure">
         <a href={src} target="_blank" rel="noreferrer">
           <img src={src} alt={alt ?? ""} loading="lazy" />

@@ -158,7 +158,7 @@ async function retrieveFromKnowledgeServer(query: string, limit: number): Promis
       score: c.score,
       excerpt: c.text,
       status: c.status,
-      images: (c.images ?? []).filter((img) => img.src.startsWith("/wiki-assets/")),
+      images: (c.images ?? []).filter((img) => img.src.startsWith("/wiki-assets/") || img.src.startsWith("https://index-wiki.uable.co.kr/")),
     }));
   } catch {
     return null;

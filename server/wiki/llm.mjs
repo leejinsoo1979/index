@@ -14,7 +14,7 @@ export async function complete(messages, json = false, signal) {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
     body: JSON.stringify(native
       ? { model, messages, stream: false, think: false, options: { temperature: 0.15, num_predict: 3500, num_ctx: 32768 }, ...(json ? { format: 'json' } : {}) }
-      : { model, messages, stream: false, temperature: 0.15, max_tokens: 6000, ...(json ? { response_format: { type: 'json_object' } } : {}) }),
+      : { model, messages, stream: false, temperature: 0.15, max_tokens: 6000, ...(endpoint.hostname.endsWith('deepseek.com') ? { thinking: { type: 'disabled' } } : {}), ...(json ? { response_format: { type: 'json_object' } } : {}) }),
     signal: signal ? AbortSignal.any([AbortSignal.timeout(180000), signal]) : AbortSignal.timeout(180000),
   });
   if (!response.ok) throw new Error(`INDEX AI 응답 오류 (${response.status}). 원본과 작업은 보존되어 있습니다.`);
