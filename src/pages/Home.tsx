@@ -227,6 +227,8 @@ export default function Home() {
   const [quota, setQuota] = useState<{ limit: number | null; remaining: number | null } | null>(null);
   const [loginPrompt, setLoginPrompt] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  /** "저장된 기억" appears only once the server has a Mem0 key. */
+  const [memoryAvailable, setMemoryAvailable] = useState(false);
   const [memories, setMemories] = useState<StoredMemory[]>([]);
   const [memoriesLoading, setMemoriesLoading] = useState(false);
   const [memoryError, setMemoryError] = useState("");
@@ -276,8 +278,11 @@ export default function Home() {
     void (async () => {
       try {
         const response = await fetch("/api/chat-quota", { headers: await authHeaders() });
-        const payload = await response.json() as { limit?: number | null; remaining?: number | null };
-        if (!cancelled && response.ok) setQuota({ limit: payload.limit ?? null, remaining: payload.remaining ?? null });
+        const payload = await response.json() as { limit?: number | null; remaining?: number | null; memory?: boolean };
+        if (!cancelled && response.ok) {
+          setQuota({ limit: payload.limit ?? null, remaining: payload.remaining ?? null });
+          setMemoryAvailable(payload.memory === true);
+        }
       } catch {
         // quota display is best-effort; the server still enforces the limit
       }
@@ -765,9 +770,11 @@ export default function Home() {
             <button className="home-chat__new" type="button" onClick={startNewChat}>
               <PlusIcon /> 새 대화
             </button>
-            <button className="home-chat__memory-button" type="button" onClick={() => void loadMemories()}>
-              <MemoryIcon /> 저장된 기억
-            </button>
+            {memoryAvailable && (
+              <button className="home-chat__memory-button" type="button" onClick={() => void loadMemories()}>
+                <MemoryIcon /> 저장된 기억
+              </button>
+            )}
 
             <nav className="home-chat__history" aria-label="대화 기록">
               {conversations.length === 0 ? (

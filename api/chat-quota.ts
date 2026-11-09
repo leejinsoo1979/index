@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getChatQuota } from "./_chatQuota.js";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 
-/** GET: the signed-in member's INDEX AI question quota for today. */
+/** GET: the signed-in member's INDEX AI question quota for today, and whether long-term memory is available. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).json(await getChatQuota(user));
+    res.status(200).json({ ...(await getChatQuota(user)), memory: Boolean(process.env.MEM0_API_KEY?.trim()) });
   } catch (error) {
     console.error("[chat-quota]", error);
     res.status(500).json({ error: "질문 한도를 확인하지 못했습니다." });
