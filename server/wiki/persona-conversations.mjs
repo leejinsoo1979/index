@@ -7,16 +7,18 @@ const redact=s=>String(s).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[�
 /** Explicit owner review endpoints; member room APIs retain their existing isolation. */
 export class PersonalConversations{
   constructor(personas){this.p=personas;this.store=personas.store;this.db=personas.db;this.db.exec('CREATE TABLE IF NOT EXISTS expert_corrections(person_id TEXT NOT NULL,message_id TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(person_id,message_id));');}
+  /** Name and sign-in email once the member has chatted since this was added; older rooms stay anonymous until then. */
+  member(uid){const m=this.db.prepare('SELECT name,email FROM expert_members WHERE uid=?').get(uid);if(!m)return memberLabel(uid);return [m.name,m.email].filter(Boolean).join(' · ');}
   manage(personId,actor){const profile=this.p.profile(personId);this.p.manage(profile,actor);return profile;}
   room(personId,roomId,actor){this.manage(personId,actor);return this.db.prepare('SELECT * FROM expert_rooms WHERE id=? AND person_id=?').get(roomId,personId)??fail('이 지식 공간의 대화가 아닙니다.',404);}
   corrections(personId){return this.db.prepare('SELECT data FROM expert_corrections WHERE person_id=?').all(personId).map(unpack).filter(c=>!c.deletedAt);}
   rooms(personId,actor){
     this.manage(personId,actor);const corrections=this.corrections(personId);
-    return this.db.prepare('SELECT * FROM expert_rooms WHERE person_id=? ORDER BY updated_at DESC LIMIT 200').all(personId).map(r=>({id:r.id,title:r.title,updatedAt:r.updated_at,member:memberLabel(r.member_uid),messageCount:this.db.prepare('SELECT COUNT(*) n FROM expert_messages WHERE room_id=?').get(r.id).n,lastQuestion:unpack(this.db.prepare("SELECT data FROM expert_messages WHERE room_id=? AND role='user' ORDER BY rowid DESC LIMIT 1").get(r.id))?.content||'',correctedCount:corrections.filter(c=>c.roomId===r.id).length}));
+    return this.db.prepare('SELECT * FROM expert_rooms WHERE person_id=? ORDER BY updated_at DESC LIMIT 200').all(personId).map(r=>({id:r.id,title:r.title,updatedAt:r.updated_at,member:this.member(r.member_uid),messageCount:this.db.prepare('SELECT COUNT(*) n FROM expert_messages WHERE room_id=?').get(r.id).n,lastQuestion:unpack(this.db.prepare("SELECT data FROM expert_messages WHERE room_id=? AND role='user' ORDER BY rowid DESC LIMIT 1").get(r.id))?.content||'',correctedCount:corrections.filter(c=>c.roomId===r.id).length}));
   }
   view(personId,roomId,actor){
     const r=this.room(personId,roomId,actor),corrections=new Map(this.corrections(personId).map(c=>[c.messageId,c]));
-    return {id:r.id,title:r.title,updatedAt:r.updated_at,member:memberLabel(r.member_uid),messages:this.db.prepare('SELECT data FROM expert_messages WHERE room_id=? ORDER BY rowid').all(r.id).map(unpack).map(m=>({...m,...(corrections.has(m.id)?{correction:corrections.get(m.id)}:{})}))};
+    return {id:r.id,title:r.title,updatedAt:r.updated_at,member:this.member(r.member_uid),messages:this.db.prepare('SELECT data FROM expert_messages WHERE room_id=? ORDER BY rowid').all(r.id).map(unpack).map(m=>({...m,...(corrections.has(m.id)?{correction:corrections.get(m.id)}:{})}))};
   }
   correct(personId,body,actor){
     const profile=this.manage(personId,actor),r=this.room(personId,body.roomId,actor);

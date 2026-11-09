@@ -21,7 +21,8 @@ export class PersonaStore {
       CREATE TABLE IF NOT EXISTS expert_rooms(id TEXT PRIMARY KEY,member_uid TEXT NOT NULL,person_id TEXT NOT NULL,title TEXT NOT NULL,updated_at TEXT NOT NULL,pending_id TEXT,lease_until INTEGER);
       CREATE INDEX IF NOT EXISTS expert_room_member ON expert_rooms(member_uid,person_id,updated_at);
       CREATE TABLE IF NOT EXISTS expert_messages(id TEXT PRIMARY KEY,room_id TEXT NOT NULL,role TEXT NOT NULL,state TEXT NOT NULL,data TEXT NOT NULL);
-      CREATE INDEX IF NOT EXISTS expert_message_room ON expert_messages(room_id);`);
+      CREATE INDEX IF NOT EXISTS expert_message_room ON expert_messages(room_id);
+      CREATE TABLE IF NOT EXISTS expert_members(uid TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL,updated_at TEXT NOT NULL);`);
     this.db.prepare('INSERT OR IGNORE INTO expert_profiles VALUES(?,?)').run(BUILTIN.id,JSON.stringify(BUILTIN));
     this.searchIndex=new PersonalWikiSearch(store);
     this.conversations=new PersonalConversations(this);
@@ -31,6 +32,8 @@ export class PersonaStore {
   manage(p,actor){if(!this.canManage(p,actor))fail('본인에게 배정된 지식 공간만 관리할 수 있습니다.',403);}
   view(p,actor){if(!p.published&&!this.canManage(p,actor))fail('공개되지 않은 인물 공간입니다.',404);}
   requireMember(actor){if(!actor?.uid)fail('회원 로그인이 필요합니다.',401);}
+  /** Who is asking, for the owning executive's conversation log. Taken from the verified sign-in token. */
+  rememberMember(actor){const name=text(actor?.name,60),email=text(actor?.email,120);if(!actor?.uid||(!name&&!email))return;this.db.prepare('INSERT INTO expert_members VALUES(?,?,?,?) ON CONFLICT(uid) DO UPDATE SET name=excluded.name,email=excluded.email,updated_at=excluded.updated_at').run(actor.uid,name,email,new Date().toISOString());}
   pages(id){return this.db.prepare('SELECT data FROM expert_pages WHERE person_id=? ORDER BY rowid DESC').all(id).map(unpack);}
   directory(actor){return this.db.prepare('SELECT data FROM expert_profiles ORDER BY rowid').all().map(unpack).filter(p=>p.published||this.canManage(p,actor)).map(p=>publicProfile(p,this.pages(p.id),this.stylePack(p.id)?.version));}
   saveProfile(input,actor){
@@ -71,7 +74,7 @@ export class PersonaStore {
   }
   roomView(r,messages=false){return {id:r.id,personId:r.person_id,title:r.title,updatedAt:r.updated_at,...(messages?{messages:this.messages(r)}:{})};}
   createRoom(id,actor){
-    this.requireMember(actor);const p=this.profile(id);this.view(p,actor);
+    this.requireMember(actor);const p=this.profile(id);this.view(p,actor);this.rememberMember(actor);
     if(this.db.prepare('SELECT COUNT(*) n FROM expert_rooms WHERE member_uid=?').get(actor.uid).n>=200)fail('대화방은 200개까지 보관할 수 있습니다.');
     const r={id:randomUUID(),person_id:id,member_uid:actor.uid,title:'새 대화',updated_at:new Date().toISOString()};
     this.store.transaction(()=>{
@@ -108,7 +111,7 @@ export class PersonaStore {
   }
   begin(id,body,actor){
     const question=text(body.question,6000);if(!question)fail('질문을 입력해 주세요.');if(!safeId(body.requestId))fail('요청 식별자가 올바르지 않습니다.');
-    const r=this.room(id,actor),p=this.profile(r.person_id);
+    const r=this.room(id,actor),p=this.profile(r.person_id);this.rememberMember(actor);
     const previousQuestion=this.messages(r).filter(m=>m.role==='user').at(-1)?.content;
     const lookup=previousQuestion&&/^(그럼|그러면|그런데|근데|그건|그게|이건|아까|그거|그렇게)/.test(question)?previousQuestion+'\n'+question:question;
     const context=this.retrieve(p,lookup),at=new Date().toISOString();const requestId=body.requestId;
