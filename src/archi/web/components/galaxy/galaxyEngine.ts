@@ -89,7 +89,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
   // ------------------------------------------------------------------ state
   const S = { mode: 'boot', sel: null, preview: null, previewSrc: null, focus: null, spin: store.get('spin', !REDUCED), t0: performance.now() };
   const setMode = m => {
-    rootEl.classList.remove('m-overview', 'm-focus', 'm-read', 'booting');
+    rootEl.classList.remove('m-overview', 'm-focus', 'm-read', 'm-tree', 'booting');
     rootEl.classList.add('m-' + m);
   };
 
@@ -613,6 +613,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
   function parse() {
     const h = decodeURIComponent(location.hash.slice(1));
     if (!h || h === '/') return { mode: 'overview' };
+    if (h === '/tree') return { mode: 'tree' };
     if (h.startsWith('/read/')) return { mode: 'read', id: h.slice(6) };
     if (h.startsWith('/n/')) return { mode: 'focus', id: h.slice(3) };
     return { mode: 'overview' };
@@ -628,6 +629,14 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     S.mode = r.mode;
     setMode(r.mode);
     closeContents();
+    rootEl.querySelectorAll('[data-view]').forEach(a => a.classList.toggle('on', a.dataset.view === (r.mode === 'tree' ? 'tree' : 'map')));
+    // the tree covers the map, so the 3D scene rests while it is open
+    if (r.mode === 'tree') {
+      if (prevMode !== 'tree') { select(null); flight = null; controls.autoRotate = false; graph.pauseAnimation(); }
+      renderTree();
+      return;
+    }
+    if (prevMode === 'tree') graph.resumeAnimation();
     if (r.mode === 'overview') {
       select(null);
       fly(homeCenter, homeDistance, { ms: prevMode === 'boot' ? 3200 : 1900, spin: prevMode === 'boot' ? 1.7 : .9, phi: 1.2 });
@@ -640,6 +649,51 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     else resumeSpin();
   }
   addEventListener('hashchange', route, sig);
+
+  // ------------------------------------------------------------------ tree
+  // Everything on one page, annotated: every line opens its document, term or tool.
+  const treeBox = $('#gx-tree');
+  let treeDone = false;
+  const treeRow = (id, note) => {
+    const n = byId.get(id); if (!n) return '';
+    return `<button type="button" class="r" data-t="${esc(id)}"><b>${esc(n.label)}</b>${note ? `<span class="c"># ${esc(note)}</span>` : ''}</button>`;
+  };
+  const treeBranch = (name, note, kids, open) =>
+    `<details${open ? ' open' : ''}><summary><b>${esc(name)}/</b><span class="c"># ${esc(note)}</span></summary><div class="kids">${kids}</div></details>`;
+  function renderTree() {
+    if (treeDone) return;
+    treeDone = true;
+    const cards = PATHS.map(k => {
+      const col = byId.get('col:' + k), secs = sectionsOf(k);
+      if (!col || !secs.length) return '';
+      const total = secs.reduce((a, s) => a + byId.get(s).pages.length, 0);
+      const kids = secs.map(sid => {
+        const sec = byId.get(sid);
+        return treeBranch(`${sec.badge} ${sec.label}`, `문서 ${sec.pages.length}건`, sec.pages.map(id => treeRow(id, byId.get(id).desc)).join(''), false);
+      }).join('');
+      return `<section class="sec" style="--dot:var(--c-${k})">${treeBranch(col.label, `${col.desc} 문서 ${total}건`, kids, true)}</section>`;
+    });
+    const terms = nodes.filter(n => n.type === 'term').sort((a, b) => b.inpages.length - a.inpages.length);
+    if (terms.length) cards.push(`<section class="sec" style="--dot:var(--c-term)">${treeBranch('용어', `여러 문서가 함께 다루는 주제어 ${terms.length}개`, terms.map(n => treeRow(n.id, /개 문서에서 다루는 주제입니다\.$/.test(n.desc) ? `문서 ${n.inpages.length}건` : `문서 ${n.inpages.length}건 · ${n.desc}`)).join(''), true)}</section>`);
+    const apps = nodes.filter(n => n.type === 'app');
+    if (apps.length) cards.push(`<section class="sec" style="--dot:var(--c-tool)">${treeBranch('AI 도구', `INDEX Apps ${apps.length}개`, apps.map(n => treeRow(n.id, n.desc)).join(''), true)}</section>`);
+    const st = G.stats;
+    treeBox.innerHTML = `<div class="wrap"><h1>${host.owner ? `${esc(host.owner)}의 전체 지식 트리` : 'INDEX 전체 지식 트리'}</h1>` +
+      `<p class="lede">지식 전체를 한 페이지에 설명과 함께 펼쳤습니다. 모든 줄이 링크입니다. 문서는 리더로, AI 도구는 Apps로 열립니다. 가지를 누르면 접힙니다.</p>` +
+      `<div class="tctl"><button type="button" data-all="1">모두 펼치기</button><button type="button" data-all="0">모두 접기</button></div>` +
+      `<div class="cols">${cards.join('')}</div>` +
+      `<p class="counts"><span>문서 <b>${fmt(st.pages)}</b></span><span>분야 <b>${fmt(st.sections)}</b></span><span>용어 <b>${fmt(st.terms)}</b></span><span>AI 도구 <b>${fmt(st.tools)}</b></span><span>연결 <b>${fmt(st.edges)}</b></span></p></div>`;
+  }
+  treeBox.addEventListener('click', e => {
+    const all = e.target.closest('[data-all]');
+    if (all) { treeBox.querySelectorAll('details').forEach(d => { d.open = all.dataset.all === '1'; }); return; }
+    const t = e.target.closest('[data-t]');
+    if (!t) return;
+    const n = byId.get(t.dataset.t);
+    if (n.type === 'page') return read(n.id);
+    if (n.type === 'app') return host.openTool(n.url);
+    go(n.id);
+  });
 
   // ------------------------------------------------------------------ info panel
   const info = $('#gx-info');
@@ -907,7 +961,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
         return `<div class="cs${open ? ' open' : ''}" style="--dot:var(--c-${col})"><button data-sec="${esc(sid)}"><span class="k">${esc(s.badge)}</span>${esc(s.label)}<span class="n">${s.pages.length}</span></button><ol>` +
           s.pages.map(pid => `<li><button data-page="${esc(pid)}" data-node="${esc(pid)}" class="${pid === cur ? 'cur' : ''}">${esc(byId.get(pid).label)}</button></li>`).join('') + '</ol></div>';
       }).join('') + '</div>';
-    $('#gx-c-body').innerHTML = PATHS.map(block).join('');
+    $('#gx-c-body').innerHTML = `<a class="ctree" href="#/tree">전체 트리로 펼쳐 보기 &rarr;</a>` + PATHS.map(block).join('');
   }
   function openContents() { renderContents(); rootEl.classList.add('c-open'); cBtn.setAttribute('aria-expanded', 'true'); }
   function closeContents() { rootEl.classList.remove('c-open'); cBtn.setAttribute('aria-expanded', 'false'); }
@@ -982,6 +1036,7 @@ export function mountGalaxy(rootEl: HTMLElement, G: GalaxyGraph, PAGES: GalaxyPa
     if (e.key === '/') { e.preventDefault(); q.focus(); return; }
     if (e.key === 'Escape') {
       if (rootEl.classList.contains('c-open')) return closeContents();
+      if (S.mode === 'tree') return go('root');
       if (S.mode === 'read' && closeMedia()) return;
       if (S.mode === 'read') return go(S.sel.id);
       if (S.mode === 'focus') return go('root');

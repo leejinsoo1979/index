@@ -354,3 +354,33 @@
 .sbos .rmedia-frame.is-page iframe{height:56vh;background:#fff}
 .sbos .rmedia-note{padding:8px 24px 10px;font:11.5px/1.5 var(--mono);color:var(--faint)}
 .sbos .prose a.ext{cursor:pointer}
+
+/* the full tree (#/tree): the whole knowledge base on one annotated page */
+.sbos #gx-tree{display:none;position:fixed;z-index:9;top:66px;left:0;right:0;bottom:0;overflow:auto;font:13px/1.75 var(--mono);color:var(--ink);scrollbar-width:thin}
+.sbos.m-tree #gx-tree{display:block}
+.sbos.m-tree #gx-stage canvas,.sbos.m-tree #gx-labels,.sbos.m-tree #gx-ring,.sbos.m-tree .dock{visibility:hidden}
+.sbos #gx-tree .wrap{max-width:1240px;margin:0 auto;padding:26px 22px 60px}
+.sbos #gx-tree h1{font:700 27px/1.2 var(--serif);letter-spacing:-.02em;margin-bottom:8px}
+.sbos #gx-tree .lede{color:var(--soft);margin-bottom:14px;max-width:72ch}
+.sbos .tctl{display:flex;gap:8px;margin-bottom:16px}
+.sbos .tctl button{font:12px/1 var(--mono);color:var(--soft);background:var(--card);border:var(--edge);border-radius:99px;padding:7px 13px}
+.sbos .tctl button:hover{border-color:var(--accent);color:var(--accent)}
+.sbos #gx-tree .cols{columns:1;column-gap:36px}
+@media (min-width:1080px){.sbos #gx-tree .cols{columns:2}}
+.sbos #gx-tree .sec{break-inside:avoid;margin-bottom:14px;background:var(--card);border:var(--edge);border-radius:8px;padding:10px 14px}
+.sbos #gx-tree summary{cursor:pointer;list-style:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbos #gx-tree summary::-webkit-details-marker{display:none}
+.sbos #gx-tree summary::before{content:"\25B8";color:var(--faint);margin-right:7px;display:inline-block;transition:transform .12s}
+.sbos #gx-tree details[open]>summary::before{transform:rotate(90deg)}
+.sbos #gx-tree summary b{color:var(--accent);font-weight:700}
+.sbos #gx-tree .sec>details>summary b{color:var(--dot)}
+.sbos #gx-tree .kids{margin-left:4px;padding-left:14px;border-left:var(--edge)}
+.sbos #gx-tree .kids details{margin:1px 0}
+.sbos #gx-tree .r{display:block;width:100%;text-align:left;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbos #gx-tree .r b{font-weight:400;color:var(--accent)}
+.sbos #gx-tree .r:hover b{text-decoration:underline;text-underline-offset:3px}
+.sbos #gx-tree .c{color:var(--faint);margin-left:10px;font-size:12px}
+.sbos #gx-tree .counts{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:26px;padding-top:12px;border-top:var(--edge);color:var(--soft)}
+.sbos #gx-tree .counts b{color:var(--ink);font-weight:600}
+.sbos .links a.on{color:var(--ink);font-weight:600}
+.sbos .ctree{display:block;padding:8px 6px 2px;font:12.5px/1.4 var(--mono)}

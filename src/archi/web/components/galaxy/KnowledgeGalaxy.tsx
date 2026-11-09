@@ -64,7 +64,7 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
     return () => {
       cancelled = true;
       destroy?.();
-      el.classList.remove('m-overview', 'm-focus', 'm-read', 'c-open');
+      el.classList.remove('m-overview', 'm-focus', 'm-read', 'm-tree', 'c-open');
       el.classList.add('booting');
       const labels = el.querySelector('#gx-labels');
       if (labels) labels.innerHTML = '';
@@ -90,6 +90,8 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
         </div>
         <button className="tbtn tico" id="gx-theme" aria-label="밝은·어두운 화면 전환" aria-pressed="true">&#9790;</button>
         <nav className="links">
+          <a href="#/" data-view="map">지도</a>
+          <a href="#/tree" data-view="tree">트리</a>
           {links!.map((l) => <a key={l.key} href="#" data-nav={l.key}>{l.label}</a>)}
         </nav>
       </header>
@@ -123,6 +125,8 @@ export default function KnowledgeGalaxy({ pages, onOpenPage, onOpenTool, onNav, 
         </div>
         <div className="rscroll" id="gx-r-scroll"><article className="prose" id="gx-r-body" /></div>
       </aside>
+
+      <main id="gx-tree" aria-label="전체 지식 트리" />
 
       <aside id="gx-contents" aria-label="목차"><div className="cin" id="gx-c-body" /></aside>
 
