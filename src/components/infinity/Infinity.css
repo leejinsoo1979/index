@@ -1,0 +1,36 @@
+/* World: a 1000 px container so text sized in page units comes out in world pixels; everything is placed in pixels around it. */
+.ib-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.ib-world { position: relative; width: 1000px; height: 1000px; container-type: size; }
+.ib-frame { position: absolute; box-sizing: border-box; }
+.ib-frame--circle { border-radius: 50%; }
+.ib-frame--rect { border-radius: 6px; }
+.ib-el { position: absolute; }
+.ib-el .fb-el__in { width: 100%; height: 100%; }
+
+/* Viewer */
+.ibv { position: fixed; inset: 0; overflow: hidden; touch-action: none; user-select: none; }
+.ibv__bar { position: absolute; left: 50%; bottom: 18px; z-index: 6; display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-radius: 12px; background: rgba(0, 0, 0, .5); color: #fff; transform: translateX(-50%); backdrop-filter: blur(10px); }
+.ibv__bar button { display: grid; place-items: center; height: 34px; min-width: 34px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; }
+.ibv__bar button:hover:not(:disabled) { background: rgba(255, 255, 255, .16); }
+.ibv__bar button:disabled { opacity: .35; cursor: default; }
+.ibv__count { min-width: 64px; font-size: 13px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.ibv__progress { position: absolute; left: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .55); transition: width .4s ease; }
+.ib-backdrop { position: absolute; inset: 0; transform-origin: 50% 50%; transform: scale(1.12); transition: transform .12s linear; pointer-events: none; }
+
+/* PDF export: one 16:9 page per stop. */
+.ibp { display: grid; gap: 24px; justify-content: center; padding: 24px; background: #e9ebef; }
+.ibp-page { position: relative; width: 1600px; height: 900px; overflow: hidden; break-after: page; }
+@media print {
+  @page { size: 1600px 900px; margin: 0; }
+  .ibp { display: block; padding: 0; background: none; }
+  .ibp-page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fbv-adminbar { display: none !important; }
+}
+.ib-el img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+
+/* 타이핑 연출 */
+.ib-type { position: relative; width: 100%; height: 100%; }
+.ib-type__ghost { visibility: hidden; width: 100%; height: 100%; }
+.ib-type__live { position: absolute; inset: 0; }
+.ib-type.is-typing .ib-type__live .fb-text::after { content: ""; display: inline-block; width: .08em; height: 1em; margin-left: .06em; vertical-align: -.12em; background: currentColor; animation: ib-caret .8s steps(1) infinite; }
+@keyframes ib-caret { 50% { opacity: 0; } }

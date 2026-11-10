@@ -3,9 +3,9 @@
  * settings and click actions on the right. The book is autosaved; /book/{id} is what readers get.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronFirst, ChevronLast, CircleEllipsis, CirclePlay, CloudCheck, CloudUpload, FileText, Image as ImageIcon, LayoutDashboard, Link2, Music, Shapes, Sparkles, Type } from "lucide-react";
-import { FiBookOpen, FiChevronLeft, FiChevronRight, FiCopy, FiExternalLink, FiLayers, FiMenu, FiMousePointer, FiPlay, FiRotateCcw, FiRotateCw } from "react-icons/fi";
+import { FiArrowLeft, FiBookOpen, FiChevronLeft, FiChevronRight, FiCopy, FiExternalLink, FiLayers, FiMenu, FiMousePointer, FiPlay, FiRotateCcw, FiRotateCw } from "react-icons/fi";
 import { BookProvider } from "../../../components/flipbook/BookPageView";
 import { BookPopup, useBookRuntime } from "../../../components/flipbook/BookRuntime";
 import PaperBook, { type PaperBookControls } from "../../../components/flipbook/PaperBook";
@@ -19,6 +19,7 @@ import { Inspector, elementName } from "./BookEditorInspector";
 import { LeftPanel, type PanelId } from "./BookEditorPanels";
 import { useBookEditor } from "./useBookEditor";
 import "./BookEditor.css";
+import "./BookEditorExit.css";
 
 const SAVE_TEXT = { saved: "저장됨", dirty: "저장 대기", saving: "저장 중…", error: "저장 실패" } as const;
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA"].includes(target.tagName));
@@ -40,6 +41,7 @@ const RAIL: { id: RailPanel | "link"; label: string; icon: ReactNode }[] = [
 const timeText = (time: number | null) => (time ? new Date(time).toLocaleTimeString("ko-KR", { hour12: false }) : "");
 
 export default function BookEditor() {
+  const navigate = useNavigate();
   const { id = "" } = useParams();
   const ed = useBookEditor(id);
   const { book, pageIndex, selectedId } = ed;
@@ -62,6 +64,17 @@ export default function BookEditor() {
   }, [turning]);
   const [menu, setMenu] = useState<"file" | "share" | "layers" | null>(null);
   const [copied, setCopied] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const leaveEditor = async () => {
+    if (leaving) return;
+    setLeaving(true);
+    const saved = await ed.flush();
+    if (saved) navigate("/admin/books");
+    else {
+      setLeaving(false);
+      ed.setNotice("저장하지 못했습니다. 연결을 확인하고 다시 나가기를 눌러 주세요.");
+    }
+  };
   const stage = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ width: 0, height: 0 });
 
@@ -184,10 +197,11 @@ export default function BookEditor() {
     <BookProvider book={book} editing>
     <div className="be" onPointerDown={(event) => { if (menu && !(event.target as HTMLElement).closest(".be-pop, .be-popbtn")) setMenu(null); }}>
       <header className="be-top">
+        <button type="button" className="be-exit" aria-label="책 목록으로 나가기" title="저장 후 책 목록으로 나가기" disabled={leaving} onClick={() => void leaveEditor()}><FiArrowLeft /><span>{leaving ? "저장 중…" : "목록으로"}</span></button>
         <button type="button" className="be-top__icon be-popbtn" aria-label="메뉴" onClick={() => setMenu(menu === "file" ? null : "file")}><FiMenu /></button>
         {menu === "file" && (
           <div className="be-pop be-pop--file">
-            <Link to="/admin/books">책 목록으로</Link>
+            <button type="button" className="be-file-exit" disabled={leaving} onClick={() => void leaveEditor()}>책 목록으로 나가기</button>
             <a href={`/book/${book.id}`} target="_blank" rel="noreferrer" onClick={() => void ed.flush()}>새 창에서 미리보기</a>
           </div>
         )}

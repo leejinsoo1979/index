@@ -1,0 +1,2 @@
+.be-card.is-on .be-thumb__tools,
+.be-thumb:focus-within .be-thumb__tools { display: flex; }

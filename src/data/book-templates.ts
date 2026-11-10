@@ -2,11 +2,12 @@ import type { BookAction, BookPage, Flipbook } from "../lib/flipbooks";
 import { MODERN_TEMPLATES } from "./book-templates-modern";
 import { COLLECTION_TEMPLATES } from "./book-templates-collection";
 import { EDITORIAL_TEMPLATES } from "./book-templates-editorial";
+import { enhanceMagazineTemplate } from "./book-editorial-graphics";
 
 export type TemplateCategory = "brochure" | "interior" | "furniture" | "flyer" | "album" | "flipbook" | "ebook" | "guide" | "manual" | "newsletter" | "handbook" | "presentation" | "portfolio" | "newspaper" | "booklet" | "lookbook" | "pamphlet" | "moodboard";
 export type BookTemplate = { id: string; name: string; subtitle: string; category: TemplateCategory; palette: string[]; book: Flipbook };
 export const TEMPLATE_CATEGORIES: { value: TemplateCategory; label: string }[] = [["brochure", "브로셔"], ["interior", "잡지"], ["furniture", "카탈로그"], ["flyer", "전단지"], ["album", "사진 앨범"], ["flipbook", "플립북"], ["ebook", "전자책"], ["guide", "가이드북"], ["manual", "매뉴얼"], ["newsletter", "뉴스레터"], ["handbook", "핸드북"], ["presentation", "프레젠테이션"], ["portfolio", "포트폴리오"], ["newspaper", "신문"], ["booklet", "북렛"], ["lookbook", "룩북"], ["pamphlet", "소책자"], ["moodboard", "무드보드"]].map(([value, label]) => ({ value: value as TemplateCategory, label }));
-export const BOOK_TEMPLATES: BookTemplate[] = [...EDITORIAL_TEMPLATES, ...MODERN_TEMPLATES, ...COLLECTION_TEMPLATES];
+export const BOOK_TEMPLATES: BookTemplate[] = [...EDITORIAL_TEMPLATES, ...MODERN_TEMPLATES, ...COLLECTION_TEMPLATES].map((template, index) => ({ ...template, book: enhanceMagazineTemplate(template.book, template.palette[2] ?? template.palette[1], index) }));
 
 export type TemplatePlacement = "after-current" | "at-end" | "replace";
 const freshId = () => crypto.randomUUID();

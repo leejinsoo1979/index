@@ -1,8 +1,11 @@
-/** 인터랙션 북 목록: 새 책 만들기, 편집, 공개 링크 복사, 삭제. */
+/** 플립북 목록: 표지 갤러리. 표지를 누르면 편집하고, 공개 링크 복사와 삭제도 여기서 합니다. */
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BookPageView } from "../../components/flipbook/BookPageView";
-import { bookLink, createFlipbook, deleteFlipbook, listFlipbooks, saveFlipbook, type Flipbook } from "../../lib/flipbooks";
+import { FiCopy, FiExternalLink, FiPlus, FiTrash2 } from "react-icons/fi";
+import { BookPageView, BookProvider } from "../../components/flipbook/BookPageView";
+import { bookLink, createFlipbook, deleteFlipbook, fontsInBook, listFlipbooks, loadBookFonts, saveFlipbook, type Flipbook } from "../../lib/flipbooks";
+import "./AdminBooks.css";
+import InteriorShowDrafts from "./InteriorShowDrafts";
 
 const dateText = (time: number) => new Date(time).toLocaleDateString("ko-KR");
 
@@ -13,7 +16,9 @@ export default function AdminBooks() {
   const [copiedId, setCopiedId] = useState("");
 
   useEffect(() => {
-    listFlipbooks().then(setBooks).catch(() => { setBooks([]); setError("책 목록을 불러오지 못했습니다."); });
+    listFlipbooks()
+      .then((all) => { const list = all.filter((book) => book.kind !== "infinite"); setBooks(list); loadBookFonts(list.flatMap((book) => fontsInBook({ ...book, pages: book.pages.slice(0, 1) }))); })
+      .catch(() => { setBooks([]); setError("책 목록을 불러오지 못했습니다."); });
   }, []);
 
   const create = async () => {
@@ -43,31 +48,35 @@ export default function AdminBooks() {
   return (
     <section>
       <div className="admin-page__head">
-        <div><h1>인터랙션 북</h1><p>PDF나 빈 페이지로 책을 만들고, 링크로 공개합니다.</p></div>
+        <div><h1>플립북</h1><p>PDF나 빈 페이지로 책을 만들고, 링크로 공개합니다.</p></div>
         <button type="button" className="admin-btn admin-btn--primary" onClick={() => void create()}>새 책 만들기</button>
       </div>
       {error && <p role="alert">{error}</p>}
-      {books === null ? <p>불러오는 중…</p> : books.length === 0 ? <p>아직 만든 책이 없습니다.</p> : (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead><tr><th>표지</th><th>제목</th><th>쪽수</th><th>상태</th><th>수정일</th><th /></tr></thead>
-            <tbody>
-              {books.map((book) => (
-                <tr key={book.id}>
-                  <td><div style={{ width: 44, aspectRatio: `${book.width} / ${book.height}`, overflow: "hidden" }}>{book.pages[0] && <BookPageView page={book.pages[0]} still />}</div></td>
-                  <td><Link to={`/admin/books/${book.id}`}>{book.title}</Link></td>
-                  <td>{book.pages.length}</td>
-                  <td>{book.published ? "공개" : "비공개"}</td>
-                  <td>{dateText(book.updatedAt)}</td>
-                  <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
-                    <Link className="admin-btn" to={`/admin/books/${book.id}`}>편집</Link>{" "}
-                    <button type="button" className="admin-btn" disabled={!book.published} onClick={() => void copy(book)}>{copiedId === book.id ? "복사됨" : "링크 복사"}</button>{" "}
-                    <button type="button" className="admin-btn" onClick={() => void remove(book)}>삭제</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {books !== null && <InteriorShowDrafts books={books} onCreated={(added) => { setBooks(current => { const map = new Map((current ?? []).map(book => [book.id, book])); for (const book of added) map.set(book.id, book); return [...map.values()].sort((a,b) => b.updatedAt-a.updatedAt); }); loadBookFonts(added.flatMap(book => fontsInBook({...book,pages:book.pages.slice(0,1)}))); }} />}
+      {books === null ? <p>불러오는 중…</p> : (
+        <div className="ab-gallery">
+          <button type="button" className="ab-new" onClick={() => void create()}><FiPlus /><span>새 책 만들기</span></button>
+          {books.map((book) => (
+            <article key={book.id} className="ab-card">
+              <Link to={`/admin/books/${book.id}`} className="ab-cover" aria-label={`${book.title} 편집`}>
+                <div className={`ab-cover__page ab-cover__page--${book.width / book.height > 0.72 ? "wide" : "tall"}`} style={{ aspectRatio: `${book.width} / ${book.height}` }}>
+                  {book.pages[0] && <BookProvider book={book}><BookPageView page={book.pages[0]} still /></BookProvider>}
+                </div>
+              </Link>
+              <div className="ab-meta">
+                <Link to={`/admin/books/${book.id}`} className="ab-title">{book.title}</Link>
+                <p>
+                  <span className={`ab-status${book.published ? " is-public" : ""}`}>{book.published ? "공개" : "비공개"}</span>
+                  {book.pages.length}쪽 · {dateText(book.updatedAt)}
+                </p>
+                <div className="ab-actions">
+                  <button type="button" disabled={!book.published} title={book.published ? "공개 링크 복사" : "공개한 책만 링크를 복사할 수 있습니다"} onClick={() => void copy(book)}><FiCopy />{copiedId === book.id ? "복사됨" : "링크"}</button>
+                  <a href={`/book/${book.id}`} target="_blank" rel="noreferrer" title="새 창에서 보기"><FiExternalLink />보기</a>
+                  <button type="button" className="ab-delete" title="삭제" aria-label={`${book.title} 삭제`} onClick={() => void remove(book)}><FiTrash2 /></button>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </section>

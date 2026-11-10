@@ -33,8 +33,7 @@ export function useBookEditor(id: string) {
   const future = useRef<Flipbook[]>([]);
   const lastMerge = useRef({ key: "", at: 0 });
   const timer = useRef(0);
-  const saving = useRef(false);
-  const again = useRef(false);
+  const saving = useRef<Promise<boolean> | null>(null);
   const dirty = useRef(false);
 
   useEffect(() => {
@@ -52,25 +51,29 @@ export function useBookEditor(id: string) {
     return () => { live = false; };
   }, [id]);
 
-  const flush = useCallback(async () => {
+  const flush = useCallback(async (): Promise<boolean> => {
     window.clearTimeout(timer.current);
+    if (saving.current) {
+      const saved = await saving.current;
+      return saved ? flush() : false;
+    }
     const open = current.current;
-    if (!open || !dirty.current) return;
-    if (saving.current) { again.current = true; return; }
-    saving.current = true;
+    if (!open || !dirty.current) return true;
     dirty.current = false;
     setSaveState("saving");
-    try {
-      await saveFlipbook(open);
+    const request = saveFlipbook(open).then(() => {
       setSavedAt(Date.now());
       setSaveState(dirty.current ? "dirty" : "saved");
-    } catch {
+      return true;
+    }).catch(() => {
       dirty.current = true;
       setSaveState("error");
-    } finally {
-      saving.current = false;
-      if (again.current) { again.current = false; void flush(); }
-    }
+      return false;
+    });
+    saving.current = request;
+    const saved = await request;
+    saving.current = null;
+    return saved && dirty.current ? flush() : saved;
   }, []);
 
   // Leaving the editor must not lose the last edit.

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FiAlignCenter, FiAlignJustify, FiAlignLeft, FiAlignRight, FiArrowDown, FiArrowUp, FiBold, FiCopy, FiEye, FiHeart, FiImage, FiItalic, FiLink, FiLogIn, FiMail, FiMinus, FiMonitor, FiPhone, FiPlay, FiPlus, FiStar, FiTrash2, FiUnderline, FiUpload, FiX } from "react-icons/fi";
+import { FiAlignCenter, FiAlignJustify, FiAlignLeft, FiAlignRight, FiArrowDown, FiArrowUp, FiBold, FiCopy, FiEye, FiHeart, FiImage, FiItalic, FiLink, FiLogIn, FiMail, FiMinus, FiMonitor, FiPhone, FiPlay, FiPlus, FiStar, FiTrash2, FiUnderline, FiUpload, FiX, FiCheck } from "react-icons/fi";
 import { CustomSelect } from "../../../components/ui/custom-select";
 import { BOOK_GRADIENTS, BOOK_GRIDS, BOOK_SHAPES, IMAGE_PRESETS } from "../../../components/flipbook/graphics";
 import { BOOK_FONTS, type BookAction, type BookAnimation, type BookElement, type ChartElement, type Flipbook, type GridElement, type ImageElement, type SlideshowElement, type TableElement, type VideoElement, cropRect, formatTime, parseTime, uid, videoSource } from "../../../lib/flipbooks";
@@ -50,6 +50,8 @@ const PALETTES: { name: string; page: string; text: string; accent: string; view
   { name: "고사리 녹색", page: "#f6f9f1", text: "#26361f", accent: "#6a9c3d", viewer: "#25301f" },
   { name: "따뜻한 브라운", page: "#f3ece3", text: "#46372b", accent: "#a97c50", viewer: "#30261d" },
   { name: "차콜", page: "#26282e", text: "#f2f2f3", accent: "#e8894f", viewer: "#121317" },
+  { name: "테라코타", page: "#fbf6f1", text: "#2b211c", accent: "#b45f3e", viewer: "#3a2a22" },
+  { name: "미스트 블루", page: "#f4f6f8", text: "#1f2a36", accent: "#6f8aa3", viewer: "#1b232c" },
 ];
 
 function applyPalette(book: Flipbook, palette: (typeof PALETTES)[number]): Flipbook {
@@ -110,12 +112,22 @@ function PageSettings({ ed }: { ed: BookEditorApi }) {
       </section>
       <section>
         <h4>색 구성표</h4>
-        <div className="be-swatches">
-          {PALETTES.map((palette) => (
-            <button key={palette.name} type="button" style={{ background: palette.page, color: palette.text }} onClick={() => ed.commit((open) => applyPalette(open, palette))}>
-              {palette.name}<i><u style={{ background: palette.accent }} /><u style={{ background: palette.text }} /><u style={{ background: palette.viewer }} /></i>
-            </button>
-          ))}
+        <div className="be-palettes" role="list">
+          {PALETTES.map((palette) => {
+            const current = book.background === palette.viewer;
+            return (
+              <button key={palette.name} type="button" role="listitem" className={`be-palette${current ? " is-on" : ""}`} aria-pressed={current} title="종이 · 강조 · 배경" onClick={() => ed.commit((open) => applyPalette(open, palette))}>
+                <span className="be-palette__strip">
+                  <span className="be-palette__paper" style={{ background: palette.page, color: palette.text }}>
+                    <b>제목</b><small>본문 글자</small>
+                  </span>
+                  <span className="be-palette__accent" style={{ background: palette.accent }} />
+                  <span className="be-palette__viewer" style={{ background: palette.viewer }} />
+                </span>
+                <span className="be-palette__name">{palette.name}{current && <FiCheck />}</span>
+              </button>
+            );
+          })}
         </div>
       </section>
       <section>

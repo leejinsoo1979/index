@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { ChevronFirst, ChevronLast, LayoutGrid, LogIn } from "lucide-react";
-import { FiChevronLeft, FiChevronRight, FiCode, FiCopy, FiGrid, FiHash, FiInfo, FiList, FiMapPin, FiMusic, FiPlus, FiTrash2, FiUpload, FiX } from "react-icons/fi";
+import { FiBookOpen, FiChevronLeft, FiChevronRight, FiCode, FiCopy, FiGrid, FiHash, FiInfo, FiList, FiMapPin, FiMusic, FiPlus, FiTrash2, FiUpload, FiX } from "react-icons/fi";
 import { BookPageView } from "../../../components/flipbook/BookPageView";
 import { BOOK_GRIDS, BOOK_ICONS, BOOK_SHAPES } from "../../../components/flipbook/graphics";
 import { blankPage, buildSpreads, spreadOfPage, uid, videoSource, type BookElement, type TextElement } from "../../../lib/flipbooks";
@@ -8,6 +8,7 @@ import { fittedImage } from "./BookEditorCanvas";
 import type { BookEditorApi } from "./useBookEditor";
 import TemplatesPanel from "./BookTemplatesPanel";
 import BookElementLibrary, { searchBookElements } from "./BookElementLibrary";
+import "./BookPagesPanel.css";
 
 export type PanelId = "pages" | "templates" | "elements" | "images" | "text" | "video" | "audio" | "more" | "uploads";
 
@@ -66,6 +67,15 @@ function PagesPanel({ ed, paired }: { ed: BookEditorApi; paired: boolean }) {
     ed.setPageIndex(Math.min(index, pageCount - 2));
     ed.setSelectedId(null);
   };
+  const makeCover = (pageId: string) => {
+    ed.commit(open => {
+      const cover = open.pages.find(page => page.id === pageId);
+      return !cover || open.pages[0]?.id === pageId ? open : { ...open, pages: [cover, ...open.pages.filter(page => page.id !== pageId)] };
+    });
+    go(0);
+    setOverview(false);
+    ed.setNotice("표지로 지정했습니다. 기존 페이지와 내용은 그대로 유지됩니다.");
+  };
   const drop = (event: DragEvent, index: number) => {
     event.preventDefault();
     const from = dragFrom.current;
@@ -93,6 +103,7 @@ function PagesPanel({ ed, paired }: { ed: BookEditorApi; paired: boolean }) {
       >
         <div className="be-thumb__page"><BookPageView page={page} still /></div>
         <div className="be-thumb__tools">
+          {index > 0 && <button type="button" aria-label={`${index + 1}쪽을 표지로 지정`} title="이 페이지를 표지로 지정" onClick={event => { event.stopPropagation(); makeCover(page.id); }}><FiBookOpen /></button>}
           <button type="button" aria-label="페이지 복제" onClick={(event) => { event.stopPropagation(); duplicate(index); }}><FiCopy /></button>
           <button type="button" aria-label="페이지 삭제" disabled={pageCount <= 1} onClick={(event) => { event.stopPropagation(); remove(index); }}><FiTrash2 /></button>
         </div>
@@ -106,7 +117,7 @@ function PagesPanel({ ed, paired }: { ed: BookEditorApi; paired: boolean }) {
         {left !== null && thumb(left)}
         {right !== null && thumb(right)}
         {left !== null && <b className="be-card__num be-card__num--left">{number(left)}</b>}
-        {right !== null && <b className="be-card__num be-card__num--right">{number(right)}</b>}
+        {right !== null && <b className="be-card__num be-card__num--right">{right === 0 ? "표지" : number(right)}</b>}
       </div>
     );
   });

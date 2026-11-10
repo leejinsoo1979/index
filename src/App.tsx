@@ -38,6 +38,8 @@ const ExpertConversations = lazy(() => import('./pages/ExpertConversations'));
 const StudioApp = lazy(() => import("./archi/StudioApp"));
 const BookViewer = lazy(() => import("./pages/BookViewer"));
 const BookEditor = lazy(() => import("./pages/admin/book-editor/BookEditor"));
+const AdminInfinity = lazy(() => import("./pages/admin/AdminInfinity"));
+const InfinityEditor = lazy(() => import("./pages/admin/infinity/InfinityEditor"));
 
 // Routes that have a real page implementation (skip them in the placeholder map).
 /** Any path without a page: if an admin put it in a menu (/admin/menus), show "준비 중" under that menu name. */
@@ -97,6 +99,8 @@ export default function App() {
           <Route path="floorplans" element={<AdminFloorPlans />} />
           <Route path="books" element={<AdminBooks />} />
           <Route path="books/:id" element={<Suspense fallback={null}><BookEditor /></Suspense>} />
+          <Route path="infinity" element={<Suspense fallback={null}><AdminInfinity /></Suspense>} />
+          <Route path="infinity/:id" element={<Suspense fallback={null}><InfinityEditor /></Suspense>} />
           <Route path="boards" element={<AdminBoards />} />
           <Route path="seminars" element={<AdminSeminars />} />
           <Route path="curriculum" element={<AdminCurriculum />} />

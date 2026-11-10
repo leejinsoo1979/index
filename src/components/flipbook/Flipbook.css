@@ -89,26 +89,16 @@
 .fb-paper-book { flex: none; transform: translateX(var(--paper-shift,0)); filter: drop-shadow(0 7px 15px #0003); }
 .fb-paper-page { background: #fff; overflow: hidden; }
 .fb-paper-blank { background: transparent; pointer-events: none; }
-.fb-paper-book .opf-page--flat.opf-page--left .fb-page::after,
-.fb-paper-book .opf-page--flat.opf-page--right .fb-page::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg,#00000010,transparent 4%); }
-.fb-paper-book .opf-page--flat.opf-page--left .fb-page::after { background: linear-gradient(270deg,#00000010,transparent 4%); }
+/* Resting spreads have no spine overlay, so photographs meet without a dark seam. */
 .fb-sheet, .fb-leaf { position: absolute; top: 0; height: 100%; width: var(--page-w); }
 .fb-sheet--left { left: 0; }
 .fb-sheet--right { left: var(--page-w); }
 .fb-book--single .fb-sheet--right, .fb-book--single .fb-leaf { left: 0; }
-.fb-sheet:not(:empty) { box-shadow: 0 18px 44px rgba(0, 0, 0, .34); }
-
-/* Soft fold where the paper curves into the spine. */
-.fb-sheet--left:not(:empty)::after, .fb-face--back::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to left, rgba(0, 0, 0, .15), rgba(0, 0, 0, .04) 7%, transparent 16%); }
-.fb-sheet--right:not(:empty)::after, .fb-face--front::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, rgba(0, 0, 0, .15), rgba(0, 0, 0, .04) 7%, transparent 16%); }
-.fb-book--single .fb-sheet--right::after, .fb-book--single .fb-face--front::after { display: none; }
-
 /* The sheet being turned, hinged on the spine. */
 .fb-leaf { left: var(--page-w); z-index: 3; transform-origin: left center; transform: rotateY(calc(var(--p, 0) * -180deg)); transform-style: preserve-3d; pointer-events: none; will-change: transform; }
 .fb-face { position: absolute; inset: 0; overflow: hidden; background: #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .fb-face--back { transform: rotateY(180deg); }
 .fb-book--hardcover .fb-face { outline: 2px solid rgba(255,255,255,.5); box-shadow: 0 0 0 3px #2a252255; }
-.fb-book--hardcover .fb-face::after { opacity: .25; }
 .fb-book--hardcover .fb-leaf { filter: drop-shadow(-6px 5px 5px #0004); }
 .fb-transition { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .fb-transition__from,.fb-transition__to { position: absolute; inset: 0; }
@@ -143,6 +133,11 @@
 .fbv-grid__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; max-width: 1100px; margin: 34px auto 0; }
 .fbv-grid__list button { padding: 0; border: 0; background: none; font-size: 12.5px; color: #cfd3da; cursor: pointer; content-visibility: auto; contain-intrinsic-size: auto 210px; }
 .fbv-grid__list button > div { margin-bottom: 6px; overflow: hidden; pointer-events: none; }
+/* Only admins see this: a way out of the preview and whether readers can see the book. */
+.fbv-adminbar { position: fixed; top: 16px; left: 16px; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 4px 12px 4px 4px; border-radius: 12px; background: rgba(0, 0, 0, .46); backdrop-filter: blur(10px); font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+.fbv-adminbar button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .14); font: inherit; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; }
+.fbv-adminbar button:hover { background: rgba(255, 255, 255, .24); }
+@media (max-width: 760px) { .fbv-adminbar span { display: none; } }
 .fbv-message { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; background: #1d2026; font-size: 15px; color: #c6cad2; text-align: center; }
 
 @media (max-width: 760px) {

@@ -73,3 +73,14 @@ test('editorial publications differ in page geometry and format, with editable t
   assert.ok(template.book.pages.every(p=>p.elements.some(e=>e.type==='text')));
  }
 });
+
+test('magazine furniture is editable, bounded and survives insertion without ID collisions',()=>{
+ for(const template of BOOK_TEMPLATES){
+  const furniture=template.book.pages.flatMap(p=>p.elements.filter(e=>e.id.startsWith('magazine-v2:')));
+  assert(furniture.length>0,template.id);
+  assert(furniture.some(e=>e.type==='line'||e.type==='shape'),template.id);
+  const inserted=instantiateTemplatePages(template.book.pages,template.book.pages.map(p=>p.id));
+  assert.equal(inserted.reduce((n,p)=>n+p.elements.length,0),template.book.pages.reduce((n,p)=>n+p.elements.length,0));
+  const ids=inserted.flatMap(p=>p.elements.map(e=>e.id));assert.equal(new Set(ids).size,ids.length);
+ }
+});

@@ -24,7 +24,8 @@ export type BookAction =
   | { kind: "toggle"; targetId: string }
   | { kind: "popupVideo"; src: string; start?: number; end?: number };
 
-export type BookAnimation = "none" | "fade" | "up" | "left" | "zoom";
+/** "type" (타이핑) is played by the 인피니티북 viewer only; elsewhere the text simply shows. */
+export type BookAnimation = "none" | "fade" | "up" | "left" | "zoom" | "type";
 
 type Box = {
   id: string;
@@ -146,6 +147,22 @@ export type Flipbook = {
   published: boolean;
   createdAt: number;
   updatedAt: number;
+  /** Absent for page-turning books; "infinite" for 인피니티북 (one zoomable canvas, see infinity.ts). */
+  kind?: "infinite";
+  /** Set on books generated from code (e.g. "interior-show:2"), so a newer generator can refresh untouched copies. */
+  seed?: string;
+  canvas?: {
+    background: string;
+    backgroundImage?: string;
+    /** The background image drifts slower than the canvas while the camera moves. */
+    parallax?: boolean;
+    imageFit?: "cover" | "contain" | "custom";
+    ratio?: "16:9" | "4:3";
+    /** 주제 경로: after a topic's subtopics, return to the topic (default) or go straight on. */
+    returnToTopic?: boolean;
+    frames: { id: string; x: number; y: number; w: number; h: number; shape: "circle" | "rect"; fill: string; stroke?: string; title: string; notes?: string }[];
+    elements: BookElement[];
+  };
 };
 
 export const uid = (size = 10) => {
@@ -346,7 +363,13 @@ export const BOOK_FONTS: { value: string; label: string; google?: string }[] = [
   { value: "'Black Han Sans'", label: "검은고딕", google: "Black+Han+Sans" },
   { value: "'Jua'", label: "주아", google: "Jua" },
   { value: "'Montserrat'", label: "Montserrat", google: "Montserrat:wght@400;700" },
-  { value: "'Playfair Display'", label: "Playfair Display", google: "Playfair+Display:wght@400;700" },
+  { value: "'Playfair Display'", label: "Playfair Display", google: "Playfair+Display:ital,wght@0,400;0,700;1,400" },
+  { value: "'Cormorant Garamond'", label: "Cormorant Garamond", google: "Cormorant+Garamond:ital,wght@0,400;0,600;1,400" },
+  { value: "'Bodoni Moda'", label: "Bodoni Moda", google: "Bodoni+Moda:ital,wght@0,400;0,600;1,400" },
+  { value: "'DM Serif Display'", label: "DM Serif Display", google: "DM+Serif+Display:ital@0;1" },
+  { value: "'Hahmlet'", label: "함렛", google: "Hahmlet:wght@300;500;700" },
+  { value: "'Gowun Batang'", label: "고운바탕", google: "Gowun+Batang:wght@400;700" },
+  { value: "'IBM Plex Sans KR'", label: "IBM Plex Sans KR", google: "IBM+Plex+Sans+KR:wght@300;400;600" },
 ];
 
 export function loadBookFonts(values: Iterable<string>) {
