@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAgentAdmin } from "./_firebaseAdmin.js";
 import { runKisconSync } from "./_kiscon.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /**
  * Daily KISCON 건설업 공시 sync (vercel.json cron). Each run continues from the saved
@@ -11,6 +12,7 @@ import { runKisconSync } from "./_kiscon.js";
 export const config = { maxDuration: 300 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   const secret = process.env.CRON_SECRET;
   const fromCron = Boolean(secret) && req.headers.authorization === `Bearer ${secret}`;
   if (!fromCron) {

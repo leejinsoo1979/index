@@ -12,6 +12,7 @@ import { fetchProviderModels } from "../src/archi/web/lib/llm-models.js";
 import { anyRegulationSource, regulationStatus } from "./_regulations.js";
 import { searchRegulationSources } from "./_regulationTools.js";
 import { deepseekModel } from "./_deepseek.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /**
  * Server side of the ported Agent Studio (everything else runs in the browser).
@@ -168,6 +169,7 @@ const toWire = (img: { data: Uint8Array; mimeType: string; width: number; height
 
 // ─── handler ────────────────────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;

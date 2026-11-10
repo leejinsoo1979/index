@@ -9,6 +9,7 @@ import { ATTACHMENT_GUIDE, readAttachments, withAttachments, type ChatAttachment
 import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { findFloorPlans, FLOORPLAN_GUIDE, FLOORPLAN_MARKER, floorPlanMarker, STRUCTURE_SAFETY_GUIDE, floorPlansConfigured, floorPlansOfDanji, selectedFloorPlanContext } from "./_floorplans.js";
 import { searchWiki, wikiContext, wikiSources } from "./_wiki.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 // Regulation tool calls (law.go.kr, data.go.kr, KCSC) add several round trips.
 export const config = { maxDuration: 90 };
@@ -77,6 +78,7 @@ function chatModel(question: string, requested?: string, deep = false, hasImages
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "Method not allowed" });

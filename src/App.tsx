@@ -24,6 +24,7 @@ import AdminMenus from "./pages/admin/AdminMenus";
 import AdminPages from "./pages/admin/AdminPages";
 import AdminFloorPlans from "./pages/admin/AdminFloorPlans";
 import AdminFloorPlanMap from "./pages/admin/AdminFloorPlanMap";
+import AdminApiKeys from "./pages/admin/AdminApiKeys";
 import AdminFloorPlanManage from "./pages/admin/AdminFloorPlanManage";
 import AdminBooks from "./pages/admin/AdminBooks";
 import { menuRouteLabels, useNavigation } from "./lib/navigation";
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="payments" element={<AdminPayments />} />
           <Route path="expert-spaces" element={<Navigate to="/experts/interior-show/settings" replace/>} />
           <Route path="members" element={<AdminMembers />} />
+          <Route path="api-keys" element={<AdminApiKeys />} />
         </Route>
         <Route path="*" element={<MenuPlaceholder />} />
       </Routes>

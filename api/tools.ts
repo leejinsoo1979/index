@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { listTools, runTool } from "./_toolCatalog.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /**
  * INDEX AI 도구.
@@ -10,6 +11,7 @@ import { listTools, runTool } from "./_toolCatalog.js";
 export const config = { maxDuration: 60 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "GET") {
     res.status(200).json({ tools: await listTools() });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { isServerFirestoreConfigured, serverFirestore } from "./_firebaseServer.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /**
  * Tells the operator on Telegram that a member just signed up (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID).
@@ -39,6 +40,7 @@ async function firstNotice(uid: string): Promise<boolean> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "지원하지 않는 요청입니다." });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMem0Client, MEM0_AGENT_ID } from "./_mem0.js";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 interface MemoryRequestBody {
   userId?: string;
@@ -9,6 +10,7 @@ interface MemoryRequestBody {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   // The member is taken from the verified Firebase ID token; a userId in the request is ignored.
   let userId: string;
   try {

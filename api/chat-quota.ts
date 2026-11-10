@@ -1,9 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getChatQuota } from "./_chatQuota.js";
 import { verifyFirebaseUser } from "./_firebaseAdmin.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /** GET: the signed-in member's INDEX AI question quota for today, and whether long-term memory is available. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     res.status(405).json({ error: "Method not allowed" });

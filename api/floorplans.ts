@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { addManagedDanji, addManagedPlan, managedDanjiDetail, managedDanjiList, managedRegionTree, updateManagedDanji, updateManagedPlan } from "./_floorplanManage.js";
 import { approvedWalls, findFloorPlans, floorPlanImageUrl, floorPlanMap, floorPlansConfigured, floorPlansOfDanji, readWalls, removeVerified, reviewedWallList, saveVerifiedImage, saveVerifiedPdf, saveWalls, signedFileUrl } from "./_floorplans.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 const validId = (id: unknown): id is string => typeof id === "string" && /^\d{1,12}$/.test(id);
 
@@ -11,6 +12,7 @@ const validId = (id: unknown): id is string => typeof id === "string" && /^\d{1,
  * Admins only until the rights to the collection are confirmed.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "Method not allowed" });

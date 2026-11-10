@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { memberAccess, verifyFirebaseUser } from "./_firebaseAdmin.js";
 import { WRITING_STYLES, readPhotos, rewriteText, writeArticle, type Article } from "./_flipbookWriter.js";
+import { applyManagedKeys } from "./_apiKeys.js";
 
 /** AI writing in the flipbook editor (admins only). Photos must be files already in the book's public storage. */
 const MAX_IMAGES = 6;
@@ -16,6 +17,7 @@ function bookImages(value: unknown): string[] | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await applyManagedKeys();
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
     const user = await verifyFirebaseUser(req);

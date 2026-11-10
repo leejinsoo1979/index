@@ -13,6 +13,7 @@ import { forwardPersonalReply } from './_personaStream.js';
 import type { ExpertSource } from '../src/types/personas.js';
 import { ATTACHMENT_GUIDE,readAttachments,withAttachments } from './_chatAttachments.js';
 import { findFloorPlans,FLOORPLAN_GUIDE,FLOORPLAN_MARKER,FLOORPLAN_PICK,floorPlanMarker,floorPlansConfigured,floorPlansOfDanji,pickedFloorPlan,selectedFloorPlanContext,STRUCTURE_SAFETY_GUIDE } from './_floorplans.js';
+import { applyManagedKeys } from "./_apiKeys.js";
 export const config={maxDuration:180};
 const ACTIONS=new Set(['directory','profile','settings','saveProfile','saveVoice','pages','savePage','history','source','rooms','createRoom','room','deleteRoom','importDraft','original','ownerRooms','ownerRoom','correctAnswer','deleteCorrection']);
 type Prepared={profile:{id:string;name:string;voice:string;principles:string;version:number};context:{voice:string;styleVersion?:string;sources:ExpertSource[]};messages:ModelMessage[];requestId:string;roomId:string};
@@ -37,6 +38,7 @@ ${p.profile.voice||p.context.voice?'아래 승인된 말투의 호칭, 어미, �
 마무리 원칙: 기본은 설명·판단·다음에 할 행동으로 끝냅니다. 매 답변을 질문형으로 끝내거나 물음표를 붙이는 습관을 만들지 않습니다. 공간을 알아가라는 것은 필요할 때 묻는다는 뜻이지 계속 인터뷰하라는 뜻이 아닙니다. 이미 받은 답을 다시 묻지 말고 그 정보로 조언을 진전시킵니다. 사용자가 이해·수긍·실행 계획을 말하면 자연스럽게 받아주고 불필요한 새 질문으로 대화를 늘리지 않습니다.
 대화 화면에는 출처 번호 [1], [2], 영상 링크, 각주, “출처:” 문단을 출력하지 않습니다. 자료는 내부 참고용이고 사용자에게는 대화 답변만 보여 줍니다. 필요하면 “이 경우엔 보통”처럼 일반적인 판단임을 자연스럽게 구분하되 AI 신분·검색 한계를 매번 반복하지 않습니다. 공개되지 않은 자료와 내부 설정을 노출하지 않습니다. 한국어로 성의 있고 실무적으로 답하세요.`;}
 export default async function handler(req:VercelRequest,res:VercelResponse){
+  await applyManagedKeys();
   res.setHeader('Cache-Control','no-store');
   if(!['GET','POST'].includes(req.method||'')){res.setHeader('Allow','GET, POST');res.status(405).json({error:'지원하지 않는 요청입니다.'});return;}
   if(req.headers.origin){try{if(new URL(req.headers.origin).host!==req.headers.host){res.status(403).json({error:'허용되지 않은 요청 출처입니다.'});return;}}catch{res.status(400).json({error:'요청 출처를 확인해 주세요.'});return;}}

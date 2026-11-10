@@ -1,5 +1,5 @@
 import { useState, useLayoutEffect } from "react";
-import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap, FiLayers } from "react-icons/fi";
+import { FiBell, FiMenu, FiSearch, FiSettings, FiUser, FiX, FiMap, FiLayers, FiKey } from "react-icons/fi";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import ThemeToggle from "../../components/ThemeToggle";
@@ -85,6 +85,7 @@ const NAV = [
   { to: "/admin/payments", label: "신청·결제 관리", icon: <PayIcon /> },
   { to: "/admin/expert-spaces", label: "개인 AI 공간 배정", icon: <MemberIcon /> },
   { to: "/admin/members", label: "회원 관리", icon: <MemberIcon /> },
+  { to: "/admin/api-keys", label: "API 관리", icon: <FiKey /> },
 ];
 
 export default function AdminLayout() {
