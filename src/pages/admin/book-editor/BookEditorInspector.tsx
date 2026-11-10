@@ -294,7 +294,8 @@ function VideoCropPicker({ element, slotRatio, patch }: { element: VideoElement;
   );
 }
 
-function VideoEditor({ element, slotRatio, patch }: { element: VideoElement; slotRatio: number; patch: (next: Record<string, unknown>, key?: string) => void }) {
+/** Also used by the 인피니티북 editor, which passes its own wording for autoplay. */
+export function VideoEditor({ element, slotRatio, patch, autoPlayLabel = "페이지가 열리면 소리 없이 자동 재생" }: { element: VideoElement; slotRatio: number; patch: (next: Record<string, unknown>, key?: string) => void; autoPlayLabel?: string }) {
   const note = rangeNote(element.src, element.start, element.end);
   return (
     <section>
@@ -314,7 +315,7 @@ function VideoEditor({ element, slotRatio, patch }: { element: VideoElement; slo
         <TimeField label="끝" value={element.end} onChange={(end) => patch({ end })} />
       </div>
       {note ? <p className="be-aierror">{note}</p> : <p className="be-hint">비워 두면 처음부터 끝까지 재생합니다. 1:30처럼 적으세요. 캔버스의 재생 버튼으로 바로 확인할 수 있습니다.</p>}
-      <label className="be-check"><input type="checkbox" checked={Boolean(element.autoPlay)} onChange={(event) => patch({ autoPlay: event.target.checked })} />페이지가 열리면 소리 없이 자동 재생</label>
+      <label className="be-check"><input type="checkbox" checked={Boolean(element.autoPlay)} onChange={(event) => patch({ autoPlay: event.target.checked })} />{autoPlayLabel}</label>
       <label className="be-check"><input type="checkbox" checked={Boolean(element.controls)} onChange={(event) => patch({ controls: event.target.checked })} />재생 바 표시</label>
     </section>
   );

@@ -50,7 +50,7 @@ export function Backdrop({ canvas, backdropRef }: { canvas: InfinityCanvas; back
  * The canvas in world coordinates: frames underneath, elements on top, then whatever the caller adds
  * (selection handles). The camera transform is applied by the parent through `style`.
  */
-export function InfinityWorld({ canvas, still, runtime, style, children, renderElement, layerRef, reveal }: {
+export function InfinityWorld({ canvas, still, runtime, style, children, renderElement, layerRef, reveal, liveVideo }: {
   canvas: InfinityCanvas;
   layerRef?: Ref<HTMLDivElement>;
   still: boolean;
@@ -61,6 +61,8 @@ export function InfinityWorld({ canvas, still, runtime, style, children, renderE
   renderElement?: (element: BookElement, body: ReactNode) => ReactNode;
   /** Viewer: null hides an element until its frame is reached; a number replays its entrance animation. */
   reveal?: (element: BookElement) => number | null | undefined;
+  /** Viewer: a number plays the video (a new number restarts it); null shows its still, so leaving a frame stops it. */
+  liveVideo?: (element: BookElement) => number | null;
 }) {
   return (
     <div ref={layerRef} className="ib-layer" style={style}>
@@ -69,7 +71,10 @@ export function InfinityWorld({ canvas, still, runtime, style, children, renderE
         {canvas.elements.map((element) => {
           const shown = reveal?.(element);
           const animated = Boolean(element.animation && element.animation !== "none" && shown !== undefined);
-          const body = <ElementBody element={element} still={still} runtime={runtime} />;
+          const play = element.type === "video" && liveVideo ? liveVideo(element) : undefined;
+          const body = play === undefined
+            ? <ElementBody element={element} still={still} runtime={runtime} />
+            : <ElementBody key={play ?? "still"} element={element} still={play === null} runtime={runtime} />;
           if (renderElement) return renderElement(element, body);
           const interactive = !still && ["video", "slideshow", "audio", "map", "embed"].includes(element.type);
           const typing = animated && shown !== null && element.type === "text" && element.animation === "type";

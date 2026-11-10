@@ -7,13 +7,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChartColumn, ChartPie, CloudUpload, CopyPlus, CornerLeftUp, FileDown, FilePlus2, Ellipsis, Hand, Image as ImageIcon, Layers, Menu, MousePointer2, NotebookPen, Paintbrush, PlayCircle, Redo2, Route, Shapes, Sparkles, Star, Table, Type, Undo2 } from "lucide-react";
 import { FiAlignCenter, FiAlignLeft, FiAlignRight, FiArrowLeft, FiBold, FiChevronDown, FiChevronLeft, FiChevronRight, FiCloud, FiCopy, FiHelpCircle, FiHome, FiMinus, FiPlay, FiPlus, FiSearch, FiShare, FiTrash2, FiX } from "react-icons/fi";
-import { BookProvider, textStyle } from "../../../components/flipbook/BookPageView";
+import { BookProvider, ElementBody, textStyle } from "../../../components/flipbook/BookPageView";
 import { BOOK_SHAPES } from "../../../components/flipbook/graphics";
 import { Backdrop, InfinityWorld, backdropStyle, paintBackdrop, worldBox } from "../../../components/infinity/InfinityWorld";
 import { CustomSelect } from "../../../components/ui/custom-select";
 import { BOOK_FONTS, bookLink, getFlipbook, loadBookFonts, prepareImage, saveFlipbook, uid, uploadBookFile, videoSource, type BookAnimation, type BookElement, type Flipbook, type TextElement } from "../../../lib/flipbooks";
 import { FRAME_STROKES, childrenOf, containedIn, fitCamera, flightAt, frameAt, overviewRect, parentOf, pathSteps, ringFrame, stepRange, worldTransform, type Camera, type InfinityCanvas, type InfinityFrame, type Rect } from "../../../lib/infinity";
 import { InfinityAiPanel, InfinityTextAi } from "./InfinityAi";
+import { VideoEditor } from "../book-editor/BookEditorInspector";
+import "../book-editor/BookEditor.css";
 import "./InfinityEditor.css";
 
 type Selection = { kind: "frame" | "element"; id: string } | null;
@@ -84,6 +86,11 @@ export default function InfinityEditor() {
   useEffect(() => { localStorage.setItem("ie-grid", showGrid ? "on" : "off"); }, [showGrid]);
   useEffect(() => { localStorage.setItem("ie-spell", spell ? "on" : "off"); }, [spell]);
   const clip = useRef<{ frames: InfinityFrame[]; elements: BookElement[] } | null>(null);
+  /** The video being played inside the editor, to check the range and the crop. */
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  useEffect(() => { setPlayingVideo((id) => (id && selection?.id === id ? id : null)); }, [selection]);
+  const videoInput = useRef<HTMLInputElement>(null);
+  const videoTarget = useRef<string | null>(null);
   const current = useRef<Flipbook | null>(null);
   const past = useRef<Flipbook[]>([]);
   const future = useRef<Flipbook[]>([]);
@@ -446,6 +453,23 @@ export default function InfinityEditor() {
     }
   };
 
+  const pickVideo = (target: string | null) => { videoTarget.current = target; setMenu(null); videoInput.current?.click(); };
+  const onVideo = async (file: File) => {
+    setNotice("동영상을 올리는 중…");
+    try {
+      const url = await uploadBookFile(id, file);
+      const target = videoTarget.current;
+      if (target) updateElement(target, { src: url } as Partial<BookElement>);
+      else {
+        const { x, y, unit } = viewCentre();
+        addElement({ id: uid(), type: "video", src: url, fit: "cover", x: x - 320 * unit, y: y - 180 * unit, w: 640 * unit, h: 360 * unit, actions: [] });
+      }
+      setNotice("");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "동영상을 올리지 못했습니다.");
+    }
+  };
+
   /** Deleting a frame takes what is inside it too. */
   const removeItem = (target: Selection) => {
     if (!target || !current.current?.canvas) return;
@@ -602,8 +626,11 @@ export default function InfinityEditor() {
   const invisible = (frame: InfinityFrame) => !frame.stroke && (frame.fill === "transparent" || !frame.fill);
 
   const renderElement = (element: BookElement, body: ReactNode) => (
-    <div key={element.id} className={`ib-el fb-el--${element.type} ie-el`} style={worldBox(element)} data-ib-kind="element" data-ib-id={element.id} onDoubleClick={() => { if (element.type === "text") setEditingText(element.id); }}>
-      <div className="fb-el__in" style={editingText === element.id ? { visibility: "hidden" } : undefined}>{body}</div>
+    <div key={element.id} className={`ib-el fb-el--${element.type} ie-el${playingVideo === element.id ? " is-playing" : ""}`} style={worldBox(element)} data-ib-kind="element" data-ib-id={element.id}
+      onDoubleClick={() => { if (element.type === "text") setEditingText(element.id); if (element.type === "video") setPlayingVideo((id) => (id === element.id ? null : element.id)); }}>
+      <div className="fb-el__in" style={editingText === element.id ? { visibility: "hidden" } : undefined}>
+        {playingVideo === element.id ? <ElementBody element={{ ...element, autoPlay: true, controls: true } as BookElement} still={false} /> : body}
+      </div>
     </div>
   );
 
@@ -756,12 +783,18 @@ export default function InfinityEditor() {
             </section>
           )}
           {element.type === "video" && (
-            <section>
-              <h4>영상</h4>
-              <input className="ie-input" placeholder="유튜브, 비메오, MP4 주소" value={element.src} onChange={(event) => set({ src: event.target.value.trim() } as Partial<BookElement>, `src:${element.id}`)} />
-              {element.src && !videoSource(element.src) && <p className="ie-error">재생할 수 없는 주소입니다.</p>}
-              <p className="ie-hint">발표 화면에서 재생됩니다.</p>
-            </section>
+            <>
+              <section>
+                <div className="ie-row">
+                  <button type="button" className={`ie-btn${playingVideo === element.id ? " ie-btn--dark" : ""}`} disabled={!videoSource(element.src)} onClick={() => setPlayingVideo((id) => (id === element.id ? null : element.id))}>{playingVideo === element.id ? "재생 멈추기" : "편집 화면에서 재생"}</button>
+                  <button type="button" className="ie-btn" onClick={() => pickVideo(element.id)}><CloudUpload size={15} />MP4 올리기</button>
+                </div>
+                <p className="ie-hint">발표에서는 이 영상이 든 프레임에 도착해야 재생되고, 다른 곳으로 가면 멈춥니다.</p>
+              </section>
+              <div className="ie-video">
+                <VideoEditor element={element} slotRatio={element.w / element.h} patch={(next, key) => set(next as Partial<BookElement>, key ? `${key}:${element.id}` : undefined)} autoPlayLabel="프레임에 도착하면 자동 재생 (소리 없이)" />
+              </div>
+            </>
           )}
           <section>
             <h4>효과</h4>
@@ -872,7 +905,8 @@ export default function InfinityEditor() {
       <h5>미디어</h5>
       <div className="ie-tiles">
         {tile("이미지", <ImageIcon size={20} />, () => pickImage("new"))}
-        {tile("영상", <PlayCircle size={20} />, addVideo)}
+        {tile("영상 링크", <PlayCircle size={20} />, addVideo)}
+        {tile("MP4 올리기", <CloudUpload size={20} />, () => pickVideo(null))}
       </div>
       <h5>도형</h5>
       <div className="ie-shapes">
@@ -1030,6 +1064,7 @@ export default function InfinityEditor() {
                 <div className="ie-pop">
                   <button type="button" onClick={() => pickImage("new")}><ImageIcon size={16} />이미지 업로드</button>
                   <button type="button" onClick={addVideo}><PlayCircle size={16} />영상 링크</button>
+                  <button type="button" onClick={() => pickVideo(null)}><CloudUpload size={16} />동영상 올리기 (MP4)</button>
                 </div>
               )}
             </span>
@@ -1204,6 +1239,7 @@ export default function InfinityEditor() {
 
           <aside className="ie-right" aria-label="속성">{inspector}</aside>
         </div>
+        <input ref={videoInput} type="file" accept="video/mp4,video/webm" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onVideo(file); }} />
         <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onImage(file); }} />
       </div>
     </BookProvider>

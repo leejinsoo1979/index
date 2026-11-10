@@ -5,7 +5,7 @@ import { Map as MapIcon } from "lucide-react";
 import { BookProvider } from "../flipbook/BookPageView";
 import { BookPopup, useBookRuntime } from "../flipbook/BookRuntime";
 import { loadBookFonts, type Flipbook } from "../../lib/flipbooks";
-import { fitCamera, flightAt, frameAt, overviewRect, ownerFrame, pathSteps, worldTransform, type Camera } from "../../lib/infinity";
+import { containedIn, fitCamera, flightAt, frameAt, overviewRect, ownerFrame, pathSteps, worldTransform, type Camera } from "../../lib/infinity";
 import type { BookElement } from "../../lib/flipbooks";
 import { Backdrop, InfinityWorld, paintBackdrop } from "./InfinityWorld";
 import "./Infinity.css";
@@ -102,6 +102,16 @@ export default function InfinityViewer({ book, embedded = false }: { book: Flipb
   useEffect(() => loadBookFonts(canvas.elements.flatMap((element) => (element.type === "text" && element.font ? [element.font] : []))), [canvas]);
   useEffect(() => () => cancelAnimationFrame(flight.current), []);
 
+  // Videos play only inside the stop being shown (autoplaying if set); elsewhere they show a still, so they stop on leaving.
+  const liveVideo = useCallback((element: BookElement) => {
+    const owner = ownerFrame(canvas, element);
+    if (!owner) return 0; // not in any frame: always playable by hand
+    const here = steps[step]?.frame;
+    if (!here) return null;
+    const inside = owner && (owner.id === here.id || containedIn(owner, here));
+    return inside ? (arrivals[here.id] ?? 1) : null;
+  }, [steps, step, canvas, arrivals]);
+
   const goToPage = useCallback(() => undefined, []);
   const { runtime, popup, closePopup } = useBookRuntime(book, goToPage);
 
@@ -185,7 +195,7 @@ export default function InfinityViewer({ book, embedded = false }: { book: Flipb
     <BookProvider book={book}>
       <div ref={root} className="ibv" style={{ background: canvas.background, position: embedded ? "absolute" : "fixed" }} onPointerDown={onPointerDown}>
         <Backdrop canvas={canvas} backdropRef={backdrop} />
-        <InfinityWorld layerRef={layer} canvas={canvas} still={false} runtime={runtime} reveal={reveal} style={{ transform: worldTransform(camera.current, size.w, size.h) }} />
+        <InfinityWorld layerRef={layer} canvas={canvas} still={false} runtime={runtime} reveal={reveal} liveVideo={liveVideo} style={{ transform: worldTransform(camera.current, size.w, size.h) }} />
         <div className="ibv__bar">
           <button type="button" aria-label="이전" disabled={step <= OVERVIEW} onClick={() => go(step - 1)}><FiChevronLeft /></button>
           <span className="ibv__count" aria-live="polite">{step === OVERVIEW ? "개요" : `${step + 1} / ${total}`}</span>
