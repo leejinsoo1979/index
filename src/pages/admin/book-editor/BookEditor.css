@@ -54,9 +54,9 @@
 .be-body { flex: 1; min-height: 0; display: flex; }
 
 /* Left rail: the active item opens into the panel beside it, and its neighbours curve around it. */
-.be-rail { flex: none; display: flex; flex-direction: column; width: 76px; background: #f7f8f9; overflow-y: auto; scrollbar-width: none; }
-.be-rail button { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; height: 66px; padding: 0; border: 0; background: #262e39; font-size: 12px; color: #fff; cursor: pointer; }
-.be-rail button svg { width: 22px; height: 22px; stroke-width: 1.9; }
+.be-rail { flex: none; display: flex; flex-direction: column; width: 64px; background: #f7f8f9; overflow-y: auto; scrollbar-width: none; }
+.be-rail button { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 60px; padding: 0; border: 0; background: #262e39; font-size: 11px; color: #fff; cursor: pointer; }
+.be-rail button svg { width: 20px; height: 20px; stroke-width: 1.9; }
 .be-rail button:hover:not(.is-on) { background: #313a47; }
 .be-rail button.is-on { background: #f7f8f9; color: #1d2026; }
 .be-rail button:has(+ .is-on), .be-rail__fill:has(+ .is-on) { border-bottom-right-radius: 16px; }
@@ -123,7 +123,14 @@
 /* Canvas */
 .be-stagewrap { position: relative; flex: 1; min-width: 0; display: flex; }
 .be-stage { flex: 1; min-width: 0; display: flex; overflow: auto; }
-.be-canvas { display: flex; margin: auto; padding: 30px; }
+.be-canvas { display: flex; margin: auto; padding: 30px 30px 84px; }
+/* Page turning under the book */
+.be-pagebar { position: absolute; bottom: 20px; left: 50%; z-index: 5; display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; border-radius: 22px; background: #fff; box-shadow: 0 4px 18px rgba(16, 20, 30, .16); transform: translateX(-50%); white-space: nowrap; }
+.be-pagebar button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: none; font-size: 19px; color: #2c323c; cursor: pointer; }
+.be-pagebar button:hover:not(:disabled) { background: #eef0f3; }
+.be-pagebar button:disabled { color: #c4c8cf; cursor: default; }
+.be-pagebar__count { min-width: 84px; padding: 0 8px; font-size: 13.5px; color: #6b7079; text-align: center; font-variant-numeric: tabular-nums; }
+.be-pagebar__count b { font-weight: 650; color: #17181c; }
 .be-pagewrap { position: relative; flex: none; background: #fff; outline: 1px dashed #3d424c; box-shadow: 0 1px 8px rgba(16, 20, 30, .14); container-type: size; }
 .be-el { cursor: move; touch-action: none; }
 .be-el.fb-el--link { background: transparent; box-shadow: none; }
@@ -152,12 +159,6 @@
 .be-textedit { position: absolute; z-index: 3; margin: 0; padding: 0; border: 0; outline: 1.5px solid #3f8ff0; background: rgba(255, 255, 255, .55); font-family: inherit; line-height: 1.32; resize: none; overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
 
 .be-collapse { position: absolute; left: 0; bottom: 150px; z-index: 5; display: grid; place-items: center; width: 18px; height: 62px; padding: 0; border: 0; border-radius: 0 10px 10px 0; background: #f7f8f9; font-size: 15px; color: #1d2026; cursor: pointer; }
-.be-side { position: absolute; top: 50%; z-index: 5; display: flex; flex-direction: column; width: 40px; margin-top: -58px; border-radius: 9px; background: rgba(214, 217, 222, .62); overflow: hidden; }
-.be-side--left { left: 16px; }
-.be-side--right { right: 10px; }
-.be-side button { display: grid; place-items: center; height: 72px; padding: 0; border: 0; background: none; font-size: 24px; color: #2c323c; cursor: pointer; }
-.be-side button:hover { background: rgba(190, 195, 203, .8); }
-.be-side button + button { height: 44px; font-size: 18px; border-top: 1px solid rgba(255, 255, 255, .6); }
 
 /* Tool strip */
 .be-strip { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 54px; padding-top: 14px; background: #f7f8f9; border-left: 1px solid #e2e4e8; }

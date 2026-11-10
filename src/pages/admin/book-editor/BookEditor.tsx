@@ -8,6 +8,8 @@ import { ChevronFirst, ChevronLast, CircleEllipsis, CirclePlay, CloudCheck, Clou
 import { FiBookOpen, FiChevronLeft, FiChevronRight, FiCopy, FiExternalLink, FiLayers, FiMenu, FiMousePointer, FiPlay, FiRotateCcw, FiRotateCw } from "react-icons/fi";
 import { BookProvider } from "../../../components/flipbook/BookPageView";
 import { BookPopup, useBookRuntime } from "../../../components/flipbook/BookRuntime";
+import PaperBook, { type PaperBookControls } from "../../../components/flipbook/PaperBook";
+import { resolveBookReaderSettings } from "../../../lib/book-reader";
 import { BOOK_FONTS, bookLink, buildSpreads, loadBookFonts, spreadOfPage, uid, type BookElement } from "../../../lib/flipbooks";
 import { AiWriterPanel } from "./BookEditorAi";
 import { PageCanvas, TextToolbar } from "./BookEditorCanvas";
@@ -47,6 +49,17 @@ export default function BookEditor() {
   const [zoom, setZoom] = useState("fit");
   const [spreadView, setSpreadView] = useState(true); // books are read two pages at a time
   const [preview, setPreview] = useState(false);
+  // While a page turns, the preview's paper engine stands in for the editable pages.
+  const [turning, setTurning] = useState<{ direction: 1 | -1; from: number; target: number } | null>(null);
+  const paperControls = useRef<PaperBookControls | null>(null);
+  const turnFallback = useRef(() => {});
+  useEffect(() => {
+    if (!turning) return;
+    const frame = requestAnimationFrame(() => paperControls.current?.go(turning.direction));
+    // If the engine never reports landing (it refused the turn), the page still changes.
+    const timer = window.setTimeout(() => turnFallback.current(), 4000);
+    return () => { cancelAnimationFrame(frame); window.clearTimeout(timer); };
+  }, [turning]);
   const [menu, setMenu] = useState<"file" | "share" | "layers" | null>(null);
   const [copied, setCopied] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
@@ -131,6 +144,22 @@ export default function BookEditor() {
 
   const step = spreadView ? 2 : 1;
   const go = (target: number) => goToPage(Math.min(book.pages.length - 1, Math.max(0, target)));
+
+  /** 이전·다음 turns the page the way the preview does; the editable pages come back when it lands. */
+  const turnDuration = resolveBookReaderSettings(book.reader).duration;
+  const turnPage = (direction: 1 | -1) => {
+    const target = pageIndex + step * direction;
+    if (target < 0 || target > book.pages.length - 1) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (turning || preview || reduced) { go(target); return; }
+    ed.setSelectedId(null);
+    setTurning({ direction, from: pageIndex, target });
+  };
+  const finishTurn = (landed: number) => {
+    setTurning(null);
+    go(landed);
+  };
+  turnFallback.current = () => { if (turning) finishTurn(turning.target); };
   const addLink = () => {
     const elementId = uid();
     ed.addElement({ id: elementId, type: "link", x: 35, y: 46, w: 30, h: 8, actions: [{ kind: "url", url: "" }] }, pageIndex);
@@ -200,17 +229,32 @@ export default function BookEditor() {
           <button type="button" className="be-collapse" aria-label={panelOpen ? "패널 접기" : "패널 펼치기"} onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? <FiChevronLeft /> : <FiChevronRight />}</button>
           <div ref={stage} className="be-stage" onPointerDown={(event) => { if (event.target === event.currentTarget) ed.setSelectedId(null); }}>
             <div className="be-canvas" onPointerDown={(event) => { if (event.target === event.currentTarget) ed.setSelectedId(null); }}>
-              {spreadView && spread ? <div className="be-spread">{spread.left !== null && renderPage(spread.left)}{spread.right !== null && renderPage(spread.right)}</div> : renderPage(pageIndex)}
+              {turning ? (
+                <PaperBook
+                  book={book} width={pageWidth} height={pageHeight} single={!spreadView} duration={turnDuration}
+                  page={spreadView && spread ? spread.left ?? spread.right ?? 0 : pageIndex}
+                  controls={paperControls} runtime={runtime}
+                  onPage={(index) => { if ((spreadView ? spreadOfPage(index) !== spreadOfPage(turning.from) : index !== turning.from)) finishTurn(index); }}
+                  onTurn={() => {}}
+                />
+              ) : spreadView && spread ? <div className="be-spread">{spread.left !== null && renderPage(spread.left)}{spread.right !== null && renderPage(spread.right)}</div> : renderPage(pageIndex)}
             </div>
           </div>
-          <div className="be-side be-side--left">
-            <button type="button" aria-label="이전" onClick={() => go(pageIndex - step)}><FiChevronLeft /></button>
-            <button type="button" aria-label="처음으로" onClick={() => go(0)}><ChevronFirst size={20} /></button>
-          </div>
-          <div className="be-side be-side--right">
-            <button type="button" aria-label="다음" onClick={() => go(pageIndex + step)}><FiChevronRight /></button>
-            <button type="button" aria-label="끝으로" onClick={() => go(book.pages.length - 1)}><ChevronLast size={20} /></button>
-          </div>
+          {(() => {
+            // Page turning under the book, with the pages in view and the total.
+            const shown = spreadView && spread ? [spread.left, spread.right].filter((page): page is number => page !== null) : [pageIndex];
+            const first = Math.min(...shown);
+            const last = Math.max(...shown);
+            return (
+              <nav className="be-pagebar" aria-label="페이지 넘기기">
+                <button type="button" aria-label="처음으로" title="처음으로" disabled={first === 0} onClick={() => go(0)}><ChevronFirst size={18} /></button>
+                <button type="button" aria-label="이전" title="이전" disabled={first === 0} onClick={() => turnPage(-1)}><FiChevronLeft /></button>
+                <span className="be-pagebar__count"><b>{first === last ? first + 1 : `${first + 1}–${last + 1}`}</b> / {book.pages.length}</span>
+                <button type="button" aria-label="다음" title="다음" disabled={last >= book.pages.length - 1} onClick={() => turnPage(1)}><FiChevronRight /></button>
+                <button type="button" aria-label="끝으로" title="끝으로" disabled={last >= book.pages.length - 1} onClick={() => go(book.pages.length - 1)}><ChevronLast size={18} /></button>
+              </nav>
+            );
+          })()}
           {selected?.type === "text" && multi.length === 1 && !preview && <TextToolbar ed={ed} element={selected} />}
           {selected && selected.type !== "text" && multi.length === 1 && !preview && <BookElementToolbar key={selected.id} ed={ed} element={selected} />}
           {popup && <BookPopup action={popup} onClose={closePopup} />}
