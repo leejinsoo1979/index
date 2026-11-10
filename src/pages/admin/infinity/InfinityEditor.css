@@ -357,3 +357,13 @@
 .ie-video section { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-bottom: 1px solid #eceef2; }
 .ie-video h4 { margin: 4px 0 0; font-size: 13.5px; font-weight: 700; }
 .ie-el.is-playing { cursor: default; }
+/* Edge handles: a short bar at the middle of each side. */
+.ie-handle--n, .ie-handle--s { left: 50%; width: calc(22px * var(--inv, 1)); height: calc(8px * var(--inv, 1)); margin: calc(-4.5px * var(--inv, 1)) 0 0 calc(-11px * var(--inv, 1)); border-radius: calc(4px * var(--inv, 1)); cursor: ns-resize; }
+.ie-handle--n { top: 0; }
+.ie-handle--s { top: 100%; }
+.ie-handle--e, .ie-handle--w { top: 50%; width: calc(8px * var(--inv, 1)); height: calc(22px * var(--inv, 1)); margin: calc(-11px * var(--inv, 1)) 0 0 calc(-4.5px * var(--inv, 1)); border-radius: calc(4px * var(--inv, 1)); cursor: ew-resize; }
+.ie-handle--w { left: 0; }
+.ie-handle--e { left: 100%; }
+/* Group selection and the selection box */
+.ie-selection--multi { border-style: solid; border-color: #2fae5b; background: rgba(47, 174, 91, .06); }
+.ie-marquee { position: absolute; box-sizing: border-box; border: calc(1px * var(--inv, 1)) solid #2f5be0; background: rgba(47, 91, 224, .08); pointer-events: none; }

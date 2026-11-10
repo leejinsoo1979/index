@@ -19,7 +19,8 @@ import "../book-editor/BookEditor.css";
 import "./InfinityEditor.css";
 
 type Selection = { kind: "frame" | "element"; id: string } | null;
-type Corner = "nw" | "ne" | "sw" | "se";
+/** Corner handles, and edge handles (n, s, e, w) that change one side only. */
+type Corner = "nw" | "ne" | "sw" | "se" | "n" | "s" | "e" | "w";
 type MenuName = "main" | "public" | "add" | "text" | "media" | "shape" | "story" | "animation" | "more" | "present" | "share" | null;
 const HISTORY = 80;
 const SAVE_DELAY = 900;
@@ -88,6 +89,10 @@ export default function InfinityEditor() {
   const clip = useRef<{ frames: InfinityFrame[]; elements: BookElement[] } | null>(null);
   /** The video being played inside the editor, to check the range and the crop. */
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  /** Several items picked at once (drag a box on the empty canvas, Shift+click, or Cmd+A). */
+  const [multi, setMulti] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<Rect | null>(null);
+  const spaceHeld = useRef(false);
   useEffect(() => { setPlayingVideo((id) => (id && selection?.id === id ? id : null)); }, [selection]);
   const videoInput = useRef<HTMLInputElement>(null);
   const videoTarget = useRef<string | null>(null);
@@ -293,11 +298,12 @@ export default function InfinityEditor() {
   };
 
   const onStagePointerDown = (event: React.PointerEvent) => {
-    if (event.button !== 0 || !current.current?.canvas) return;
+    if ((event.button !== 0 && event.button !== 1) || !current.current?.canvas) return;
     const target = event.target as HTMLElement;
     if (target.closest(".ie-ctx, .ie-textedit")) return;
     cancelAnimationFrame(flight.current);
-    if (tool === "hand") { pan(event); return; }
+    // The hand tool, the middle button or a held space bar move the view; otherwise dragging the empty canvas draws a selection box.
+    if (tool === "hand" || event.button === 1 || spaceHeld.current) { event.preventDefault(); pan(event); return; }
     const handle = target.closest<HTMLElement>("[data-corner]");
     const before = current.current;
     const canvas = before.canvas!;
@@ -319,7 +325,8 @@ export default function InfinityEditor() {
         if (corner.includes("w")) { w = Math.max(20, box.w - dx); x = box.x + box.w - w; }
         if (corner.includes("s")) h = Math.max(20, box.h + dy);
         if (corner.includes("n")) { h = Math.max(20, box.h - dy); y = box.y + box.h - h; }
-        if (keepRatio) { h = w / ratio; if (corner.includes("n")) y = box.y + box.h - h; }
+        // Corners keep a photo's or a circle's shape; edges always stretch one side (a photo is then cropped to fill).
+        if (keepRatio && corner.length === 2) { h = w / ratio; if (corner.includes("n")) y = box.y + box.h - h; }
         drag((open) => selection.kind === "frame"
           ? { ...open, frames: open.frames.map((f) => (f.id === selection.id ? { ...f, x, y, w, h } : f)) }
           : { ...open, elements: open.elements.map((e) => (e.id === selection.id ? ({ ...e, x, y, w, h } as BookElement) : e)) });
@@ -335,12 +342,25 @@ export default function InfinityEditor() {
 
     if (hit) {
       const { kind, id: hitId } = hit;
-      setSelection({ kind, id: hitId });
+      if (event.shiftKey && tool === "select") {
+        // Shift+click adds to (or takes out of) the group.
+        const base = multi.length ? multi : selection ? [selection.id] : [];
+        const next = base.includes(hitId) ? base.filter((id) => id !== hitId) : [...base, hitId];
+        if (next.length === 1) { const one = next[0]; setMulti([]); setSelection({ kind: canvas.frames.some((f) => f.id === one) ? "frame" : "element", id: one }); }
+        else { setMulti(next); setSelection(null); }
+        return;
+      }
+      const group = multi.includes(hitId) ? multi : [];
+      if (!group.length) { setMulti([]); setSelection({ kind, id: hitId }); }
       if (editingText === hitId) return;
       setEditingText(null);
-      // A frame carries what lies inside it.
-      const frame = kind === "frame" ? canvas.frames.find((f) => f.id === hitId)! : null;
-      const carried = frame ? new Set([...canvas.elements.filter((e) => containedIn(e, frame)).map((e) => e.id), ...canvas.frames.filter((f) => f.id !== hitId && containedIn(f, frame)).map((f) => f.id)]) : new Set<string>();
+      // A frame carries what lies inside it; a group moves together, frames in it with their contents.
+      const movers = group.length ? group : [hitId];
+      const carried = new Set<string>(movers);
+      canvas.frames.filter((f) => movers.includes(f.id)).forEach((frame) => {
+        canvas.elements.forEach((e) => { if (containedIn(e, frame)) carried.add(e.id); });
+        canvas.frames.forEach((f) => { if (f.id !== frame.id && containedIn(f, frame)) carried.add(f.id); });
+      });
       const origin = new Map([...canvas.frames, ...canvas.elements].map((item) => [item.id, { x: item.x, y: item.y }]));
       let moved = false;
       follow((move) => {
@@ -353,7 +373,26 @@ export default function InfinityEditor() {
       }, () => remember(before));
       return;
     }
-    pan(event, () => { setSelection(null); setEditingText(null); });
+    // Empty canvas: draw a selection box; what lies wholly inside it is selected. A plain click clears.
+    const start = toWorld(event.clientX, event.clientY);
+    let dragged = false;
+    let box: Rect | null = null;
+    follow((move) => {
+      if (!dragged && Math.hypot(move.clientX - startX, move.clientY - startY) < 4) return;
+      dragged = true;
+      const end = toWorld(move.clientX, move.clientY);
+      box = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) };
+      setMarquee(box);
+    }, () => {
+      setMarquee(null);
+      setEditingText(null);
+      if (!dragged || !box) { setSelection(null); setMulti([]); return; }
+      const r = box as Rect;
+      const inside = (b: Rect) => b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h;
+      const picked = [...canvas.frames.filter(inside).map((f) => ({ kind: "frame" as const, id: f.id })), ...canvas.elements.filter(inside).map((e) => ({ kind: "element" as const, id: e.id }))];
+      if (picked.length === 1) { setMulti([]); setSelection(picked[0]); }
+      else { setSelection(null); setMulti(picked.map((p) => p.id)); }
+    });
   };
 
   /** Double-clicking a frame goes into it, like opening a topic in the path. */
@@ -568,8 +607,26 @@ export default function InfinityEditor() {
     }));
   };
 
-  const stateRef = useRef({ selection, undo, redo, removeItem, duplicateItem, flush, goStep, step, copyItem, cutItem, pasteItems });
-  stateRef.current = { selection, undo, redo, removeItem, duplicateItem, flush, goStep, step, copyItem, cutItem, pasteItems };
+  /* ---------- groups ---------- */
+  const groupItems = (ids: string[]) => {
+    const canvas = current.current?.canvas;
+    if (!canvas) return { frames: [] as InfinityFrame[], elements: [] as BookElement[] };
+    const frames = canvas.frames.filter((f) => ids.includes(f.id));
+    const keep = new Set(ids);
+    frames.forEach((frame) => { canvas.elements.forEach((e) => { if (containedIn(e, frame)) keep.add(e.id); }); canvas.frames.forEach((f) => { if (containedIn(f, frame)) keep.add(f.id); }); });
+    return { frames: canvas.frames.filter((f) => keep.has(f.id)), elements: canvas.elements.filter((e) => keep.has(e.id)) };
+  };
+  const removeGroup = (ids: string[]) => {
+    const { frames, elements } = groupItems(ids);
+    const gone = new Set([...frames, ...elements].map((item) => item.id));
+    commit((canvas) => ({ ...canvas, frames: canvas.frames.filter((f) => !gone.has(f.id)), elements: canvas.elements.filter((e) => !gone.has(e.id)) }));
+    setMulti([]);
+  };
+  const copyGroup = (ids: string[]) => { clip.current = groupItems(ids); setNotice(`${ids.length}개를 복사했습니다.`); window.setTimeout(() => setNotice(""), 1200); };
+  const selectAll = () => { const canvas = current.current?.canvas; if (!canvas) return; setSelection(null); setMulti([...canvas.frames.map((f) => f.id), ...canvas.elements.map((e) => e.id)]); };
+
+  const stateRef = useRef({ selection, undo, redo, removeItem, duplicateItem, flush, goStep, step, copyItem, cutItem, pasteItems, multi, removeGroup, copyGroup, selectAll });
+  stateRef.current = { selection, undo, redo, removeItem, duplicateItem, flush, goStep, step, copyItem, cutItem, pasteItems, multi, removeGroup, copyGroup, selectAll };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const api = stateRef.current;
@@ -580,9 +637,17 @@ export default function InfinityEditor() {
       if (command && event.key.toLowerCase() === "y") { event.preventDefault(); api.redo(); return; }
       if (command && event.key.toLowerCase() === "f") { event.preventDefault(); setFindOpen(true); return; }
       if (command && event.key.toLowerCase() === "v") { event.preventDefault(); api.pasteItems(); return; }
+      if (command && event.key.toLowerCase() === "a") { event.preventDefault(); api.selectAll(); return; }
+      if (api.multi.length) {
+        if (command && event.key.toLowerCase() === "c") { event.preventDefault(); api.copyGroup(api.multi); return; }
+        if (command && event.key.toLowerCase() === "x") { event.preventDefault(); api.copyGroup(api.multi); api.removeGroup(api.multi); return; }
+        if (command && event.key.toLowerCase() === "d") { event.preventDefault(); api.copyGroup(api.multi); api.pasteItems(); return; }
+        if (event.key === "Delete" || event.key === "Backspace") { event.preventDefault(); api.removeGroup(api.multi); return; }
+        if (event.key === "Escape") { setMulti([]); return; }
+      }
       if (command && event.key.toLowerCase() === "c" && api.selection) { event.preventDefault(); api.copyItem(api.selection); return; }
       if (command && event.key.toLowerCase() === "x" && api.selection) { event.preventDefault(); api.cutItem(api.selection); return; }
-      if (event.key === "Escape") { setSelection(null); setMenu(null); setEditingText(null); return; }
+      if (event.key === "Escape") { setSelection(null); setMulti([]); setMenu(null); setEditingText(null); return; }
       if (!api.selection || api.selection.kind === "frame") {
         if (event.key === "ArrowRight") { api.goStep(api.step + 1); return; }
         if (event.key === "ArrowLeft") { api.goStep(api.step - 1); return; }
@@ -593,6 +658,14 @@ export default function InfinityEditor() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // Holding the space bar turns dragging into moving the view, as in most design tools.
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => { if (event.code === "Space" && !isTyping(event.target)) { spaceHeld.current = true; event.preventDefault(); } };
+    const up = (event: KeyboardEvent) => { if (event.code === "Space") spaceHeld.current = false; };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, []);
 
   /* ---------- path list drag: reorder among siblings ---------- */
@@ -1167,9 +1240,14 @@ export default function InfinityEditor() {
                 <textarea className="ie-textedit" autoFocus spellCheck={spell} value={editing.text} style={{ ...worldBox(editing), ...textStyle(editing) }}
                   onChange={(event) => updateElement(editing.id, { text: event.target.value } as Partial<BookElement>, `text:${editing.id}`)} onKeyDown={(event) => { if (event.key === "Escape") setEditingText(null); event.stopPropagation(); }} />
               )}
+              {multi.map((id) => {
+                const item = canvas.frames.find((f) => f.id === id) ?? canvas.elements.find((e) => e.id === id);
+                return item ? <div key={id} className="ie-selection ie-selection--multi" style={worldBox(item)} /> : null;
+              })}
+              {marquee && <div className="ie-marquee" style={worldBox(marquee)} />}
               {selectedBox && !editing && (
                 <div className={`ie-selection${selectedFrame?.shape === "circle" && !invisible(selectedFrame) ? " ie-selection--circle" : ""}`} style={worldBox(selectedBox)}>
-                  {(["nw", "ne", "sw", "se"] as Corner[]).map((corner) => <i key={corner} className={`ie-handle ie-handle--${corner}`} data-corner={corner} />)}
+                  {((selectedFrame?.shape === "circle" ? ["nw", "ne", "sw", "se"] : ["nw", "ne", "sw", "se", "n", "s", "e", "w"]) as Corner[]).map((corner) => <i key={corner} className={`ie-handle ie-handle--${corner}`} data-corner={corner} />)}
                 </div>
               )}
             </InfinityWorld>
@@ -1205,7 +1283,8 @@ export default function InfinityEditor() {
               <div className="ie-help" onPointerDown={(event) => event.stopPropagation()}>
                 <header><strong>도움말</strong><button type="button" aria-label="닫기" onClick={() => setHelpOpen(false)}><FiX /></button></header>
                 <dl>
-                  <dt>이동</dt><dd>빈 곳 끌기, 스크롤</dd>
+                  <dt>화면 이동</dt><dd>스크롤, 스페이스 누른 채 끌기, 손 도구</dd>
+                  <dt>여러 개 선택</dt><dd>빈 곳 끌기, Shift+클릭, Cmd+A</dd>
                   <dt>확대·축소</dt><dd>Ctrl/Cmd + 스크롤, 핀치</dd>
                   <dt>프레임 안으로</dt><dd>프레임 더블클릭</dd>
                   <dt>텍스트 고치기</dt><dd>텍스트 더블클릭</dd>
