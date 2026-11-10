@@ -104,8 +104,10 @@ export default function InfinityViewer({ book, embedded = false }: { book: Flipb
 
   // Videos play only inside the stop being shown (autoplaying if set); elsewhere they show a still, so they stop on leaving.
   const liveVideo = useCallback((element: BookElement) => {
-    const owner = ownerFrame(canvas, element);
-    if (!owner) return 0; // not in any frame: always playable by hand
+    // The frame holding the video, or failing that the one it overlaps most; videos touching no frame never start.
+    const overlap = (f: { x: number; y: number; w: number; h: number }) => Math.max(0, Math.min(f.x + f.w, element.x + element.w) - Math.max(f.x, element.x)) * Math.max(0, Math.min(f.y + f.h, element.y + element.h) - Math.max(f.y, element.y));
+    const owner = ownerFrame(canvas, element) ?? [...canvas.frames].sort((a, b) => overlap(b) - overlap(a)).find((f) => overlap(f) > 0) ?? null;
+    if (!owner) return null;
     const here = steps[step]?.frame;
     if (!here) return null;
     const inside = owner && (owner.id === here.id || containedIn(owner, here));
