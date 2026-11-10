@@ -84,7 +84,7 @@ async function readStore(): Promise<Store> {
 async function writeStore(store: Store) {
   const saved = await r2("PUT", STORE_KEY, JSON.stringify(store), "application/json");
   if (!saved.ok) throw httpError(503, `저장하지 못했습니다 (${saved.status}).`);
-  cached = { at: Date.now(), store };
+  cached = { at: Date.now(), store, endpoint: cached?.endpoint ?? null };
 }
 
 // The Vercel values, remembered before any override, so removing an admin value restores them.
@@ -93,7 +93,7 @@ const remember = (name: string) => {
   if (!baseline.has(name)) baseline.set(name, process.env[name]);
 };
 
-let cached: { at: number; store: Store } | null = null;
+let cached: { at: number; store: Store; endpoint: Endpoint | null } | null = null;
 const managedNames = (store: Store) => [...MANAGED_KEYS.map((item) => item.name), ...store.custom.map((item) => item.name)];
 
 function restore(name: string) {
@@ -112,11 +112,52 @@ function apply(store: Store) {
   }
 }
 
+/**
+ * Where the INDEX knowledge server can be reached when it isn't set in Vercel: published by
+ * scripts/knowledge-tunnel.mjs on the Mac that runs it. The token is sealed with a key derived
+ * from the bucket secret, which both sides already hold.
+ */
+type Endpoint = { url: string | null; token: string | null; updatedAt: string };
+const ENDPOINT_KEY = "config/knowledge-endpoint.json";
+const endpointCipher = () => createHash("sha256").update(`index-knowledge-endpoint:${process.env.FLOORPLAN_R2_SECRET_ACCESS_KEY ?? ""}`).digest();
+function openEndpointToken(payload: string): string | null {
+  try {
+    const [iv, tag, data] = payload.split(".").map((part) => Buffer.from(part, "base64"));
+    const decipher = createDecipheriv("aes-256-gcm", endpointCipher(), iv!);
+    decipher.setAuthTag(tag!);
+    return Buffer.concat([decipher.update(data!), decipher.final()]).toString("utf8");
+  } catch {
+    return null;
+  }
+}
+async function readEndpoint(): Promise<Endpoint | null> {
+  const response = await r2("GET", ENDPOINT_KEY).catch(() => null);
+  return response?.ok ? ((await response.json()) as Endpoint) : null;
+}
+function applyEndpoint(endpoint: Endpoint | null) {
+  for (const name of ["INDEX_WIKI_URL", "WIKI_SERVICE_TOKEN"]) remember(name);
+  // A Vercel value or an admin-registered one wins; the published tunnel only fills the gap.
+  if (baseline.get("INDEX_WIKI_URL") || cached?.store.keys.INDEX_WIKI_URL) return;
+  const token = endpoint?.url && endpoint.token ? openEndpointToken(endpoint.token) : null;
+  if (endpoint?.url && token) {
+    process.env.INDEX_WIKI_URL = endpoint.url;
+    process.env.WIKI_SERVICE_TOKEN = token;
+  } else {
+    restore("INDEX_WIKI_URL");
+    restore("WIKI_SERVICE_TOKEN");
+  }
+}
+
 /** Puts admin-registered keys into process.env for this request. Never throws: Vercel values still work. */
 export async function applyManagedKeys(): Promise<void> {
   try {
-    if (!cached || Date.now() - cached.at > 60_000) cached = { at: Date.now(), store: await readStore() };
+    // 30s, so a restarted tunnel's new address is picked up quickly.
+    if (!cached || Date.now() - cached.at > 30_000) {
+      const [store, endpoint] = await Promise.all([readStore(), readEndpoint()]);
+      cached = { at: Date.now(), store, endpoint };
+    }
     apply(cached.store);
+    applyEndpoint(cached.endpoint);
   } catch (error) {
     console.warn("[api-keys] using server values only", error instanceof Error ? error.message : error);
   }
@@ -124,7 +165,7 @@ export async function applyManagedKeys(): Promise<void> {
 
 export async function apiKeyStatus() {
   const store = await readStore();
-  cached = { at: Date.now(), store };
+  cached = { at: Date.now(), store, endpoint: cached?.endpoint ?? null };
   for (const name of managedNames(store)) remember(name);
   const row = (item: Item | Custom, custom: boolean) => {
     const stored = store.keys[item.name];
